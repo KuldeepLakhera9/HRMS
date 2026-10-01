@@ -12,6 +12,7 @@ export const envSchema = z.object({
   // Database Connections (PostgreSQL)
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   DATABASE_APP_URL: z.string().min(1, 'DATABASE_APP_URL is required'),
+  DATABASE_WORKER_URL: z.string().optional(),
   DATABASE_OWNER_URL: z.string().min(1, 'DATABASE_OWNER_URL is required'),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
 
