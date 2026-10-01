@@ -21,7 +21,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "migrate": "node --loader ts-node/esm src/migrate.ts"
+    "migrate": "tsx src/migrate.ts"
   },
   "dependencies": {
     "@hrms/config": "workspace:*",
@@ -32,6 +32,7 @@
   "devDependencies": {
     "@types/pg": "^8.11.11",
     "drizzle-kit": "^0.30.5",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.2"
   }
 }

@@ -71,8 +71,11 @@ export async function runMigrations(poolOverride?: pg.Pool): Promise<void> {
   }
 }
 
-// Allow direct execution: node dist/migrate.js
-if (process.argv[1] && process.argv[1].endsWith('migrate.js')) {
+// Allow direct execution: node dist/migrate.js or tsx src/migrate.ts
+if (
+  process.argv[1] &&
+  (process.argv[1].endsWith('migrate.js') || process.argv[1].endsWith('migrate.ts'))
+) {
   runMigrations()
     .then(() => process.exit(0))
     .catch(err => {
