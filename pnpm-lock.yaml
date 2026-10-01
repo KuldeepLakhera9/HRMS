@@ -350,6 +350,9 @@ importers:
       '@hrms/shared':
         specifier: workspace:*
         version: link:../shared
+      '@node-rs/argon2':
+        specifier: ^2.2.1
+        version: 2.2.1
       drizzle-orm:
         specifier: ^0.38.4
         version: 0.38.4(@types/pg@8.23.1)(@types/react@19.3.0)(pg@8.23.0)(react@19.3.0)

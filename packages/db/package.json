@@ -21,11 +21,13 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "migrate": "tsx src/migrate.ts"
+    "migrate": "tsx src/migrate.ts",
+    "seed": "tsx src/seed.ts"
   },
   "dependencies": {
     "@hrms/config": "workspace:*",
     "@hrms/shared": "workspace:*",
+    "@node-rs/argon2": "^2.2.1",
     "drizzle-orm": "^0.38.4",
     "pg": "^8.13.3"
   },
