@@ -13,6 +13,7 @@
     "dev:web": "pnpm --filter @hrms/web dev",
     "dev:worker": "pnpm --filter @hrms/worker dev",
     "db:migrate": "pnpm --filter @hrms/db migrate",
+    "db:seed": "pnpm --filter @hrms/db seed",
     "build": "turbo run build",
     "lint": "eslint .",
     "typecheck": "turbo run typecheck",
