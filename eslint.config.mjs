@@ -39,14 +39,25 @@ export default tseslint.config(
               message:
                 'Direct pg Pool instantiation is only permitted in packages/db/src/client.ts.',
             },
+            {
+              name: '@hrms/db/schema',
+              message:
+                'Direct Drizzle table schema imports are restricted to repository implementations and packages/db per AGENTS.md.',
+            },
           ],
         },
       ],
     },
   },
   {
-    // Allow pg Pool in packages/db
-    files: ['packages/db/src/**/*.ts', 'tests/**/*.ts'],
+    // Allow pg Pool and @hrms/db/schema in db, module schemas, repositories, and test suites
+    files: [
+      'packages/db/src/**/*.ts',
+      'packages/core/**/schema.ts',
+      'packages/core/**/repository.ts',
+      'packages/core/**/*repository*.ts',
+      'tests/**/*.ts',
+    ],
     rules: {
       'no-restricted-imports': 'off',
     },
