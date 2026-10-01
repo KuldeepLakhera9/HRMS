@@ -35,12 +35,12 @@ export function getLastSeenCacheKey(sessionId: string): string {
 export async function createSession(params: {
   companyId: string;
   userId: string;
-  clientType?: 'web' | 'mobile' | 'api';
-  ip?: string;
-  userAgent?: string;
-  deviceLabel?: string;
-  mfaVerified?: boolean;
-  poolOverride?: pg.Pool;
+  clientType?: 'web' | 'mobile' | 'api' | undefined;
+  ip?: string | undefined;
+  userAgent?: string | undefined;
+  deviceLabel?: string | undefined;
+  mfaVerified?: boolean | undefined;
+  poolOverride?: pg.Pool | undefined;
 }): Promise<{ sessionId: string; rawToken: string; sessionData: SessionData }> {
   const rawToken = generateSecureToken(32);
   const tokenHash = hashToken(rawToken);

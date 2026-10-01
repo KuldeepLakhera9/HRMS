@@ -1,6 +1,7 @@
 export * from './logger/index.js';
 export {
   defineRoute,
+  createNextRoute,
   type RouteDefinition,
   type RequestContext,
 } from './routing/index.js';

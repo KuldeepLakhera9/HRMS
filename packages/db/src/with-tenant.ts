@@ -5,11 +5,11 @@ import * as schema from './schema/index.js';
 
 export interface TenantContext {
   companyId: string;
-  userId?: string;
-  employeeId?: string;
-  roles?: string[];
-  permissions?: string[];
-  requestId?: string;
+  userId?: string | undefined;
+  employeeId?: string | undefined;
+  roles?: string[] | undefined;
+  permissions?: string[] | undefined;
+  requestId?: string | undefined;
 }
 
 export type DrizzleTransaction = NodePgDatabase<typeof schema>;
@@ -26,7 +26,7 @@ export type DrizzleTransaction = NodePgDatabase<typeof schema>;
 export async function withTenant<T>(
   ctx: TenantContext,
   fn: (tx: DrizzleTransaction, client: pg.PoolClient) => Promise<T>,
-  poolOverride?: pg.Pool,
+  poolOverride?: pg.Pool | undefined,
 ): Promise<T> {
   const pool = poolOverride ?? getAppPool();
   const client = await pool.connect();

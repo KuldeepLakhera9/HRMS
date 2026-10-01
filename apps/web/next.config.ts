@@ -7,12 +7,16 @@ const nextConfig: NextConfig = {
       ? 'standalone'
       : undefined,
   transpilePackages: ['@hrms/config', '@hrms/shared', '@hrms/db', '@hrms/core'],
+  serverExternalPackages: ['@node-rs/argon2', 'pg', 'ioredis'],
   reactStrictMode: true,
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve.extensionAlias = {
       '.js': ['.ts', '.tsx', '.js'],
       '.mjs': ['.mts', '.mjs'],
     };
+    if (isServer) {
+      config.externals = [...(config.externals || []), '@node-rs/argon2'];
+    }
     return config;
   },
   poweredByHeader: false,
