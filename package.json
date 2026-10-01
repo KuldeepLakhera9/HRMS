@@ -10,6 +10,9 @@
   "scripts": {
     "verify": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
     "dev": "turbo run dev",
+    "dev:web": "pnpm --filter @hrms/web dev",
+    "dev:worker": "pnpm --filter @hrms/worker dev",
+    "db:migrate": "pnpm --filter @hrms/db migrate",
     "build": "turbo run build",
     "lint": "eslint .",
     "typecheck": "turbo run typecheck",
@@ -30,6 +33,7 @@
     "husky": "^9.1.7",
     "pg": "^8.23.0",
     "prettier": "^3.5.3",
+    "tsx": "^4.23.15",
     "turbo": "^2.11.6",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.0",
