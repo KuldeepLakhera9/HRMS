@@ -22,8 +22,8 @@ export async function createAuthToken(params: {
   companyId: string;
   userId: string;
   type: 'invite' | 'reset';
-  ttlMinutes?: number;
-  poolOverride?: pg.Pool;
+  ttlMinutes?: number | undefined;
+  poolOverride?: pg.Pool | undefined;
 }): Promise<{ rawToken: string; expiresAt: Date }> {
   const rawToken = generateSecureToken(32);
   const tokenHash = hashToken(rawToken);
@@ -53,7 +53,7 @@ export async function createAuthToken(params: {
 export async function consumeAuthToken(params: {
   rawToken: string;
   type: 'invite' | 'reset';
-  poolOverride?: pg.Pool;
+  poolOverride?: pg.Pool | undefined;
 }): Promise<{ companyId: string; userId: string } | null> {
   const tokenHash = hashToken(params.rawToken);
   const db = params.poolOverride ?? getAppPool();
