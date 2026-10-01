@@ -1,0 +1,113 @@
+name: hrms-dev
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: hrms-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: hrms_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev_password
+    volumes:
+      - hrms_pg_data:/var/lib/postgresql/data
+      - ./postgres/01-init-roles.sql:/docker-entrypoint-initdb.d/01-init-roles.sql:ro
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    shm_size: 1gb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hrms_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: hrms-pgbouncer
+    restart: unless-stopped
+    profiles: ["staging"]
+    ports:
+      - "6432:6432"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: hrms_app
+      DB_PASSWORD: hrms_app_password
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 500
+      DEFAULT_POOL_SIZE: 20
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: hrms-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - hrms_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: hrms-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minio_admin
+      MINIO_ROOT_PASSWORD: minio_dev_password
+    volumes:
+      - hrms_minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: hrms-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set local http://minio:9000 minio_admin minio_dev_password;
+      /usr/bin/mc mb --ignore-existing local/hrms-documents;
+      /usr/bin/mc mb --ignore-existing local/hrms-exports;
+      /usr/bin/mc anonymous set none local/hrms-documents;
+      /usr/bin/mc anonymous set none local/hrms-exports;
+      exit 0;
+      "
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: hrms-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+
+  clamav:
+    image: clamav/clamav:latest
+    container_name: hrms-clamav
+    restart: unless-stopped
+    profiles: ["security"]
+    ports:
+      - "3310:3310"
+
+volumes:
+  hrms_pg_data:
+  hrms_redis_data:
+  hrms_minio_data:

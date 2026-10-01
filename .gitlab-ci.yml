@@ -1,0 +1,114 @@
+# ==============================================================================
+# HRMS Production CI Pipeline (.gitlab-ci.yml)
+# All quality gates automated. No manual approval required.
+# ==============================================================================
+
+image: node:22-alpine
+
+variables:
+  PNPM_HOME: "/root/.local/share/pnpm"
+  PATH: "$PNPM_HOME:$PATH"
+  DATABASE_URL: "postgresql://hrms_app:hrms_app_password@postgres:5432/hrms_db"
+  DATABASE_APP_URL: "postgresql://hrms_app:hrms_app_password@postgres:5432/hrms_db"
+  DATABASE_OWNER_URL: "postgresql://hrms_owner:hrms_owner_password@postgres:5432/hrms_db"
+  REDIS_URL: "redis://redis:6379"
+
+stages:
+  - prepare
+  - lint
+  - typecheck
+  - test:unit
+  - test:integration
+  - schema:check
+  - build
+  - security
+  - package
+
+cache:
+  key:
+    files:
+      - pnpm-lock.yaml
+  paths:
+    - .pnpm-store
+    - node_modules/
+    - packages/*/node_modules/
+    - apps/*/node_modules/
+
+before_script:
+  - corepack enable
+  - corepack prepare pnpm@12.8.1 --activate
+  - pnpm config set store-dir .pnpm-store
+
+# 1. Prepare stage
+prepare:dependencies:
+  stage: prepare
+  script:
+    - pnpm install --frozen-lockfile
+
+# 2. Lint stage
+lint:code:
+  stage: lint
+  script:
+    - pnpm run lint
+    - pnpm run format:check
+
+# 3. Typecheck stage
+typecheck:typescript:
+  stage: typecheck
+  script:
+    - pnpm run typecheck
+
+# 4. Unit Test stage
+test:unit:
+  stage: test:unit
+  script:
+    - pnpm run test
+
+# 5. Integration Test stage
+test:integration:
+  stage: test:integration
+  services:
+    - name: postgis/postgis:16-3.4
+      alias: postgres
+    - name: redis:7.4-alpine
+      alias: redis
+  script:
+    - pnpm run test:integration
+
+# 6. Schema check & clean DB migration stage
+schema:migration-check:
+  stage: schema:check
+  services:
+    - name: postgis/postgis:16-3.4
+      alias: postgres
+  script:
+    - pnpm --filter @hrms/db exec drizzle-kit check
+    - pnpm --filter @hrms/db migrate
+
+# 7. Build stage
+build:artifacts:
+  stage: build
+  script:
+    - pnpm run build
+  artifacts:
+    paths:
+      - apps/web/.next/
+      - apps/worker/dist/
+    expire_in: 1 week
+
+# 8. Security Audit stage
+security:audit:
+  stage: security
+  script:
+    - pnpm audit --prod
+
+# 9. Docker Package stage
+package:docker:
+  stage: package
+  image: docker:24-cli
+  services:
+    - docker:24-dind
+  before_script: []
+  script:
+    - docker build -t hrms-web:latest -f apps/web/Dockerfile .
+    - docker build -t hrms-worker:latest -f apps/worker/Dockerfile .
