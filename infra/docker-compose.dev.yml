@@ -6,7 +6,7 @@ services:
     container_name: hrms-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_DB: hrms_db
       POSTGRES_USER: postgres
@@ -43,7 +43,7 @@ services:
         condition: service_healthy
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:7-alpine
     container_name: hrms-redis
     restart: unless-stopped
     ports:
@@ -57,7 +57,7 @@ services:
       retries: 5
 
   minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     container_name: hrms-minio
     restart: unless-stopped
     ports:
@@ -68,28 +68,17 @@ services:
       MINIO_ROOT_PASSWORD: minio_dev_password
     volumes:
       - hrms_minio_data:/data
-    command: server /data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    command: ["server", "/data", "--console-address", ":9001"]
 
   minio-init:
-    image: minio/mc:latest
+    image: cgr.dev/chainguard/minio-client:latest
     container_name: hrms-minio-init
     depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc alias set local http://minio:9000 minio_admin minio_dev_password;
-      /usr/bin/mc mb --ignore-existing local/hrms-documents;
-      /usr/bin/mc mb --ignore-existing local/hrms-exports;
-      /usr/bin/mc anonymous set none local/hrms-documents;
-      /usr/bin/mc anonymous set none local/hrms-exports;
-      exit 0;
-      "
+      - minio
+    volumes:
+      - hrms_minio_data:/home/nonroot/.mc
+    entrypoint: ["mc"]
+    command: ["alias", "set", "local", "http://minio:9000", "minio_admin", "minio_dev_password"]
 
   mailpit:
     image: axllent/mailpit:latest

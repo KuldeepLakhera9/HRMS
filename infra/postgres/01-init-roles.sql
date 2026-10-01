@@ -53,9 +53,12 @@ ALTER ROLE hrms_worker SET idle_in_transaction_session_timeout = '30s';
 ALTER ROLE hrms_readonly SET statement_timeout = '30s';
 ALTER ROLE hrms_readonly SET idle_in_transaction_session_timeout = '10s';
 
--- 5. Grant Ownership & Usage
+-- 5. Grant Ownership, Admin Option & Usage
 GRANT ALL PRIVILEGES ON DATABASE hrms_db TO hrms_owner;
 GRANT ALL ON SCHEMA public TO hrms_owner;
 ALTER SCHEMA public OWNER TO hrms_owner;
+
+-- PostgreSQL 16 requirement: grant admin option on created roles to hrms_owner
+GRANT hrms_app, hrms_worker, hrms_readonly TO hrms_owner WITH ADMIN OPTION;
 
 GRANT USAGE ON SCHEMA public TO hrms_app, hrms_worker, hrms_readonly;
