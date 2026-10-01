@@ -11,3 +11,4 @@ minimumReleaseAgeExclude:
   - turbo@2.11.6
 allowBuilds:
   esbuild: true
+  msgpackr-extract: true
