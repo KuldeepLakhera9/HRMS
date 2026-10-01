@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { z } from 'zod';
 
 export const envSchema = z.object({
@@ -45,6 +47,26 @@ export type Env = z.infer<typeof envSchema>;
 
 let cachedEnv: Env | null = null;
 
+function autoLoadEnv(): void {
+  if (typeof process.loadEnvFile === 'function') {
+    let currentDir = process.cwd();
+    for (let i = 0; i < 5; i++) {
+      const candidate = path.join(currentDir, '.env');
+      if (fs.existsSync(candidate)) {
+        try {
+          process.loadEnvFile(candidate);
+          break;
+        } catch {
+          // ignore if unreadable or already loaded
+        }
+      }
+      const parent = path.dirname(currentDir);
+      if (parent === currentDir) break;
+      currentDir = parent;
+    }
+  }
+}
+
 /**
  * Validates and returns the strongly-typed environment configuration.
  * Fails fast and throws a detailed error if any required variables are missing or invalid.
@@ -69,7 +91,10 @@ export function validateEnv(rawEnv: Record<string, string | undefined> = process
  */
 export function getEnv(): Env {
   if (!cachedEnv) {
-    cachedEnv = validateEnv();
+    if (!process.env.DATABASE_URL) {
+      autoLoadEnv();
+    }
+    cachedEnv = validateEnv(process.env);
   }
   return cachedEnv;
 }
