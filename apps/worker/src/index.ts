@@ -2,6 +2,8 @@ import { Redis } from 'ioredis';
 import { getEnv } from '@hrms/config';
 import { closePools } from '@hrms/db';
 import { getLogger } from '@hrms/core';
+import { OutboxRelayWorker } from './outbox-relay.js';
+import { PartitionMaintenanceWorker } from './partition-maintenance.js';
 
 const logger = getLogger().child({ service: 'worker' });
 
@@ -21,6 +23,13 @@ async function startWorker() {
     logger.error({ err }, 'Worker Redis connection error');
   });
 
+  // Initialize and start background worker daemons
+  const outboxRelay = new OutboxRelayWorker();
+  outboxRelay.start(2000); // Poll every 2 seconds
+
+  const partitionMaintenance = new PartitionMaintenanceWorker();
+  partitionMaintenance.start(24 * 60 * 60 * 1000); // Check once daily
+
   let isShuttingDown = false;
 
   async function shutdown(signal: string) {
@@ -29,6 +38,8 @@ async function startWorker() {
     logger.info({ signal }, 'Received termination signal. Draining queues and shutting down...');
 
     try {
+      outboxRelay.stop();
+      partitionMaintenance.stop();
       await redis.quit();
       await closePools();
       logger.info('Worker shutdown completed cleanly.');
