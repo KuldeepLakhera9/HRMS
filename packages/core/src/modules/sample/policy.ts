@@ -1,0 +1,6 @@
+import { PERMISSIONS } from '@hrms/shared';
+
+export const SAMPLE_POLICIES = {
+  CREATE: PERMISSIONS.ORG_COMPANY_UPDATE,
+  READ: PERMISSIONS.ORG_COMPANY_READ,
+} as const;
