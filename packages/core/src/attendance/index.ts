@@ -13,3 +13,5 @@ export * from './face-match.js';
 export * from './device-repository.js';
 export * from './device-service.js';
 export * from './device-validation.js';
+export * from './day-engine.js';
+export * from './day-context-provider.js';
