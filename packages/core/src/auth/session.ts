@@ -622,7 +622,7 @@ export async function setStepUp(
  * Step-up authentication guard for sensitive operations.
  * Throws ForbiddenError if step_up_until is absent or expired.
  */
-export function requireStepUp(session: SessionData | null | undefined): void {
+export function requireStepUp(session: { stepUpUntil?: string | Date | null | undefined } | null | undefined): void {
   if (!session) {
     throw new UnauthorizedError('Authentication is required.');
   }
