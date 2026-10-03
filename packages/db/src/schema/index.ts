@@ -16,3 +16,4 @@ export * from './import-jobs.js';
 export * from './employee-locations.js';
 export * from './workflow.js';
 export * from './attendance.js';
+export * from './devices.js';
