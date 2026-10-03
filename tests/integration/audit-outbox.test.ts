@@ -236,7 +236,7 @@ describe('Sprint 1.1 Audit Service & Transactional Outbox Integration Tests', ()
     // Background relay fetches unprocessed outbox events
     const client = await db.ownerPool.connect();
     try {
-      const unprocessed = await auditRepo.fetchUnprocessedOutbox(10, client);
+      const unprocessed = await auditRepo.fetchUnprocessedOutbox(100, client);
       const event = unprocessed.find(e => e.id === outboxId);
       expect(event).toBeDefined();
       expect(event?.aggregate).toBe('user');
@@ -247,7 +247,7 @@ describe('Sprint 1.1 Audit Service & Transactional Outbox Integration Tests', ()
       await auditRepo.markOutboxProcessed([outboxId], client);
 
       // Verify no longer in unprocessed list
-      const afterProcessed = await auditRepo.fetchUnprocessedOutbox(10, client);
+      const afterProcessed = await auditRepo.fetchUnprocessedOutbox(100, client);
       expect(afterProcessed.find(e => e.id === outboxId)).toBeUndefined();
     } finally {
       client.release();
