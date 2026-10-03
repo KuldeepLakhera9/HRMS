@@ -26,6 +26,13 @@ export interface RegisterDeviceResult {
   workflowRequestId?: string | undefined;
 }
 
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function resolveAuditUserId(userId?: string): string {
+  if (userId && UUID_REGEX.test(userId)) return userId;
+  return NIL_UUID;
+}
+
 export class DeviceService {
   private deviceRepo: DeviceRepository;
   private auditService: AuditService;
@@ -98,7 +105,7 @@ export class DeviceService {
           osVersion: input.osVersion,
           appVersion: input.appVersion,
           status: 'active',
-          createdBy: ctx.userId ?? 'system',
+          createdBy: resolveAuditUserId(ctx.userId),
         },
         poolOverride,
       );
@@ -132,7 +139,7 @@ export class DeviceService {
         osVersion: input.osVersion,
         appVersion: input.appVersion,
         status: 'pending_approval',
-        createdBy: ctx.userId ?? 'system',
+        createdBy: resolveAuditUserId(ctx.userId),
       },
       poolOverride,
     );
@@ -227,7 +234,7 @@ export class DeviceService {
         device.id,
         new Date(),
         result.details ?? {},
-        ctx.userId ?? 'system',
+        resolveAuditUserId(ctx.userId),
         poolOverride,
       );
     }
@@ -279,7 +286,7 @@ export class DeviceService {
         ctx.companyId,
         activeDevice.id,
         'revoked',
-        ctx.userId ?? 'system',
+        resolveAuditUserId(ctx.userId),
         poolOverride,
       );
     }
@@ -288,7 +295,7 @@ export class DeviceService {
       ctx.companyId,
       pendingDevice.id,
       'active',
-      ctx.userId ?? 'system',
+      resolveAuditUserId(ctx.userId),
       poolOverride,
     );
 

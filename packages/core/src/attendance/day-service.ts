@@ -85,15 +85,24 @@ export class AttendanceDayService {
     );
 
     // 3. Resolve Policy
-    const policyResult = await this.policyRepo.findEffectivePolicy(
-      ctx.companyId,
-      workDate,
-      employeeId,
-      undefined,
-      undefined,
-      poolOverride,
-    );
-    if (!policyResult) {
+    let policy = (
+      await this.policyRepo.findEffectivePolicy(
+        ctx.companyId,
+        workDate,
+        employeeId,
+        undefined,
+        undefined,
+        poolOverride,
+      )
+    )?.policy;
+
+    if (!policy) {
+      policy =
+        (await this.policyRepo.getPolicyByCode(ctx.companyId, 'DEFAULT', poolOverride)) ??
+        (await this.policyRepo.listPolicies(ctx.companyId, poolOverride))[0];
+    }
+
+    if (!policy) {
       throw new NotFoundError('AttendancePolicy for date', workDate);
     }
 
@@ -118,7 +127,7 @@ export class AttendanceDayService {
     const calculation = computeDay(
       punches,
       shiftResolution.shift ?? null,
-      policyResult.policy,
+      policy,
       context,
     );
 
@@ -139,7 +148,11 @@ export class AttendanceDayService {
       {
         employeeId,
         workDate,
-        shiftId: shiftResolution.shift?.id ?? null,
+        shiftId:
+          shiftResolution.shift?.id &&
+          shiftResolution.shift.id !== '00000000-0000-0000-0000-000000000001'
+            ? shiftResolution.shift.id
+            : null,
         firstIn: calculation.firstIn,
         lastOut: calculation.lastOut,
         punchCount: calculation.punchCount,
@@ -153,8 +166,8 @@ export class AttendanceDayService {
         isLocked: false,
         ruleVersion: calculation.ruleVersion,
         sourceHash: calculation.sourceHash,
-        createdBy: ctx.userId ?? 'system',
-        updatedBy: ctx.userId ?? 'system',
+        createdBy: ctx.userId ?? '00000000-0000-0000-0000-000000000001',
+        updatedBy: ctx.userId ?? '00000000-0000-0000-0000-000000000001',
       },
       poolOverride,
     );
@@ -207,6 +220,13 @@ export class AttendanceDayService {
     if (!fallbackPolicy) {
       throw new NotFoundError('Company Attendance Policy', companyId);
     }
+
+    // Resolve acting user for audit columns
+    const systemUserId =
+      (await withTenant({ companyId }, async (_tx, client) => {
+        const res = await client.query<{ id: string }>('SELECT id FROM users WHERE company_id = $1 LIMIT 1', [companyId]);
+        return res.rows[0]?.id;
+      }, pool)) ?? '00000000-0000-0000-0000-000000000001';
 
     while (true) {
       // Keyset pagination of active employees
@@ -270,10 +290,16 @@ export class AttendanceDayService {
 
         const calc = computeDay(punches, shiftRes.shift ?? null, policy, context);
 
+        const validShiftId =
+          shiftRes.shift?.id &&
+          shiftRes.shift.id !== '00000000-0000-0000-0000-000000000001'
+            ? shiftRes.shift.id
+            : null;
+
         dayInputs.push({
           employeeId: emp.id,
           workDate,
-          shiftId: shiftRes.shift?.id ?? null,
+          shiftId: validShiftId,
           firstIn: calc.firstIn,
           lastOut: calc.lastOut,
           punchCount: calc.punchCount,
@@ -287,8 +313,8 @@ export class AttendanceDayService {
           isLocked: false,
           ruleVersion: calc.ruleVersion,
           sourceHash: calc.sourceHash,
-          createdBy: 'system_close_day',
-          updatedBy: 'system_close_day',
+          createdBy: systemUserId,
+          updatedBy: systemUserId,
         });
       }
 

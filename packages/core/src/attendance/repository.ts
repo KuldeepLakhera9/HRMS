@@ -72,6 +72,7 @@ export class AttendancePolicyRepository {
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 1, $15, $15
           )
+          ON CONFLICT (company_id, code) DO UPDATE SET updated_at = NOW()
           RETURNING
             id, company_id as "companyId", code, name, description,
             geofence_mode as "geofenceMode", allow_selfie as "allowSelfie",
