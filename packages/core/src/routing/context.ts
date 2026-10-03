@@ -3,7 +3,7 @@ import type { TenantContext } from '@hrms/db';
 export interface RequestContext extends TenantContext {
   requestId: string;
   sessionId?: string | undefined;
-  stepUpUntil?: string | undefined;
+  stepUpUntil?: string | Date | null | undefined;
   ip?: string | undefined;
   userAgent?: string | undefined;
   isAuthenticated: boolean;

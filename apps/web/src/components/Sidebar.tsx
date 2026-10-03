@@ -16,6 +16,7 @@ import {
   ChevronRight,
   MapPin,
   Network,
+  Users,
 } from 'lucide-react';
 
 interface NavItem {
@@ -41,6 +42,7 @@ const NAVIGATION: NavSection[] = [
   {
     title: 'ORGANIZATION',
     items: [
+      { title: 'Employees', href: '/employees', icon: Users },
       { title: 'Org Chart', href: '/org/chart', icon: Network },
       { title: 'Work Locations', href: '/org/locations', icon: MapPin },
       { title: 'Departments', href: '/org/departments', icon: GitFork },
