@@ -11,4 +11,6 @@ export * from './org/index.js';
 export * from './rbac/index.js';
 export * from './storage/index.js';
 export * from './employee/index.js';
+export * from './user/index.js';
+export * from './redis/index.js';
 export * from './modules/sample/index.js';

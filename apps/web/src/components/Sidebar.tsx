@@ -54,6 +54,8 @@ const NAVIGATION: NavSection[] = [
   {
     title: 'ADMINISTRATION',
     items: [
+      { title: 'User Management', href: '/admin/users', icon: Users },
+      { title: 'Roles & Permissions', href: '/admin/roles', icon: ShieldCheck },
       { title: 'Security & Sessions', href: '/security', icon: ShieldCheck },
       { title: 'Audit Trail', href: '/audit-logs', icon: ScrollText },
     ],
