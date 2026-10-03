@@ -432,4 +432,91 @@ export class BulkRepository {
 
     return { inserted: totalProcessed, updated: 0 };
   }
+
+  async getValidOrgEntityIds(
+    companyId: string,
+    poolOverride?: pg.Pool,
+  ): Promise<{ departments: Set<string>; designations: Set<string>; locations: Set<string> }> {
+    return withTenant(
+      { companyId },
+      async (_tx, client) => {
+        const [d, des, l] = await Promise.all([
+          client.query<{ id: string }>('SELECT id FROM departments WHERE company_id = $1 AND deleted_at IS NULL', [companyId]),
+          client.query<{ id: string }>('SELECT id FROM designations WHERE company_id = $1 AND deleted_at IS NULL', [companyId]),
+          client.query<{ id: string }>('SELECT id FROM locations WHERE company_id = $1 AND deleted_at IS NULL', [companyId]),
+        ]);
+        return {
+          departments: new Set(d.rows.map(r => r.id)),
+          designations: new Set(des.rows.map(r => r.id)),
+          locations: new Set(l.rows.map(r => r.id)),
+        };
+      },
+      poolOverride,
+    );
+  }
+
+  async getEmployeesForExport(
+    companyId: string,
+    poolOverride?: pg.Pool,
+  ): Promise<Array<{
+    empCode: string;
+    firstName: string;
+    lastName: string;
+    emailWork: string;
+    phone: string | null;
+    gender: string | null;
+    dob: string | null;
+    doj: string;
+    status: string;
+    employmentType: string;
+    departmentName: string | null;
+    designationName: string | null;
+    locationName: string | null;
+    panEnc: string | null;
+    aadhaarEnc: string | null;
+    bankEnc: string | null;
+    customFields: Record<string, unknown>;
+  }>> {
+    return withTenant(
+      { companyId },
+      async (_tx, client) => {
+        const res = await client.query<{
+          empCode: string;
+          firstName: string;
+          lastName: string;
+          emailWork: string;
+          phone: string | null;
+          gender: string | null;
+          dob: string | null;
+          doj: string;
+          status: string;
+          employmentType: string;
+          departmentName: string | null;
+          designationName: string | null;
+          locationName: string | null;
+          panEnc: string | null;
+          aadhaarEnc: string | null;
+          bankEnc: string | null;
+          customFields: Record<string, unknown>;
+        }>(
+          `SELECT
+             e.emp_code as "empCode", e.first_name as "firstName", e.last_name as "lastName",
+             e.email_work as "emailWork", e.phone, e.gender, e.dob, e.doj, e.status,
+             e.employment_type as "employmentType",
+             d.name as "departmentName", des.name as "designationName", loc.name as "locationName",
+             e.pan_enc as "panEnc", e.aadhaar_enc as "aadhaarEnc", e.bank_enc as "bankEnc",
+             e.custom_fields as "customFields"
+           FROM employees e
+           LEFT JOIN departments d ON d.company_id = e.company_id AND d.id = e.department_id AND d.deleted_at IS NULL
+           LEFT JOIN designations des ON des.company_id = e.company_id AND des.id = e.designation_id AND des.deleted_at IS NULL
+           LEFT JOIN locations loc ON loc.company_id = e.company_id AND loc.id = e.location_id AND loc.deleted_at IS NULL
+           WHERE e.company_id = $1 AND e.deleted_at IS NULL
+           ORDER BY e.emp_code ASC`,
+          [companyId],
+        );
+        return res.rows;
+      },
+      poolOverride,
+    );
+  }
 }

@@ -91,6 +91,11 @@ describe('Bulk Import & Export Unit Tests (P1-EMP-06)', () => {
         findJobById: vi.fn().mockResolvedValue(dummyJob),
         updateJob: vi.fn().mockResolvedValue(dummyJob),
         batchUpsertEmployees: vi.fn().mockResolvedValue({ inserted: 1, updated: 0 }),
+        getValidOrgEntityIds: vi.fn().mockResolvedValue({
+          departments: new Set(),
+          designations: new Set(),
+          locations: new Set(),
+        }),
       };
 
       mockCfService = {
