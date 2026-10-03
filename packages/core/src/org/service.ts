@@ -15,6 +15,9 @@ import {
   type GradeRow,
   type CostCenterRow,
   type CompanyRow,
+  type WorkLocationRow,
+  type LocationAddress,
+  type OrgChartNodeRow,
 } from './repository.js';
 
 export interface DepartmentTreeNode extends DepartmentRow {
@@ -457,4 +460,196 @@ export class OrgService {
     }
     return updated;
   }
+
+  // ==========================================================================
+  // Work Locations
+  // ==========================================================================
+  async createLocation(
+    ctx: RequestContext,
+    params: {
+      name: string;
+      code: string;
+      address: LocationAddress;
+      timezone?: string | undefined;
+      latitude?: number | null | undefined;
+      longitude?: number | null | undefined;
+      radiusMeters?: number | null | undefined;
+      active?: boolean | undefined;
+    },
+    poolOverride?: pg.Pool,
+  ): Promise<WorkLocationRow> {
+    if (!can(ctx, PERMISSIONS.ORG_LOCATION_MANAGE)) {
+      throw new ForbiddenError('You do not have permission to manage work locations.');
+    }
+
+    if (!params.name || !params.name.trim()) {
+      throw new ValidationError('Location name is required.');
+    }
+    if (!params.code || !params.code.trim()) {
+      throw new ValidationError('Location code is required.');
+    }
+    if (!params.address || !params.address.line1 || !params.address.city || !params.address.country) {
+      throw new ValidationError('Address line 1, city, and country are required.');
+    }
+
+    if (params.latitude !== undefined && params.latitude !== null) {
+      if (params.latitude < -90 || params.latitude > 90) {
+        throw new ValidationError('Latitude must be between -90 and 90.');
+      }
+    }
+    if (params.longitude !== undefined && params.longitude !== null) {
+      if (params.longitude < -180 || params.longitude > 180) {
+        throw new ValidationError('Longitude must be between -180 and 180.');
+      }
+    }
+    if (params.radiusMeters !== undefined && params.radiusMeters !== null) {
+      if (params.radiusMeters <= 0) {
+        throw new ValidationError('Radius must be a positive integer.');
+      }
+    }
+
+    const loc = await this.repository.createLocation(
+      {
+        companyId: ctx.companyId,
+        ...params,
+        userId: ctx.userId,
+      },
+      poolOverride,
+    );
+
+    await this.invalidateOrgCache(ctx.companyId, 'org:locations');
+    return loc;
+  }
+
+  async getLocation(
+    ctx: RequestContext,
+    id: string,
+    poolOverride?: pg.Pool,
+  ): Promise<WorkLocationRow> {
+    if (!can(ctx, PERMISSIONS.ORG_LOCATION_READ)) {
+      throw new ForbiddenError('You do not have permission to view work locations.');
+    }
+
+    const loc = await this.repository.getLocationById(ctx.companyId, id, poolOverride);
+    if (!loc) {
+      throw new NotFoundError('Work location not found.');
+    }
+    return loc;
+  }
+
+  async listLocations(
+    ctx: RequestContext,
+    filters?: { active?: boolean | undefined },
+    poolOverride?: pg.Pool,
+  ): Promise<WorkLocationRow[]> {
+    if (!can(ctx, PERMISSIONS.ORG_LOCATION_READ)) {
+      throw new ForbiddenError('You do not have permission to view work locations.');
+    }
+
+    return this.repository.listLocations(ctx.companyId, filters, poolOverride);
+  }
+
+  async updateLocation(
+    ctx: RequestContext,
+    id: string,
+    data: {
+      name?: string | undefined;
+      code?: string | undefined;
+      address?: LocationAddress | undefined;
+      timezone?: string | undefined;
+      latitude?: number | null | undefined;
+      longitude?: number | null | undefined;
+      radiusMeters?: number | null | undefined;
+      active?: boolean | undefined;
+    },
+    poolOverride?: pg.Pool,
+  ): Promise<WorkLocationRow> {
+    if (!can(ctx, PERMISSIONS.ORG_LOCATION_MANAGE)) {
+      throw new ForbiddenError('You do not have permission to manage work locations.');
+    }
+
+    if (data.latitude !== undefined && data.latitude !== null) {
+      if (data.latitude < -90 || data.latitude > 90) {
+        throw new ValidationError('Latitude must be between -90 and 90.');
+      }
+    }
+    if (data.longitude !== undefined && data.longitude !== null) {
+      if (data.longitude < -180 || data.longitude > 180) {
+        throw new ValidationError('Longitude must be between -180 and 180.');
+      }
+    }
+    if (data.radiusMeters !== undefined && data.radiusMeters !== null) {
+      if (data.radiusMeters <= 0) {
+        throw new ValidationError('Radius must be a positive integer.');
+      }
+    }
+
+    const updated = await this.repository.updateLocation(
+      ctx.companyId,
+      id,
+      {
+        ...data,
+        userId: ctx.userId,
+      },
+      poolOverride,
+    );
+
+    if (!updated) {
+      throw new NotFoundError('Work location not found.');
+    }
+
+    await this.invalidateOrgCache(ctx.companyId, 'org:locations');
+    return updated;
+  }
+
+  async deleteLocation(
+    ctx: RequestContext,
+    id: string,
+    poolOverride?: pg.Pool,
+  ): Promise<boolean> {
+    if (!can(ctx, PERMISSIONS.ORG_LOCATION_MANAGE)) {
+      throw new ForbiddenError('You do not have permission to manage work locations.');
+    }
+
+    const deleted = await this.repository.deleteLocation(ctx.companyId, id, ctx.userId, poolOverride);
+    if (!deleted) {
+      throw new NotFoundError('Work location not found.');
+    }
+
+    await this.invalidateOrgCache(ctx.companyId, 'org:locations');
+    return true;
+  }
+
+  // ==========================================================================
+  // Org Chart
+  // ==========================================================================
+  async getOrgChart(
+    ctx: RequestContext,
+    parentId?: string | null | undefined,
+    poolOverride?: pg.Pool,
+  ): Promise<OrgChartNodeRow[]> {
+    if (!can(ctx, PERMISSIONS.ORG_CHART_READ)) {
+      throw new ForbiddenError('You do not have permission to view the organization chart.');
+    }
+
+    const targetParentId = parentId && parentId !== 'root' ? parentId : null;
+    return this.repository.getOrgChartNodes(ctx.companyId, targetParentId, poolOverride);
+  }
+
+  async searchOrgChart(
+    ctx: RequestContext,
+    query: string,
+    poolOverride?: pg.Pool,
+  ): Promise<OrgChartNodeRow[]> {
+    if (!can(ctx, PERMISSIONS.ORG_CHART_READ)) {
+      throw new ForbiddenError('You do not have permission to view the organization chart.');
+    }
+
+    if (!query || !query.trim()) {
+      return [];
+    }
+
+    return this.repository.searchOrgChart(ctx.companyId, query, poolOverride);
+  }
 }
+

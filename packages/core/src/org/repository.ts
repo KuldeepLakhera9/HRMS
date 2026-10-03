@@ -62,6 +62,48 @@ export interface CompanyRow {
   updatedAt: Date;
 }
 
+export interface LocationAddress {
+  line1: string;
+  line2?: string | null | undefined;
+  city: string;
+  state: string;
+  country: string;
+  postalCode: string;
+}
+
+export interface WorkLocationRow {
+  id: string;
+  companyId: string;
+  name: string;
+  code: string;
+  address: LocationAddress;
+  timezone: string;
+  latitude: number | null;
+  longitude: number | null;
+  radiusMeters: number | null;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
+  rowVersion: number;
+}
+
+export interface OrgChartNodeRow {
+  id: string;
+  empCode: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  workEmail: string;
+  departmentId: string | null;
+  departmentName: string | null;
+  designationId: string | null;
+  designationName: string | null;
+  managerId: string | null;
+  directReportsCount: number;
+  reportingPath?: string[] | undefined;
+}
+
 export class OrgRepository {
   // --------------------------------------------------------------------------
   // Departments
@@ -524,4 +566,346 @@ export class OrgRepository {
       poolOverride,
     );
   }
+
+  // --------------------------------------------------------------------------
+  // Work Locations
+  // --------------------------------------------------------------------------
+  async createLocation(
+    params: {
+      companyId: string;
+      name: string;
+      code: string;
+      address: LocationAddress;
+      timezone?: string | undefined;
+      latitude?: number | null | undefined;
+      longitude?: number | null | undefined;
+      radiusMeters?: number | null | undefined;
+      active?: boolean | undefined;
+      userId?: string | undefined;
+    },
+    poolOverride?: pg.Pool,
+  ): Promise<WorkLocationRow> {
+    const id = generateUuidV7();
+    return withTenant(
+      {
+        companyId: params.companyId,
+        ...(params.userId ? { userId: params.userId } : {}),
+      },
+      async (_tx, client) => {
+        const res = await client.query<WorkLocationRow>(
+          `INSERT INTO work_locations (
+             id, company_id, name, code, address, timezone,
+             center, radius_meters, active, created_by, updated_by
+           ) VALUES (
+             $1, $2, $3, $4, $5, $6,
+             CASE WHEN $7::numeric IS NOT NULL AND $8::numeric IS NOT NULL
+                  THEN ST_SetSRID(ST_MakePoint($8::numeric, $7::numeric), 4326)::geography
+                  ELSE NULL END,
+             $9, $10, $11, $11
+           )
+           RETURNING id, company_id as "companyId", name, code, address, timezone,
+                     ST_Y(center::geometry)::float as "latitude",
+                     ST_X(center::geometry)::float as "longitude",
+                     radius_meters as "radiusMeters", active,
+                     created_at as "createdAt", updated_at as "updatedAt",
+                     deleted_at as "deletedAt", row_version as "rowVersion"`,
+          [
+            id,
+            params.companyId,
+            params.name,
+            params.code.toUpperCase(),
+            JSON.stringify(params.address),
+            params.timezone || 'Asia/Kolkata',
+            params.latitude ?? null,
+            params.longitude ?? null,
+            params.radiusMeters ?? null,
+            params.active ?? true,
+            params.userId || null,
+          ],
+        );
+        return res.rows[0]!;
+      },
+      poolOverride,
+    );
+  }
+
+  async getLocationById(
+    companyId: string,
+    id: string,
+    poolOverride?: pg.Pool,
+  ): Promise<WorkLocationRow | null> {
+    return withTenant(
+      { companyId },
+      async (_tx, client) => {
+        const res = await client.query<WorkLocationRow>(
+          `SELECT id, company_id as "companyId", name, code, address, timezone,
+                  ST_Y(center::geometry)::float as "latitude",
+                  ST_X(center::geometry)::float as "longitude",
+                  radius_meters as "radiusMeters", active,
+                  created_at as "createdAt", updated_at as "updatedAt",
+                  deleted_at as "deletedAt", row_version as "rowVersion"
+           FROM work_locations
+           WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL
+           LIMIT 1`,
+          [companyId, id],
+        );
+        return res.rows[0] || null;
+      },
+      poolOverride,
+    );
+  }
+
+  async listLocations(
+    companyId: string,
+    filters?: { active?: boolean | undefined },
+    poolOverride?: pg.Pool,
+  ): Promise<WorkLocationRow[]> {
+    return withTenant(
+      { companyId },
+      async (_tx, client) => {
+        const wheres: string[] = ['company_id = $1', 'deleted_at IS NULL'];
+        const values: unknown[] = [companyId];
+
+        if (filters?.active !== undefined) {
+          wheres.push(`active = $${values.length + 1}`);
+          values.push(filters.active);
+        }
+
+        const res = await client.query<WorkLocationRow>(
+          `SELECT id, company_id as "companyId", name, code, address, timezone,
+                  ST_Y(center::geometry)::float as "latitude",
+                  ST_X(center::geometry)::float as "longitude",
+                  radius_meters as "radiusMeters", active,
+                  created_at as "createdAt", updated_at as "updatedAt",
+                  deleted_at as "deletedAt", row_version as "rowVersion"
+           FROM work_locations
+           WHERE ${wheres.join(' AND ')}
+           ORDER BY name ASC`,
+          values,
+        );
+        return res.rows;
+      },
+      poolOverride,
+    );
+  }
+
+  async updateLocation(
+    companyId: string,
+    id: string,
+    data: {
+      name?: string | undefined;
+      code?: string | undefined;
+      address?: LocationAddress | undefined;
+      timezone?: string | undefined;
+      latitude?: number | null | undefined;
+      longitude?: number | null | undefined;
+      radiusMeters?: number | null | undefined;
+      active?: boolean | undefined;
+      userId?: string | undefined;
+    },
+    poolOverride?: pg.Pool,
+  ): Promise<WorkLocationRow | null> {
+    return withTenant(
+      {
+        companyId,
+        ...(data.userId ? { userId: data.userId } : {}),
+      },
+      async (_tx, client) => {
+        const sets: string[] = [
+          'updated_at = now()',
+          'row_version = row_version + 1',
+        ];
+        const values: unknown[] = [companyId, id];
+        let pIdx = 3;
+
+        if (data.name !== undefined) {
+          sets.push(`name = $${pIdx++}`);
+          values.push(data.name);
+        }
+        if (data.code !== undefined) {
+          sets.push(`code = $${pIdx++}`);
+          values.push(data.code.toUpperCase());
+        }
+        if (data.address !== undefined) {
+          sets.push(`address = $${pIdx++}`);
+          values.push(JSON.stringify(data.address));
+        }
+        if (data.timezone !== undefined) {
+          sets.push(`timezone = $${pIdx++}`);
+          values.push(data.timezone);
+        }
+        if (data.radiusMeters !== undefined) {
+          sets.push(`radius_meters = $${pIdx++}`);
+          values.push(data.radiusMeters);
+        }
+        if (data.active !== undefined) {
+          sets.push(`active = $${pIdx++}`);
+          values.push(data.active);
+        }
+        if (data.userId !== undefined) {
+          sets.push(`updated_by = $${pIdx++}`);
+          values.push(data.userId);
+        }
+
+        // Center / geofence handling
+        if (data.latitude !== undefined || data.longitude !== undefined) {
+          const latIdx = pIdx++;
+          const lonIdx = pIdx++;
+          values.push(data.latitude ?? null);
+          values.push(data.longitude ?? null);
+          sets.push(
+            `center = CASE WHEN $${latIdx}::numeric IS NOT NULL AND $${lonIdx}::numeric IS NOT NULL
+                           THEN ST_SetSRID(ST_MakePoint($${lonIdx}::numeric, $${latIdx}::numeric), 4326)::geography
+                           ELSE NULL END`,
+          );
+        }
+
+        const res = await client.query<WorkLocationRow>(
+          `UPDATE work_locations
+           SET ${sets.join(', ')}
+           WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL
+           RETURNING id, company_id as "companyId", name, code, address, timezone,
+                     ST_Y(center::geometry)::float as "latitude",
+                     ST_X(center::geometry)::float as "longitude",
+                     radius_meters as "radiusMeters", active,
+                     created_at as "createdAt", updated_at as "updatedAt",
+                     deleted_at as "deletedAt", row_version as "rowVersion"`,
+          values,
+        );
+        return res.rows[0] || null;
+      },
+      poolOverride,
+    );
+  }
+
+  async deleteLocation(
+    companyId: string,
+    id: string,
+    userId?: string | undefined,
+    poolOverride?: pg.Pool,
+  ): Promise<boolean> {
+    return withTenant(
+      { companyId, ...(userId ? { userId } : {}) },
+      async (_tx, client) => {
+        const res = await client.query(
+          `UPDATE work_locations
+           SET deleted_at = now(),
+               updated_by = $3,
+               updated_at = now(),
+               row_version = row_version + 1
+           WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL`,
+          [companyId, id, userId || null],
+        );
+        return (res.rowCount ?? 0) > 0;
+      },
+      poolOverride,
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // Org Chart
+  // --------------------------------------------------------------------------
+  async getOrgChartNodes(
+    companyId: string,
+    parentId?: string | null | undefined,
+    poolOverride?: pg.Pool,
+  ): Promise<OrgChartNodeRow[]> {
+    return withTenant(
+      { companyId },
+      async (_tx, client) => {
+        const res = await client.query<OrgChartNodeRow>(
+          `SELECT
+             e.id,
+             e.emp_code as "empCode",
+             e.first_name as "firstName",
+             e.last_name as "lastName",
+             e.first_name || ' ' || e.last_name as "fullName",
+             e.email_work as "workEmail",
+             e.department_id as "departmentId",
+             d.name as "departmentName",
+             e.designation_id as "designationId",
+             des.name as "designationName",
+             e.manager_id as "managerId",
+             (
+               SELECT count(*)::int
+               FROM employees rep
+               WHERE rep.company_id = e.company_id
+                 AND rep.manager_id = e.id
+                 AND rep.deleted_at IS NULL
+                 AND rep.status = 'active'
+             ) as "directReportsCount"
+           FROM employees e
+           LEFT JOIN departments d ON d.id = e.department_id AND d.company_id = e.company_id AND d.deleted_at IS NULL
+           LEFT JOIN designations des ON des.id = e.designation_id AND des.company_id = e.company_id AND des.deleted_at IS NULL
+           WHERE e.company_id = $1
+             AND e.deleted_at IS NULL
+             AND e.status = 'active'
+             AND (
+               ($2::uuid IS NULL AND (e.manager_id IS NULL OR e.manager_id NOT IN (
+                 SELECT m.id FROM employees m WHERE m.company_id = e.company_id AND m.deleted_at IS NULL AND m.status = 'active'
+               )))
+               OR ($2::uuid IS NOT NULL AND e.manager_id = $2::uuid)
+             )
+           ORDER BY e.first_name ASC, e.last_name ASC`,
+          [companyId, parentId || null],
+        );
+        return res.rows;
+      },
+      poolOverride,
+    );
+  }
+
+  async searchOrgChart(
+    companyId: string,
+    query: string,
+    poolOverride?: pg.Pool,
+  ): Promise<OrgChartNodeRow[]> {
+    return withTenant(
+      { companyId },
+      async (_tx, client) => {
+        const res = await client.query<OrgChartNodeRow>(
+          `SELECT
+             e.id,
+             e.emp_code as "empCode",
+             e.first_name as "firstName",
+             e.last_name as "lastName",
+             e.first_name || ' ' || e.last_name as "fullName",
+             e.email_work as "workEmail",
+             e.department_id as "departmentId",
+             d.name as "departmentName",
+             e.designation_id as "designationId",
+             des.name as "designationName",
+             e.manager_id as "managerId",
+             e.reporting_path as "reportingPath",
+             (
+               SELECT count(*)::int
+               FROM employees rep
+               WHERE rep.company_id = e.company_id
+                 AND rep.manager_id = e.id
+                 AND rep.deleted_at IS NULL
+                 AND rep.status = 'active'
+             ) as "directReportsCount"
+           FROM employees e
+           LEFT JOIN departments d ON d.id = e.department_id AND d.company_id = e.company_id AND d.deleted_at IS NULL
+           LEFT JOIN designations des ON des.id = e.designation_id AND des.company_id = e.company_id AND des.deleted_at IS NULL
+           WHERE e.company_id = $1
+             AND e.deleted_at IS NULL
+             AND e.status = 'active'
+             AND (
+               e.first_name ILIKE '%' || $2 || '%'
+               OR e.last_name ILIKE '%' || $2 || '%'
+               OR (e.first_name || ' ' || e.last_name) ILIKE '%' || $2 || '%'
+               OR e.email_work ILIKE '%' || $2 || '%'
+               OR e.emp_code ILIKE '%' || $2 || '%'
+             )
+           ORDER BY e.first_name ASC, e.last_name ASC
+           LIMIT 20`,
+          [companyId, query.trim()],
+        );
+        return res.rows;
+      },
+      poolOverride,
+    );
+  }
 }
+
