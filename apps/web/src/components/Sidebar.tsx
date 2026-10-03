@@ -14,6 +14,8 @@ import {
   CircleDollarSign,
   ScrollText,
   ChevronRight,
+  MapPin,
+  Network,
 } from 'lucide-react';
 
 interface NavItem {
@@ -39,6 +41,8 @@ const NAVIGATION: NavSection[] = [
   {
     title: 'ORGANIZATION',
     items: [
+      { title: 'Org Chart', href: '/org/chart', icon: Network },
+      { title: 'Work Locations', href: '/org/locations', icon: MapPin },
       { title: 'Departments', href: '/org/departments', icon: GitFork },
       { title: 'Designations', href: '/org/designations', icon: Briefcase },
       { title: 'Cost Centers', href: '/org/cost-centers', icon: Layers },
