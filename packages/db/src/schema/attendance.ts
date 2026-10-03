@@ -169,6 +169,56 @@ export const attendancePresence = pgTable(
   ],
 );
 
+export const attendanceDays = pgTable(
+  'attendance_days',
+  {
+    ...baseTenantColumns,
+    employeeId: uuid('employee_id').notNull(),
+    workDate: date('work_date').notNull(),
+    shiftId: uuid('shift_id'),
+    firstIn: timestamp('first_in', { withTimezone: true, mode: 'date' }),
+    lastOut: timestamp('last_out', { withTimezone: true, mode: 'date' }),
+    punchCount: integer('punch_count').default(0).notNull(),
+    totalWorkMinutes: integer('total_work_minutes').default(0).notNull(),
+    effectiveMinutes: integer('effective_minutes').default(0).notNull(),
+    lateInMinutes: integer('late_in_minutes').default(0).notNull(),
+    earlyOutMinutes: integer('early_out_minutes').default(0).notNull(),
+    overtimeMinutes: integer('overtime_minutes').default(0).notNull(),
+    status: text('status')
+      .$type<'present' | 'absent' | 'half_day' | 'on_leave' | 'holiday' | 'weekly_off' | 'missing_punch'>()
+      .default('absent')
+      .notNull(),
+    isRegularized: boolean('is_regularized').default(false).notNull(),
+    isLocked: boolean('is_locked').default(false).notNull(),
+    ruleVersion: integer('rule_version').default(1).notNull(),
+    sourceHash: text('source_hash'),
+  },
+  table => [
+    uniqueIndex('idx_attendance_days_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_attendance_days_emp_date').on(table.companyId, table.employeeId, table.workDate),
+    index('idx_attendance_days_company_date').on(table.companyId, table.workDate, table.status),
+  ],
+);
+
+export const attendancePeriodLocks = pgTable(
+  'attendance_period_locks',
+  {
+    ...baseTenantColumns,
+    periodStart: date('period_start').notNull(),
+    periodEnd: date('period_end').notNull(),
+    isLocked: boolean('is_locked').default(true).notNull(),
+    lockedBy: uuid('locked_by').notNull(),
+    lockedAt: timestamp('locked_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    unlockedBy: uuid('unlocked_by'),
+    unlockedAt: timestamp('unlocked_at', { withTimezone: true, mode: 'date' }),
+    reason: text('reason').notNull(),
+  },
+  table => [
+    uniqueIndex('idx_attendance_period_locks_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_attendance_period_locks_period').on(table.companyId, table.periodStart, table.periodEnd),
+  ],
+);
+
 export type AttendancePolicy = typeof attendancePolicies.$inferSelect;
 export type NewAttendancePolicy = typeof attendancePolicies.$inferInsert;
 export type AttendancePolicyAssignment = typeof attendancePolicyAssignments.$inferSelect;
@@ -183,3 +233,7 @@ export type AttendancePunchReview = typeof attendancePunchReviews.$inferSelect;
 export type NewAttendancePunchReview = typeof attendancePunchReviews.$inferInsert;
 export type AttendancePresence = typeof attendancePresence.$inferSelect;
 export type NewAttendancePresence = typeof attendancePresence.$inferInsert;
+export type AttendanceDay = typeof attendanceDays.$inferSelect;
+export type NewAttendanceDay = typeof attendanceDays.$inferInsert;
+export type AttendancePeriodLock = typeof attendancePeriodLocks.$inferSelect;
+export type NewAttendancePeriodLock = typeof attendancePeriodLocks.$inferInsert;
