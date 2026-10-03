@@ -19,5 +19,7 @@ export * from './redis/index.js';
 export * from './customfield/index.js';
 export * from './bulk/index.js';
 export * from './dashboard/index.js';
+export * from './location/index.js';
+export * from './workflow/index.js';
 export * from './metrics/index.js';
 export * from './modules/sample/index.js';
