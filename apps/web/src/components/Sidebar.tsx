@@ -19,6 +19,7 @@ import {
   Users,
   FileEdit,
   Bell,
+  CheckSquare,
 } from 'lucide-react';
 
 interface NavItem {
@@ -39,12 +40,14 @@ const NAVIGATION: NavSection[] = [
     title: 'OVERVIEW',
     items: [
       { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { title: 'Approvals Inbox', href: '/workflow/inbox', icon: CheckSquare },
     ],
   },
   {
     title: 'ORGANIZATION',
     items: [
       { title: 'Employees', href: '/employees', icon: Users },
+      { title: 'Attendance Shifts', href: '/attendance/shifts', icon: Clock },
       { title: 'Change Requests', href: '/admin/change-requests', icon: FileEdit },
       { title: 'Org Chart', href: '/org/chart', icon: Network },
       { title: 'Work Locations', href: '/org/locations', icon: MapPin },
@@ -67,7 +70,6 @@ const NAVIGATION: NavSection[] = [
   {
     title: 'UPCOMING MODULES',
     items: [
-      { title: 'Attendance', href: '#', icon: Clock, phase: 'Phase 2' },
       { title: 'Payroll & Tax', href: '#', icon: CircleDollarSign, phase: 'Phase 4' },
     ],
   },
