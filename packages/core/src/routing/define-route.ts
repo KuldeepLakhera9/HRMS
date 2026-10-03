@@ -253,6 +253,30 @@ export function createNextRoute<TInput = unknown, TOutput = unknown>(
       responseBody = rest;
     }
 
+    const isTextStream =
+      responseHeaders['Content-Type']?.startsWith('text/csv') ||
+      responseHeaders['Content-Type']?.startsWith('text/plain');
+
+    if (isTextStream) {
+      let textContent = '';
+      if (typeof responseBody === 'string') {
+        textContent = responseBody;
+      } else if (
+        typeof responseBody === 'object' &&
+        responseBody !== null &&
+        'csv' in (responseBody as Record<string, unknown>)
+      ) {
+        textContent = String((responseBody as { csv: unknown }).csv || '');
+      } else {
+        textContent = String(responseBody ?? '');
+      }
+
+      return new Response(textContent, {
+        status: result.statusCode,
+        headers: responseHeaders,
+      }) as unknown as Response;
+    }
+
     return new Response(JSON.stringify(responseBody), {
       status: result.statusCode,
       headers: {
