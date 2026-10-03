@@ -6,3 +6,5 @@ export * from './audit.js';
 export * from './outbox.js';
 export * from './org.js';
 export * from './proof.js';
+export * from './employees.js';
+export * from './files.js';

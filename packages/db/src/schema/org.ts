@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, integer, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, boolean, integer, jsonb, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import { baseTenantColumns } from '../columns.js';
 
 export const departments = pgTable(
@@ -56,6 +56,25 @@ export const costCenters = pgTable(
   ],
 );
 
+export const workLocations = pgTable(
+  'work_locations',
+  {
+    ...baseTenantColumns,
+    name: text('name').notNull(),
+    code: text('code').notNull(),
+    address: jsonb('address').$type<Record<string, unknown>>().default({}).notNull(),
+    timezone: text('timezone').default('Asia/Kolkata').notNull(),
+    center: text('center'), // PostgreSQL geography(Point, 4326)
+    radiusMeters: integer('radius_meters'),
+    active: boolean('active').default(true).notNull(),
+  },
+  table => [
+    uniqueIndex('idx_work_locations_company_code').on(table.companyId, table.code),
+    index('idx_work_locations_company_active').on(table.companyId, table.active),
+    index('idx_work_locations_created').on(table.companyId, table.createdAt),
+  ],
+);
+
 export type Department = typeof departments.$inferSelect;
 export type NewDepartment = typeof departments.$inferInsert;
 export type Designation = typeof designations.$inferSelect;
@@ -64,3 +83,5 @@ export type Grade = typeof grades.$inferSelect;
 export type NewGrade = typeof grades.$inferInsert;
 export type CostCenter = typeof costCenters.$inferSelect;
 export type NewCostCenter = typeof costCenters.$inferInsert;
+export type WorkLocation = typeof workLocations.$inferSelect;
+export type NewWorkLocation = typeof workLocations.$inferInsert;
