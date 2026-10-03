@@ -19,6 +19,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1145.0",
+    "@aws-sdk/s3-request-presigner": "^3.1145.0",
     "@hrms/config": "workspace:*",
     "@hrms/db": "workspace:*",
     "@hrms/shared": "workspace:*",
