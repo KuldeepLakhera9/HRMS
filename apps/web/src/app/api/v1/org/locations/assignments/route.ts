@@ -12,6 +12,18 @@ const assignLocationSchema = z.object({
   validTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD date format.').nullable().optional(),
 });
 
+export const GET = createNextRoute({
+  permission: PERMISSIONS.ORG_LOCATION_READ,
+  schema: z.object({
+    employeeId: z.string().uuid().optional(),
+    locationId: z.string().uuid().optional(),
+  }),
+  handler: async (input, ctx) => {
+    const list = await locationService.listEmployeeLocations(ctx, input);
+    return { data: list, statusCode: 200 };
+  },
+});
+
 export const POST = createNextRoute({
   permission: PERMISSIONS.ATTENDANCE_LOCATION_ASSIGN,
   schema: assignLocationSchema,
@@ -20,3 +32,4 @@ export const POST = createNextRoute({
     return { data: result, statusCode: 201 };
   },
 });
+

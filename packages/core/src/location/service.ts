@@ -1,6 +1,7 @@
 import type pg from 'pg';
 import {
   ForbiddenError,
+  NotFoundError,
   PERMISSIONS,
   ValidationError,
 } from '@hrms/shared';
@@ -160,4 +161,50 @@ export class LocationService {
     const count = await this.repository.getCoveredEmployeesCount(ctx.companyId, locationId, poolOverride);
     return { count };
   }
+
+  /**
+   * Lists employee location assignments.
+   */
+  async listEmployeeLocations(
+    ctx: RequestContext,
+    filters?: { employeeId?: string; locationId?: string },
+    poolOverride?: pg.Pool,
+  ) {
+    if (!can(ctx, PERMISSIONS.ORG_LOCATION_READ)) {
+      throw new ForbiddenError('Permission denied: org.location.read required.');
+    }
+
+    return this.repository.listEmployeeLocations(ctx.companyId, filters, poolOverride);
+  }
+
+  /**
+   * Removes an employee location assignment.
+   */
+  async deleteEmployeeLocation(
+    ctx: RequestContext,
+    id: string,
+    poolOverride?: pg.Pool,
+  ): Promise<{ success: boolean }> {
+    const hasPermission =
+      can(ctx, PERMISSIONS.ATTENDANCE_LOCATION_ASSIGN) ||
+      can(ctx, PERMISSIONS.ORG_LOCATION_MANAGE);
+
+    if (!hasPermission) {
+      throw new ForbiddenError('Permission denied: attendance.location.assign required.');
+    }
+
+    const deleted = await this.repository.deleteEmployeeLocation(ctx.companyId, id, poolOverride);
+    if (!deleted) {
+      throw new NotFoundError('Location assignment not found.');
+    }
+
+    await this.auditService.recordEvent(ctx, {
+      action: 'employee.location.delete',
+      entity: 'employee_locations',
+      entityId: id,
+    });
+
+    return { success: true };
+  }
 }
+
