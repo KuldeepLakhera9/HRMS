@@ -8,6 +8,8 @@ const queryAuditLogsSchema = z.object({
   entityId: z.string().uuid().optional(),
   actorId: z.string().uuid().optional(),
   action: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
   cursorTs: z.string().optional(),
   cursorId: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),

@@ -59,6 +59,36 @@ export interface EmployeeHistoryRow {
   createdAt: Date;
 }
 
+export interface DirectoryEmployeeRow {
+  id: string;
+  empCode: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  emailWork: string;
+  phone: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  designationId: string | null;
+  designationName: string | null;
+  locationId: string | null;
+  locationName: string | null;
+  status: string;
+  employmentType: string;
+  doj: string;
+  createdAt: Date;
+}
+
+export interface DirectoryQueryParams {
+  search?: string | undefined;
+  departmentId?: string | undefined;
+  locationId?: string | undefined;
+  designationId?: string | undefined;
+  status?: string | undefined;
+  cursor?: string | undefined; // id cursor
+  limit?: number | undefined;
+}
+
 export class EmployeeRepository {
   /**
    * Atomically increments the employee code sequence using counters row-level locking.
@@ -348,6 +378,95 @@ export class EmployeeRepository {
           values,
         );
         return res.rows;
+      },
+      poolOverride,
+    );
+  }
+
+  /**
+   * Fast directory projection with pg_trgm search, filtering, keyset pagination, and bounded count.
+   */
+  async getDirectory(
+    companyId: string,
+    params: DirectoryQueryParams,
+    poolOverride?: pg.Pool,
+  ): Promise<{ items: DirectoryEmployeeRow[]; nextCursor?: string | undefined; total: number }> {
+    return withTenant(
+      { companyId },
+      async (_tx, client) => {
+        const wheres: string[] = ['e.company_id = $1', 'e.deleted_at IS NULL'];
+        const values: unknown[] = [companyId];
+        let pIdx = 2;
+
+        if (params.search && params.search.trim()) {
+          wheres.push(`e.search_key ILIKE '%' || $${pIdx++} || '%'`);
+          values.push(params.search.trim().toLowerCase());
+        }
+
+        if (params.departmentId) {
+          wheres.push(`e.department_id = $${pIdx++}`);
+          values.push(params.departmentId);
+        }
+
+        if (params.locationId) {
+          wheres.push(`e.location_id = $${pIdx++}`);
+          values.push(params.locationId);
+        }
+
+        if (params.designationId) {
+          wheres.push(`e.designation_id = $${pIdx++}`);
+          values.push(params.designationId);
+        }
+
+        if (params.status) {
+          wheres.push(`e.status = $${pIdx++}`);
+          values.push(params.status);
+        }
+
+        const countWheres = [...wheres];
+        const countValues = [...values];
+
+        if (params.cursor) {
+          wheres.push(`e.id > $${pIdx++}`);
+          values.push(params.cursor);
+        }
+
+        const limit = Math.min(params.limit || 50, 100);
+        values.push(limit + 1);
+
+        const sql = `
+          SELECT
+            e.id, e.emp_code as "empCode", e.first_name as "firstName", e.last_name as "lastName",
+            e.first_name || ' ' || e.last_name as "fullName", e.email_work as "emailWork",
+            e.phone, e.department_id as "departmentId", d.name as "departmentName",
+            e.designation_id as "designationId", des.name as "designationName",
+            e.location_id as "locationId", loc.name as "locationName",
+            e.status, e.employment_type as "employmentType", e.doj, e.created_at as "createdAt"
+          FROM employees e
+          LEFT JOIN departments d ON d.id = e.department_id AND d.company_id = e.company_id AND d.deleted_at IS NULL
+          LEFT JOIN designations des ON des.id = e.designation_id AND des.company_id = e.company_id AND des.deleted_at IS NULL
+          LEFT JOIN work_locations loc ON loc.id = e.location_id AND loc.company_id = e.company_id AND loc.deleted_at IS NULL
+          WHERE ${wheres.join(' AND ')}
+          ORDER BY e.first_name ASC, e.last_name ASC, e.id ASC
+          LIMIT $${pIdx}
+        `;
+
+        const [itemsRes, countRes] = await Promise.all([
+          client.query<DirectoryEmployeeRow>(sql, values),
+          client.query<{ count: string }>(
+            `SELECT COUNT(*)::text as count FROM (
+               SELECT 1 FROM employees e WHERE ${countWheres.join(' AND ')} LIMIT 1001
+             ) sub`,
+            countValues,
+          ),
+        ]);
+
+        const hasMore = itemsRes.rows.length > limit;
+        const items = hasMore ? itemsRes.rows.slice(0, limit) : itemsRes.rows;
+        const nextCursor = hasMore && items.length > 0 ? items[items.length - 1]!.id : undefined;
+        const total = parseInt(countRes.rows[0]?.count || '0', 10);
+
+        return { items, nextCursor, total };
       },
       poolOverride,
     );

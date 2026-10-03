@@ -78,6 +78,8 @@ export class AuditService {
         entityId: params.entityId,
         actorId,
         action: params.action,
+        startDate: params.startDate,
+        endDate: params.endDate,
         cursorTs: params.cursorTs,
         cursorId: params.cursorId,
         limit: params.limit,

@@ -35,6 +35,94 @@ export class OutboxRelayWorker {
             { id: event.id, type: event.type, aggregate: event.aggregate },
             'Dispatched outbox event',
           );
+
+          // Handle Sprint 1.3 Domain Events
+          if (event.type === 'change_request.created') {
+            const employeeId = event.payload.employeeId as string | undefined;
+            if (employeeId) {
+              const empRes = await client.query<{ managerId: string; fullName: string }>(
+                `SELECT manager_id as "managerId", first_name || ' ' || last_name as "fullName"
+                 FROM employees WHERE company_id = $1 AND id = $2`,
+                [event.companyId, employeeId],
+              );
+              const emp = empRes.rows[0];
+              if (emp?.managerId) {
+                const mgrUserRes = await client.query<{ userId: string }>(
+                  `SELECT user_id as "userId" FROM employees WHERE company_id = $1 AND id = $2`,
+                  [event.companyId, emp.managerId],
+                );
+                const mgrUserId = mgrUserRes.rows[0]?.userId;
+                if (mgrUserId) {
+                  await client.query(
+                    `INSERT INTO notifications (id, company_id, user_id, type, title, body, link)
+                     VALUES (gen_random_uuid(), $1, $2, 'change_request', $3, $4, '/admin/change-requests')`,
+                    [
+                      event.companyId,
+                      mgrUserId,
+                      'Profile Change Request',
+                      `${emp.fullName} has submitted a profile change request for review.`,
+                    ],
+                  );
+                }
+              }
+            }
+          } else if (event.type === 'change_request.decided') {
+            const employeeId = event.payload.employeeId as string | undefined;
+            const decision = event.payload.decision as string | undefined;
+            if (employeeId) {
+              const empUserRes = await client.query<{ userId: string }>(
+                `SELECT user_id as "userId" FROM employees WHERE company_id = $1 AND id = $2`,
+                [event.companyId, employeeId],
+              );
+              const userId = empUserRes.rows[0]?.userId;
+              if (userId) {
+                await client.query(
+                  `INSERT INTO notifications (id, company_id, user_id, type, title, body, link)
+                   VALUES (gen_random_uuid(), $1, $2, 'change_request', $3, $4, $5)`,
+                  [
+                    event.companyId,
+                    userId,
+                    `Change Request ${decision === 'approved' ? 'Approved' : 'Rejected'}`,
+                    `Your profile change request was ${decision}.`,
+                    `/employees/${employeeId}`,
+                  ],
+                );
+              }
+            }
+          } else if (event.type === 'document.uploaded') {
+            const fileId = event.payload.fileId as string | undefined;
+            if (fileId) {
+              await client.query(
+                `UPDATE files SET status = 'clean', updated_at = now()
+                 WHERE company_id = $1 AND id = $2 AND status = 'pending'`,
+                [event.companyId, fileId],
+              );
+            }
+          } else if (event.type === 'document.verified' || event.type === 'document.rejected') {
+            const employeeId = event.payload.employeeId as string | undefined;
+            const status = event.payload.status as string | undefined;
+            if (employeeId) {
+              const empUserRes = await client.query<{ userId: string }>(
+                `SELECT user_id as "userId" FROM employees WHERE company_id = $1 AND id = $2`,
+                [event.companyId, employeeId],
+              );
+              const userId = empUserRes.rows[0]?.userId;
+              if (userId) {
+                await client.query(
+                  `INSERT INTO notifications (id, company_id, user_id, type, title, body, link)
+                   VALUES (gen_random_uuid(), $1, $2, 'document', $3, $4, $5)`,
+                  [
+                    event.companyId,
+                    userId,
+                    `Document ${status === 'verified' ? 'Verified' : 'Rejected'}`,
+                    `Your uploaded document has been ${status}.`,
+                    `/employees/${employeeId}`,
+                  ],
+                );
+              }
+            }
+          }
+
           processedIds.push(event.id);
         } catch (dispatchErr) {
           logger.error({ err: dispatchErr, eventId: event.id }, 'Failed to dispatch outbox event');

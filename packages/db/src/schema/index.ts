@@ -8,3 +8,6 @@ export * from './org.js';
 export * from './proof.js';
 export * from './employees.js';
 export * from './files.js';
+export * from './documents.js';
+export * from './change-requests.js';
+export * from './notifications.js';
