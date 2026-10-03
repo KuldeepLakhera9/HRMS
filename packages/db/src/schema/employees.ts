@@ -59,6 +59,7 @@ export const employees = pgTable(
     index('idx_employees_company_status_dept').on(table.companyId, table.status, table.departmentId),
     index('idx_employees_company_manager').on(table.companyId, table.managerId),
     index('idx_employees_company_location').on(table.companyId, table.locationId),
+    index('idx_employees_company_doj').on(table.companyId, table.doj),
     index('idx_employees_keyset').on(table.companyId, table.createdAt, table.id),
   ],
 );
