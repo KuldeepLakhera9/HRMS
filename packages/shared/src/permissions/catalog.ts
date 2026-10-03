@@ -75,6 +75,8 @@ export const PERMISSIONS = {
   ATTENDANCE_ROSTER_READ: 'attendance.roster.read',
   ATTENDANCE_ROSTER_MANAGE: 'attendance.roster.manage',
   ATTENDANCE_PRESENCE_READ: 'attendance.presence.read',
+  ATTENDANCE_DEVICE_MANAGE: 'attendance.device.manage',
+  ATTENDANCE_LOCK_MANAGE: 'attendance.lock.manage',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

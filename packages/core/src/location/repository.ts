@@ -241,6 +241,23 @@ export class LocationRepository {
   }
 
   /**
+   * Retrieves the QR secret for a work location.
+   */
+  async getLocationQrSecret(
+    companyId: string,
+    locationId: string,
+    poolOverride?: pg.Pool,
+  ): Promise<string | null> {
+    return withTenant({ companyId }, async (_tx, client) => {
+      const res = await client.query(
+        'SELECT qr_secret FROM work_locations WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL LIMIT 1',
+        [companyId, locationId],
+      );
+      return res.rows[0]?.qr_secret ?? null;
+    }, poolOverride);
+  }
+
+  /**
    * Assigns an employee to a work location with date validity.
    */
   async assignEmployeeLocation(

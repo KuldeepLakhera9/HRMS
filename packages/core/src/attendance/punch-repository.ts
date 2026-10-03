@@ -57,6 +57,8 @@ export interface GeofenceCheckResult {
   radiusMeters: number;
   distanceMeters: number;
   isInside: boolean;
+  wifiBssids?: string[];
+  qrSecret?: string | null;
 }
 
 export interface RecordPunchDbInput {
@@ -194,6 +196,8 @@ export class AttendancePunchRepository {
             wl.timezone,
             wl.geofence_type as "geofenceType",
             COALESCE(wl.radius_meters, 100) as "radiusMeters",
+            wl.wifi_bssids as "wifiBssids",
+            wl.qr_secret as "qrSecret",
             CASE
               WHEN wl.center IS NOT NULL THEN
                 ST_Distance(wl.center, ST_SetSRID(ST_MakePoint($4, $5), 4326)::geography)
@@ -262,6 +266,8 @@ export class AttendancePunchRepository {
           radiusMeters: parseFloat(row.radiusMeters),
           distanceMeters: parseFloat(row.distanceMeters),
           isInside: Boolean(row.isInside),
+          wifiBssids: row.wifiBssids ?? [],
+          qrSecret: row.qrSecret ?? null,
         };
       },
       poolOverride,

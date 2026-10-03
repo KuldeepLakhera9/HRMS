@@ -12,6 +12,10 @@ export const PUNCH_REASON_CODES = {
   POLICY_NOT_FOUND: 'POLICY_NOT_FOUND',
   SOURCE_NOT_ALLOWED: 'SOURCE_NOT_ALLOWED',
   SHIFT_NOT_FOUND: 'SHIFT_NOT_FOUND',
+  DEVICE_NOT_REGISTERED: 'DEVICE_NOT_REGISTERED',
+  QR_VERIFIED: 'QR_VERIFIED',
+  WIFI_VERIFIED: 'WIFI_VERIFIED',
+  PERIOD_LOCKED: 'PERIOD_LOCKED',
 } as const;
 
 export type PunchReasonCode = (typeof PUNCH_REASON_CODES)[keyof typeof PUNCH_REASON_CODES];
@@ -28,6 +32,10 @@ export const PUNCH_REASON_MESSAGES: Record<PunchReasonCode, string> = {
   POLICY_NOT_FOUND: 'No active attendance policy found.',
   SOURCE_NOT_ALLOWED: 'Punch source is not permitted under attendance policy.',
   SHIFT_NOT_FOUND: 'No active shift assigned for this work date.',
+  DEVICE_NOT_REGISTERED: 'Mobile device is not registered or approved for attendance.',
+  QR_VERIFIED: 'Punch verified via rotating QR code.',
+  WIFI_VERIFIED: 'Punch verified via office Wi-Fi network.',
+  PERIOD_LOCKED: 'Attendance period is locked for payroll processing.',
 };
 
 export const recordPunchSchema = z.object({
