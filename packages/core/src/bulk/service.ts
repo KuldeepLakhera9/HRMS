@@ -27,7 +27,6 @@ import {
   type ImportRowError,
 } from './repository.js';
 import { BulkEmployeeRowSchema, type BulkEmployeeRow } from './validation.js';
-import { withTenant } from '@hrms/db';
 
 export class BulkService {
   private repository: BulkRepository;
@@ -92,6 +91,12 @@ export class BulkService {
     const cfDefs = await this.customFieldService.listDefinitions(ctx, entity, poolOverride);
     const cfValidator = buildDynamicValidator(cfDefs);
 
+    // Fetch valid organization entity IDs for tenant to prevent IDOR / invalid foreign keys
+    const validOrgEntities = await this.repository.getValidOrgEntityIds(ctx.companyId, poolOverride);
+    const validDepts = validOrgEntities.departments;
+    const validDesigs = validOrgEntities.designations;
+    const validLocs = validOrgEntities.locations;
+
     const errors: ImportRowError[] = [];
     const validRowsList: Array<{ row: BulkEmployeeRow; customFields: Record<string, unknown> }> = [];
     const previewRows: Array<Record<string, unknown>> = [];
@@ -133,6 +138,39 @@ export class BulkService {
             column: issue.path.join('.'),
             message: issue.message,
             value: issue.path.length > 0 ? (standardData[String(issue.path[0])] ?? '') : '',
+          });
+        }
+      } else {
+        // IDOR & Foreign Key Verification against company scope
+        const rowData = parseRes.data;
+        if (rowData.departmentId && !validDepts.has(rowData.departmentId)) {
+          rowHasError = true;
+          errors.push({
+            row: rowNum,
+            empCode: rowData.empCode,
+            column: 'departmentId',
+            message: `Department ID '${rowData.departmentId}' does not exist in this organization.`,
+            value: rowData.departmentId,
+          });
+        }
+        if (rowData.designationId && !validDesigs.has(rowData.designationId)) {
+          rowHasError = true;
+          errors.push({
+            row: rowNum,
+            empCode: rowData.empCode,
+            column: 'designationId',
+            message: `Designation ID '${rowData.designationId}' does not exist in this organization.`,
+            value: rowData.designationId,
+          });
+        }
+        if (rowData.locationId && !validLocs.has(rowData.locationId)) {
+          rowHasError = true;
+          errors.push({
+            row: rowNum,
+            empCode: rowData.empCode,
+            column: 'locationId',
+            message: `Location ID '${rowData.locationId}' does not exist in this organization.`,
+            value: rowData.locationId,
           });
         }
       }
@@ -407,47 +445,7 @@ export class BulkService {
       revealSensitive = true;
     }
 
-    const rows = await withTenant(
-      { companyId: ctx.companyId },
-      async (_tx, client) => {
-        const res = await client.query<{
-          empCode: string;
-          firstName: string;
-          lastName: string;
-          emailWork: string;
-          phone: string | null;
-          gender: string | null;
-          dob: string | null;
-          doj: string;
-          status: string;
-          employmentType: string;
-          departmentName: string | null;
-          designationName: string | null;
-          locationName: string | null;
-          panEnc: string | null;
-          aadhaarEnc: string | null;
-          bankEnc: string | null;
-          customFields: Record<string, unknown>;
-        }>(
-          `SELECT
-             e.emp_code as "empCode", e.first_name as "firstName", e.last_name as "lastName",
-             e.email_work as "emailWork", e.phone, e.gender, e.dob, e.doj, e.status,
-             e.employment_type as "employmentType",
-             d.name as "departmentName", des.name as "designationName", loc.name as "locationName",
-             e.pan_enc as "panEnc", e.aadhaar_enc as "aadhaarEnc", e.bank_enc as "bankEnc",
-             e.custom_fields as "customFields"
-           FROM employees e
-           LEFT JOIN departments d ON d.company_id = e.company_id AND d.id = e.department_id AND d.deleted_at IS NULL
-           LEFT JOIN designations des ON des.company_id = e.company_id AND des.id = e.designation_id AND des.deleted_at IS NULL
-           LEFT JOIN locations loc ON loc.company_id = e.company_id AND loc.id = e.location_id AND loc.deleted_at IS NULL
-           WHERE e.company_id = $1 AND e.deleted_at IS NULL
-           ORDER BY e.emp_code ASC`,
-          [ctx.companyId],
-        );
-        return res.rows;
-      },
-      poolOverride,
-    );
+    const rows = await this.repository.getEmployeesForExport(ctx.companyId, poolOverride);
 
     const headers = [
       'empCode',
