@@ -55,12 +55,15 @@ export interface TodayAttendanceSummary {
 }
 
 import { calculateHaversineDistanceMeters } from '../location/geofence.js';
+import { DeviceRepository } from './device-repository.js';
+import { verifyRotatingQrToken, verifyWifiBssid } from './qr-service.js';
 
 export class AttendancePunchService {
   private punchRepo: AttendancePunchRepository;
   private policyRepo: AttendancePolicyRepository;
   private shiftService: ShiftService;
   private auditService: AuditService;
+  private deviceRepo: DeviceRepository;
   private redisClient?: { publish: (channel: string, message: string) => Promise<unknown> } | undefined;
 
   constructor(
@@ -69,11 +72,13 @@ export class AttendancePunchService {
     shiftService?: ShiftService,
     auditService?: AuditService,
     redisClient?: { publish: (channel: string, message: string) => Promise<unknown> } | undefined,
+    deviceRepo?: DeviceRepository,
   ) {
     this.punchRepo = punchRepo ?? new AttendancePunchRepository();
     this.policyRepo = policyRepo ?? new AttendancePolicyRepository();
     this.shiftService = shiftService ?? new ShiftService();
     this.auditService = auditService ?? new AuditService();
+    this.deviceRepo = deviceRepo ?? new DeviceRepository();
     this.redisClient = redisClient;
   }
 
@@ -184,6 +189,23 @@ export class AttendancePunchService {
       };
     }
 
+    // 4b. Mobile Device Binding Verification (P2-PUNCH-03: zero external calls on hot path)
+    if (input.source === 'mobile' && input.deviceId) {
+      const activeDevice = await this.deviceRepo.getActiveDevice(
+        ctx.companyId,
+        employeeId,
+        poolOverride,
+      );
+
+      if (!activeDevice || activeDevice.deviceId !== input.deviceId) {
+        return {
+          success: false,
+          reasonCode: PUNCH_REASON_CODES.DEVICE_NOT_REGISTERED,
+          message: PUNCH_REASON_MESSAGES.DEVICE_NOT_REGISTERED,
+        };
+      }
+    }
+
     // 5. Geofence Spatial Evaluation (if coordinates provided)
     let isInsideGeofence = true;
     let distanceMeters: number | null = null;
@@ -205,6 +227,20 @@ export class AttendancePunchService {
         locationTimezone = geofenceResult.timezone;
         distanceMeters = geofenceResult.distanceMeters;
         isInsideGeofence = geofenceResult.isInside;
+
+        // Fallback verification: Rotating QR or Wi-Fi BSSID (P2-PUNCH-06)
+        if (!isInsideGeofence) {
+          if (input.qrPayload && geofenceResult.qrSecret && geofenceResult.locationId) {
+            const qrCheck = verifyRotatingQrToken(input.qrPayload, geofenceResult.locationId, geofenceResult.qrSecret);
+            if (qrCheck.valid) {
+              isInsideGeofence = true;
+            }
+          } else if (input.wifiBssid && geofenceResult.wifiBssids) {
+            if (verifyWifiBssid(input.wifiBssid, geofenceResult.wifiBssids)) {
+              isInsideGeofence = true;
+            }
+          }
+        }
       } else if (policy.geofenceMode === 'strict') {
         return {
           success: false,

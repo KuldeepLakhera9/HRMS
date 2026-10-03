@@ -6,3 +6,4 @@ export * from './migrate.js';
 export * from './seed.js';
 export * from './seed-load.js';
 export * as schema from './schema/index.js';
+export * from './schema/index.js';
