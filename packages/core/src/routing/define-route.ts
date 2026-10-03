@@ -192,6 +192,8 @@ export function createNextRoute<TInput = unknown, TOutput = unknown>(
         ctx = {
           companyId: session.companyId,
           userId: session.userId,
+          sessionId: session.id,
+          stepUpUntil: session.stepUpUntil,
           roles: authData.roles,
           permissions: authData.permissions,
           requestId,
