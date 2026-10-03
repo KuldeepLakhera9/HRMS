@@ -22,6 +22,8 @@ import {
   EmployeeRepository,
   type EmployeeRow,
   type EmployeeHistoryRow,
+  type DirectoryEmployeeRow,
+  type DirectoryQueryParams,
 } from './repository.js';
 
 export interface MaskedEmployee extends Omit<EmployeeRow, 'bankEnc' | 'panEnc' | 'panBlindIdx' | 'aadhaarEnc'> {
@@ -674,5 +676,20 @@ export class EmployeeService {
     }
 
     return this.repository.getEmployeeHistory(ctx.companyId, employeeId, poolOverride);
+  }
+
+  /**
+   * Fast keyset directory listing with search, filters, and bounded count.
+   */
+  async getDirectory(
+    ctx: RequestContext,
+    params: DirectoryQueryParams,
+    poolOverride?: pg.Pool,
+  ): Promise<{ items: DirectoryEmployeeRow[]; nextCursor?: string | undefined; total: number }> {
+    if (!can(ctx, PERMISSIONS.EMPLOYEE_PROFILE_READ)) {
+      throw new ForbiddenError('You do not have permission to view employee directory.');
+    }
+
+    return this.repository.getDirectory(ctx.companyId, params, poolOverride);
   }
 }

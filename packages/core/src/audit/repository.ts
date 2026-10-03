@@ -40,6 +40,8 @@ export interface AuditLogQueryParams {
   entityId?: string | undefined;
   actorId?: string | undefined;
   action?: string | undefined;
+  startDate?: string | undefined;
+  endDate?: string | undefined;
   cursorTs?: string | undefined; // ISO timestamp
   cursorId?: string | undefined;
   limit?: number | undefined;
@@ -136,6 +138,14 @@ export class AuditRepository {
     if (params.action) {
       conditions.push(`action = $${paramIdx++}`);
       values.push(params.action);
+    }
+    if (params.startDate) {
+      conditions.push(`ts >= $${paramIdx++}`);
+      values.push(new Date(params.startDate));
+    }
+    if (params.endDate) {
+      conditions.push(`ts <= $${paramIdx++}`);
+      values.push(new Date(params.endDate));
     }
 
     // Keyset cursor pagination (ts, id)

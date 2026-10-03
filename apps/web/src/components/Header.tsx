@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Search,
   Bell,
   LogOut,
-  User,
   ShieldAlert,
   ChevronDown,
+  CheckCheck,
+  Settings,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -16,10 +18,114 @@ interface HeaderProps {
   roleName?: string;
 }
 
+interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  link: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
 export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER ADMIN' }: HeaderProps) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // Notification state
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loadingNotifs, setLoadingNotifs] = useState(false);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/notifications/unread-count');
+      if (res.ok) {
+        const json = await res.json();
+        setUnreadCount(json.data?.unreadCount || 0);
+      }
+    } catch {
+      // Ignore background fetch failure
+    }
+  }, []);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setLoadingNotifs(true);
+      const res = await fetch('/api/v1/notifications?limit=15');
+      if (res.ok) {
+        const json = await res.json();
+        setNotifications(json.data || []);
+      }
+    } finally {
+      setLoadingNotifs(false);
+    }
+  }, []);
+
+  // Poll and Listen to Real-Time SSE
+  useEffect(() => {
+    fetchUnreadCount();
+
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource('/api/v1/notifications/stream');
+      eventSource.onmessage = () => {
+        fetchUnreadCount();
+        fetchNotifications();
+      };
+      eventSource.onerror = () => {
+        // EventSource will automatically retry connection
+      };
+    } catch {
+      // Fallback to periodic poll if SSE unsupported
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  }, [fetchUnreadCount, fetchNotifications]);
+
+  const handleOpenNotifications = () => {
+    const next = !notifOpen;
+    setNotifOpen(next);
+    if (next) {
+      fetchNotifications();
+    }
+  };
+
+  const handleMarkRead = async (id: string, link: string | null) => {
+    try {
+      await fetch(`/api/v1/notifications/${id}/read`, { method: 'PATCH' });
+      setUnreadCount(prev => Math.max(0, prev - 1));
+      setNotifications(prev =>
+        prev.map(n => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n)),
+      );
+      if (link) {
+        setNotifOpen(false);
+        router.push(link);
+      }
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await fetch('/api/v1/notifications/read-all', { method: 'POST' });
+      setUnreadCount(0);
+      setNotifications(prev =>
+        prev.map(n => ({ ...n, readAt: new Date().toISOString() })),
+      );
+    } catch {
+      // Ignore
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -90,38 +196,237 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
       </div>
 
       {/* Right Actions: Notifications & User Menu */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative' }}>
         {/* Notification Bell */}
-        <button
-          type="button"
-          style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '8px',
-            border: '1px solid var(--border-color)',
-            backgroundColor: 'rgba(30, 41, 59, 0.6)',
-            color: 'var(--text-secondary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            position: 'relative',
-          }}
-          title="Notifications"
-        >
-          <Bell size={18} />
-          <span
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            onClick={handleOpenNotifications}
             style={{
-              position: 'absolute',
-              top: '6px',
-              right: '6px',
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--primary)',
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'rgba(30, 41, 59, 0.6)',
+              color: 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              position: 'relative',
             }}
-          />
-        </button>
+            title="Notifications"
+          >
+            <Bell size={18} />
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  minWidth: '18px',
+                  height: '18px',
+                  borderRadius: '9999px',
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 4px',
+                  border: '2px solid rgba(15, 23, 42, 0.9)',
+                }}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {/* Notification Popover Dropdown */}
+          {notifOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: '46px',
+                width: '360px',
+                maxHeight: '480px',
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                flexDirection: 'column',
+                zIndex: 50,
+                overflow: 'hidden',
+              }}
+            >
+              {/* Popover Header */}
+              <div
+                style={{
+                  padding: '0.875rem 1rem',
+                  borderBottom: '1px solid var(--border-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Bell size={16} color="var(--primary)" />
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Notifications
+                  </span>
+                  {unreadCount > 0 && (
+                    <span
+                      style={{
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                        color: 'var(--primary)',
+                        padding: '0.125rem 0.5rem',
+                        borderRadius: '9999px',
+                      }}
+                    >
+                      {unreadCount} unread
+                    </span>
+                  )}
+                </div>
+
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllRead}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <CheckCheck size={14} /> Mark all read
+                  </button>
+                )}
+              </div>
+
+              {/* Notification List */}
+              <div style={{ flex: 1, overflowY: 'auto', maxHeight: '340px' }}>
+                {loadingNotifs && notifications.length === 0 ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    Loading notifications...
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    No notifications yet. You are completely caught up!
+                  </div>
+                ) : (
+                  notifications.map(n => {
+                    const isUnread = !n.readAt;
+                    return (
+                      <div
+                        key={n.id}
+                        onClick={() => handleMarkRead(n.id, n.link)}
+                        style={{
+                          padding: '0.75rem 1rem',
+                          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                          backgroundColor: isUnread ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '0.75rem',
+                          transition: 'background-color 0.15s',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: isUnread ? '#3b82f6' : 'transparent',
+                            marginTop: '0.35rem',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              fontSize: '0.8125rem',
+                              fontWeight: isUnread ? 700 : 500,
+                              color: 'var(--text-primary)',
+                              marginBottom: '0.125rem',
+                            }}
+                          >
+                            {n.title}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                            {n.body}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '0.6875rem',
+                              color: 'var(--text-muted)',
+                              marginTop: '0.25rem',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Popover Footer */}
+              <div
+                style={{
+                  padding: '0.625rem 1rem',
+                  borderTop: '1px solid var(--border-color)',
+                  backgroundColor: 'rgba(30, 41, 59, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '0.75rem',
+                }}
+              >
+                <Link
+                  href="/settings/notifications"
+                  onClick={() => setNotifOpen(false)}
+                  style={{
+                    color: 'var(--text-secondary)',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                  }}
+                >
+                  <Settings size={14} /> Preferences
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setNotifOpen(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* User Profile Pill */}
         <div style={{ position: 'relative' }}>
@@ -158,37 +463,30 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
             </div>
             <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{userEmail}</span>
-              <span
-                style={{
-                  fontSize: '0.625rem',
-                  fontWeight: 700,
-                  color: '#818cf8',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                {roleName}
-              </span>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{roleName}</span>
             </div>
             <ChevronDown size={14} color="var(--text-muted)" />
           </button>
 
-          {/* Dropdown Menu */}
+          {/* User Menu Dropdown */}
           {menuOpen && (
             <div
               style={{
                 position: 'absolute',
-                top: 'calc(100% + 8px)',
                 right: 0,
+                top: '46px',
                 width: '220px',
-                backgroundColor: 'var(--bg-secondary)',
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
                 border: '1px solid var(--border-color)',
-                borderRadius: '10px',
+                borderRadius: '12px',
                 padding: '0.5rem',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0.25rem',
-                zIndex: 50,
+                zIndex: 40,
               }}
             >
               <div
@@ -199,13 +497,22 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
                 }}
               >
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Signed in as</div>
-                <div style={{ fontSize: '0.8125rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div
+                  style={{
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   {userEmail}
                 </div>
               </div>
 
-              <button
-                type="button"
+              <Link
+                href="/security"
                 onClick={() => setMenuOpen(false)}
                 style={{
                   display: 'flex',
@@ -213,40 +520,40 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
                   gap: '0.5rem',
                   padding: '0.5rem 0.75rem',
                   borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: 'var(--text-primary)',
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
                   fontSize: '0.8125rem',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                }}
-              >
-                <User size={16} />
-                Profile Settings
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMenuOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.8125rem',
-                  textAlign: 'left',
-                  cursor: 'pointer',
                 }}
               >
                 <ShieldAlert size={16} />
-                MFA & Security
-              </button>
+                <span>Security & MFA</span>
+              </Link>
 
-              <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '0.25rem 0' }} />
+              <Link
+                href="/settings/notifications"
+                onClick={() => setMenuOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                  fontSize: '0.8125rem',
+                }}
+              >
+                <Settings size={16} />
+                <span>Notification Settings</span>
+              </Link>
+
+              <div
+                style={{
+                  height: '1px',
+                  backgroundColor: 'var(--border-color)',
+                  margin: '0.25rem 0',
+                }}
+              />
 
               <button
                 type="button"
@@ -258,17 +565,17 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
                   gap: '0.5rem',
                   padding: '0.5rem 0.75rem',
                   borderRadius: '6px',
+                  color: 'var(--danger)',
+                  backgroundColor: 'transparent',
                   border: 'none',
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                  color: '#f87171',
                   fontSize: '0.8125rem',
-                  textAlign: 'left',
                   cursor: 'pointer',
-                  fontWeight: 600,
+                  width: '100%',
+                  textAlign: 'left',
                 }}
               >
                 <LogOut size={16} />
-                {loggingOut ? 'Signing out...' : 'Sign Out'}
+                <span>{loggingOut ? 'Signing out...' : 'Sign out'}</span>
               </button>
             </div>
           )}

@@ -17,6 +17,8 @@ import {
   MapPin,
   Network,
   Users,
+  FileEdit,
+  Bell,
 } from 'lucide-react';
 
 interface NavItem {
@@ -43,6 +45,7 @@ const NAVIGATION: NavSection[] = [
     title: 'ORGANIZATION',
     items: [
       { title: 'Employees', href: '/employees', icon: Users },
+      { title: 'Change Requests', href: '/admin/change-requests', icon: FileEdit },
       { title: 'Org Chart', href: '/org/chart', icon: Network },
       { title: 'Work Locations', href: '/org/locations', icon: MapPin },
       { title: 'Departments', href: '/org/departments', icon: GitFork },
@@ -57,6 +60,7 @@ const NAVIGATION: NavSection[] = [
       { title: 'User Management', href: '/admin/users', icon: Users },
       { title: 'Roles & Permissions', href: '/admin/roles', icon: ShieldCheck },
       { title: 'Security & Sessions', href: '/security', icon: ShieldCheck },
+      { title: 'Notification Settings', href: '/settings/notifications', icon: Bell },
       { title: 'Audit Trail', href: '/audit-logs', icon: ScrollText },
     ],
   },

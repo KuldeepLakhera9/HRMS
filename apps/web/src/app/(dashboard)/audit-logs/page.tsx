@@ -28,32 +28,50 @@ interface AuditLogItem {
   userAgent: string | null;
 }
 
+interface AuditCursor {
+  ts: string;
+  id: string;
+}
+
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<AuditCursor | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-  // Filters
+  // Filters - default to current month for partition pruning
+  const now = new Date();
+  const firstDayOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+    .toISOString()
+    .split('T')[0];
+  const todayStr = now.toISOString().split('T')[0];
+
+  const [startDate, setStartDate] = useState(firstDayOfMonth);
+  const [endDate, setEndDate] = useState(todayStr);
   const [actionFilter, setActionFilter] = useState('');
   const [entityFilter, setEntityFilter] = useState('');
+  const [actorFilter, setActorFilter] = useState('');
 
-  const fetchLogs = async (cursor?: string) => {
+  const fetchLogs = async (cursor?: AuditCursor) => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      params.set('limit', '15');
-      if (cursor) params.set('cursor', cursor);
+      params.set('limit', '25');
+      if (cursor) {
+        params.set('cursorTs', cursor.ts);
+        params.set('cursorId', cursor.id);
+      }
+      if (startDate) params.set('startDate', `${startDate}T00:00:00Z`);
+      if (endDate) params.set('endDate', `${endDate}T23:59:59Z`);
       if (actionFilter) params.set('action', actionFilter);
       if (entityFilter) params.set('entity', entityFilter);
+      if (actorFilter) params.set('actorId', actorFilter);
 
       const res = await fetch(`/api/v1/audit-logs?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setLogs(data.items || []);
+        setLogs(data.logs || data.items || []);
         setNextCursor(data.nextCursor || null);
-        setHasMore(data.hasMore || false);
       }
     } finally {
       setLoading(false);
@@ -62,7 +80,7 @@ export default function AuditLogsPage() {
 
   useEffect(() => {
     fetchLogs();
-  }, [actionFilter, entityFilter]);
+  }, [actionFilter, entityFilter, actorFilter, startDate, endDate]);
 
   const toggleRow = (id: string) => {
     setExpandedRow(expandedRow === id ? null : id);
@@ -103,22 +121,50 @@ export default function AuditLogsPage() {
         </button>
       </div>
 
-      {/* Filter Bar */}
+      {/* Filter Bar with Partition Pruning Date Range */}
       <div
         style={{
           display: 'flex',
-          gap: '1rem',
+          gap: '0.75rem',
           alignItems: 'center',
           marginBottom: '1.25rem',
           flexWrap: 'wrap',
+          backgroundColor: 'rgba(15, 23, 42, 0.4)',
+          padding: '0.875rem 1rem',
+          borderRadius: '8px',
+          border: '1px solid var(--border-color)',
         }}
       >
-        <div style={{ position: 'relative', width: '240px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>From:</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+            className="form-input"
+            style={{ fontSize: '0.8125rem', padding: '0.35rem 0.5rem', width: '135px' }}
+            title="Partition pruning start date"
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>To:</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+            className="form-input"
+            style={{ fontSize: '0.8125rem', padding: '0.35rem 0.5rem', width: '135px' }}
+            title="Partition pruning end date"
+          />
+        </div>
+
+        <div style={{ position: 'relative', width: '200px' }}>
           <Filter
-            size={15}
+            size={14}
             style={{
               position: 'absolute',
-              left: '0.875rem',
+              left: '0.75rem',
               top: '50%',
               transform: 'translateY(-50%)',
               color: 'var(--text-muted)',
@@ -128,18 +174,18 @@ export default function AuditLogsPage() {
             type="text"
             value={entityFilter}
             onChange={e => setEntityFilter(e.target.value)}
-            placeholder="Filter by entity (e.g. org.department)"
+            placeholder="Entity (e.g. employee)"
             className="form-input"
-            style={{ paddingLeft: '2.375rem', fontSize: '0.8125rem' }}
+            style={{ paddingLeft: '2.1rem', fontSize: '0.8125rem', padding: '0.35rem 0.5rem 0.35rem 2.1rem' }}
           />
         </div>
 
-        <div style={{ position: 'relative', width: '200px' }}>
+        <div style={{ position: 'relative', width: '170px' }}>
           <Search
-            size={15}
+            size={14}
             style={{
               position: 'absolute',
-              left: '0.875rem',
+              left: '0.75rem',
               top: '50%',
               transform: 'translateY(-50%)',
               color: 'var(--text-muted)',
@@ -151,7 +197,18 @@ export default function AuditLogsPage() {
             onChange={e => setActionFilter(e.target.value)}
             placeholder="Action (create/update)"
             className="form-input"
-            style={{ paddingLeft: '2.375rem', fontSize: '0.8125rem' }}
+            style={{ paddingLeft: '2.1rem', fontSize: '0.8125rem', padding: '0.35rem 0.5rem 0.35rem 2.1rem' }}
+          />
+        </div>
+
+        <div style={{ position: 'relative', width: '180px' }}>
+          <input
+            type="text"
+            value={actorFilter}
+            onChange={e => setActorFilter(e.target.value)}
+            placeholder="Actor UUID"
+            className="form-input"
+            style={{ fontSize: '0.8125rem', padding: '0.35rem 0.5rem' }}
           />
         </div>
       </div>
@@ -336,7 +393,7 @@ export default function AuditLogsPage() {
                 <ArrowLeft size={13} />
                 <span>First Page</span>
               </button>
-              {hasMore && nextCursor && (
+              {nextCursor && (
                 <button
                   type="button"
                   onClick={() => fetchLogs(nextCursor)}
