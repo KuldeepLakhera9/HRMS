@@ -300,4 +300,79 @@ export class LocationRepository {
       poolOverride,
     );
   }
+
+  /**
+   * Lists employee location assignments for a company.
+   */
+  async listEmployeeLocations(
+    companyId: string,
+    filters?: { employeeId?: string; locationId?: string },
+    poolOverride?: pg.Pool,
+  ): Promise<Array<{
+    id: string;
+    companyId: string;
+    employeeId: string;
+    locationId: string;
+    assignmentType: string;
+    validFrom: string;
+    validTo: string | null;
+    locationName?: string;
+  }>> {
+    return withTenant(
+      { companyId },
+      async (_tx, client) => {
+        const conditions: string[] = ['el.company_id = $1', 'el.deleted_at IS NULL'];
+        const values: unknown[] = [companyId];
+
+        if (filters?.employeeId) {
+          values.push(filters.employeeId);
+          conditions.push(`el.employee_id = $${values.length}`);
+        }
+        if (filters?.locationId) {
+          values.push(filters.locationId);
+          conditions.push(`el.location_id = $${values.length}`);
+        }
+
+        const res = await client.query(
+          `SELECT
+             el.id, el.company_id as "companyId", el.employee_id as "employeeId",
+             el.location_id as "locationId", el.assignment_type as "assignmentType",
+             el.valid_from as "validFrom", el.valid_to as "validTo",
+             wl.name as "locationName"
+           FROM employee_locations el
+           JOIN work_locations wl ON wl.company_id = el.company_id AND wl.id = el.location_id
+           WHERE ${conditions.join(' AND ')}
+           ORDER BY el.valid_from DESC`,
+          values,
+        );
+        return res.rows;
+      },
+      poolOverride,
+    );
+  }
+
+  /**
+   * Soft-deletes an employee location assignment.
+   */
+  async deleteEmployeeLocation(
+    companyId: string,
+    id: string,
+    poolOverride?: pg.Pool,
+  ): Promise<boolean> {
+    return withTenant(
+      { companyId },
+      async (_tx, client) => {
+        const res = await client.query(
+          `UPDATE employee_locations
+           SET deleted_at = NOW()
+           WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL
+           RETURNING id`,
+          [companyId, id],
+        );
+        return (res.rowCount ?? 0) > 0;
+      },
+      poolOverride,
+    );
+  }
 }
+

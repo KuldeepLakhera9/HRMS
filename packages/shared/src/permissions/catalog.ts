@@ -70,6 +70,11 @@ export const PERMISSIONS = {
   ATTENDANCE_LOCATION_ASSIGN: 'attendance.location.assign',
   ATTENDANCE_PUNCH_CREATE: 'attendance.punch.create',
   ATTENDANCE_PUNCH_READ: 'attendance.punch.read',
+  ATTENDANCE_SHIFT_READ: 'attendance.shift.read',
+  ATTENDANCE_SHIFT_MANAGE: 'attendance.shift.manage',
+  ATTENDANCE_ROSTER_READ: 'attendance.roster.read',
+  ATTENDANCE_ROSTER_MANAGE: 'attendance.roster.manage',
+  ATTENDANCE_PRESENCE_READ: 'attendance.presence.read',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
