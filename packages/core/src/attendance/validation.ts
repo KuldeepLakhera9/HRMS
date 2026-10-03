@@ -58,3 +58,23 @@ export const resolveAttendancePolicySchema = z.object({
     .optional(),
 });
 export type ResolveAttendancePolicyInput = z.infer<typeof resolveAttendancePolicySchema>;
+
+export const lockPeriodSchema = z.object({
+  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodStart must be YYYY-MM-DD'),
+  periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodEnd must be YYYY-MM-DD'),
+  reason: z.string().min(1, 'Reason is required').max(500),
+});
+export type LockPeriodSchemaInput = z.infer<typeof lockPeriodSchema>;
+
+export const unlockPeriodSchema = z.object({
+  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodStart must be YYYY-MM-DD'),
+  periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'periodEnd must be YYYY-MM-DD'),
+  reason: z.string().min(1, 'Reason is required').max(500),
+});
+export type UnlockPeriodSchemaInput = z.infer<typeof unlockPeriodSchema>;
+
+export const recalculateDaySchema = z.object({
+  employeeId: z.string().uuid(),
+  workDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'workDate must be YYYY-MM-DD'),
+});
+export type RecalculateDaySchemaInput = z.infer<typeof recalculateDaySchema>;

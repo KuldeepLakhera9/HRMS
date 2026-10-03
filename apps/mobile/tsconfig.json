@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM"],
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-native",
@@ -17,8 +20,15 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
-  "include": ["src/**/*", "App.tsx", "metro.config.js"]
+  "include": [
+    "src/**/*",
+    "App.tsx",
+    "metro.config.js"
+  ],
+  "extends": "expo/tsconfig.base"
 }
