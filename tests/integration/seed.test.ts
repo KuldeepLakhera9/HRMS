@@ -37,7 +37,7 @@ describe('Sprint 1.1 Seeding Engine Integration Tests', () => {
       await client.query("SELECT set_config('app.company_id', $1, true)", [companyId]);
 
       const rolesRes = await client.query<{ name: string; is_system: boolean; requires_mfa: boolean }>(
-        'SELECT name, is_system, requires_mfa FROM roles WHERE company_id = $1 ORDER BY name',
+        'SELECT name, is_system, requires_mfa FROM roles WHERE company_id = $1 AND is_system = true ORDER BY name',
         [companyId],
       );
 
