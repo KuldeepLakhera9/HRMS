@@ -472,4 +472,26 @@ export class AttendancePolicyRepository {
       poolOverride,
     );
   }
+
+  /**
+   * Resolves effective attendance policy for an employee on a given date.
+   */
+  async findEffectivePolicy(
+    companyId: string,
+    dateStr: string,
+    employeeId: string,
+    departmentId?: string | null,
+    locationId?: string | null,
+    poolOverride?: pg.Pool,
+  ): Promise<EffectivePolicyResult | null> {
+    return this.findEffectiveAssignment(
+      companyId,
+      employeeId,
+      departmentId ?? null,
+      locationId ?? null,
+      dateStr,
+      poolOverride,
+    );
+  }
 }
+
