@@ -4,6 +4,7 @@ import { closePools } from '@hrms/db';
 import { getLogger } from '@hrms/core';
 import { OutboxRelayWorker } from './outbox-relay.js';
 import { PartitionMaintenanceWorker } from './partition-maintenance.js';
+import { WorkflowSlaSweepWorker } from './workflow-sweep.js';
 
 const logger = getLogger().child({ service: 'worker' });
 
@@ -30,6 +31,9 @@ async function startWorker() {
   const partitionMaintenance = new PartitionMaintenanceWorker();
   partitionMaintenance.start(24 * 60 * 60 * 1000); // Check once daily
 
+  const workflowSlaSweep = new WorkflowSlaSweepWorker();
+  workflowSlaSweep.start(15 * 60 * 1000); // Check every 15 minutes
+
   let isShuttingDown = false;
 
   async function shutdown(signal: string) {
@@ -40,6 +44,7 @@ async function startWorker() {
     try {
       outboxRelay.stop();
       partitionMaintenance.stop();
+      workflowSlaSweep.stop();
       await redis.quit();
       await closePools();
       logger.info('Worker shutdown completed cleanly.');
