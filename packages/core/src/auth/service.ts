@@ -13,8 +13,14 @@ import { decryptSecret } from './crypto.js';
 import {
   createSession,
   revokeSession,
+  revokeSessionById,
+  listUserSessions,
   revokeAllUserSessions,
+  rotateRefreshToken,
+  setStepUp,
   type SessionData,
+  type UserSessionView,
+  STEP_UP_DURATION_SECONDS,
 } from './session.js';
 import {
   recordFailedLogin,
@@ -44,6 +50,7 @@ export interface LoginResult {
   tempUserId?: string | undefined;
   tempCompanyId?: string | undefined;
   rawToken?: string | undefined;
+  rawRefreshToken?: string | undefined;
   sessionId?: string | undefined;
   sessionData?: SessionData | undefined;
   user?: {
@@ -100,50 +107,30 @@ export class AuthService {
       );
     }
 
-    // 4. Check account status
     if (user.status !== 'active') {
-      throw new ForbiddenError(`Account is ${user.status}. Please contact an administrator.`);
+      throw new ForbiddenError(`Account is not active (status: ${user.status}).`);
     }
 
-    // 5. Verify password
+    // 4. Verify password
     const isPasswordValid = await verifyPassword(params.password, user.password_hash);
     if (!isPasswordValid) {
-      const lockRes = await recordFailedLogin(user.company_id, user.id, params.poolOverride);
-
-      await this.auditService.recordEvent(
-        {
-          companyId: user.company_id,
-          userId: user.id,
-          requestId: params.requestId || 'req-login-failed',
-          ip: params.ip,
-          userAgent: params.userAgent,
-          isAuthenticated: false,
-        },
-        {
-          action: 'auth.login.failed',
-          entity: 'users',
-          entityId: user.id,
-          meta: { reason: 'invalid_password', isLocked: lockRes.isLocked },
-          poolOverride: params.poolOverride,
-        },
-      );
-
+      await recordFailedLogin(user.company_id, user.id, params.poolOverride);
       throw new UnauthorizedError('Invalid email or password.');
     }
 
-    // 6. Check MFA requirement
-    if (user.mfa_enabled) {
-      if (!params.mfaCode) {
-        return {
-          mfaRequired: true,
-          tempUserId: user.id,
-          tempCompanyId: user.company_id,
-        };
-      }
+    // 5. Handle MFA requirement
+    if (user.mfa_enabled && !params.mfaCode) {
+      return {
+        mfaRequired: true,
+        tempUserId: user.id,
+        tempCompanyId: user.company_id,
+      };
+    }
 
-      // Verify MFA code
+    // 6. Verify MFA if provided/required
+    if (user.mfa_enabled && params.mfaCode) {
       if (!user.mfa_secret_enc) {
-        throw new UnauthorizedError('MFA configuration error.');
+        throw new UnauthorizedError('MFA is misconfigured for this account.');
       }
 
       const totpSecret = decryptSecret(user.mfa_secret_enc);
@@ -158,7 +145,7 @@ export class AuthService {
     await resetFailedLoginAttempts(user.company_id, user.id, params.poolOverride);
 
     // 8. Create session
-    const { rawToken, sessionId, sessionData } = await createSession({
+    const { rawToken, rawRefreshToken, sessionId, sessionData } = await createSession({
       companyId: user.company_id,
       userId: user.id,
       clientType: 'web',
@@ -196,6 +183,7 @@ export class AuthService {
 
     return {
       rawToken,
+      rawRefreshToken,
       sessionId,
       sessionData,
       user: {
@@ -206,6 +194,168 @@ export class AuthService {
         permissions: authData.permissions,
       },
     };
+  }
+
+  /**
+   * Refreshes access token using rotating refresh token.
+   * Revokes the whole family on reuse detection.
+   */
+  async refresh(params: {
+    refreshToken: string;
+    ip?: string | undefined;
+    userAgent?: string | undefined;
+    poolOverride?: pg.Pool | undefined;
+  }): Promise<{ token: string; refreshToken: string; sessionData: SessionData }> {
+    return rotateRefreshToken({
+      refreshToken: params.refreshToken,
+      ip: params.ip,
+      userAgent: params.userAgent,
+      poolOverride: params.poolOverride,
+    });
+  }
+
+  /**
+   * Step-up authentication verification.
+   * Validates password or TOTP, then elevates session for 10 minutes.
+   */
+  async stepUp(params: {
+    ctx: RequestContext;
+    sessionId: string;
+    password?: string | undefined;
+    totpCode?: string | undefined;
+    poolOverride?: pg.Pool | undefined;
+  }): Promise<{ stepUpUntil: string }> {
+    if (!params.ctx.isAuthenticated || !params.ctx.userId) {
+      throw new UnauthorizedError('Authentication is required.');
+    }
+
+    // Look up user credentials within tenant context (RLS-safe)
+    const user = await withTenant(
+      params.ctx,
+      async (_tx, client) => {
+        const userRes = await client.query<{
+          password_hash: string;
+          mfa_enabled: boolean;
+          mfa_secret_enc: string | null;
+        }>(
+          `SELECT password_hash, mfa_enabled, mfa_secret_enc
+           FROM users WHERE id = $1 AND company_id = $2 AND deleted_at IS NULL`,
+          [params.ctx.userId, params.ctx.companyId],
+        );
+        return userRes.rows[0];
+      },
+      params.poolOverride,
+    );
+
+    if (!user) {
+      throw new UnauthorizedError('User account not found.');
+    }
+
+    let verified = false;
+
+    if (params.password) {
+      verified = await verifyPassword(params.password, user.password_hash);
+    } else if (params.totpCode && user.mfa_enabled && user.mfa_secret_enc) {
+      const totpSecret = decryptSecret(user.mfa_secret_enc);
+      verified = verifyTotpCode(totpSecret, params.totpCode);
+    }
+
+    if (!verified) {
+      throw new UnauthorizedError('Step-up verification failed. Invalid credentials.');
+    }
+
+    const { stepUpUntil } = await setStepUp(
+      params.sessionId,
+      STEP_UP_DURATION_SECONDS,
+      params.poolOverride,
+    );
+
+    // Record audit entry
+    await this.auditService.recordEvent(params.ctx, {
+      action: 'auth.step_up.success',
+      entity: 'sessions',
+      entityId: params.sessionId,
+      meta: { stepUpUntil },
+      poolOverride: params.poolOverride,
+    });
+
+    return { stepUpUntil };
+  }
+
+  /**
+   * Lists active sessions for current user.
+   */
+  async listSessions(params: {
+    ctx: RequestContext;
+    currentSessionId?: string | undefined;
+    poolOverride?: pg.Pool | undefined;
+  }): Promise<UserSessionView[]> {
+    if (!params.ctx.isAuthenticated || !params.ctx.userId) {
+      throw new UnauthorizedError('Authentication is required.');
+    }
+
+    return listUserSessions(
+      params.ctx.companyId,
+      params.ctx.userId,
+      params.currentSessionId,
+      params.poolOverride,
+    );
+  }
+
+  /**
+   * Revokes a session belonging to the caller.
+   */
+  async revokeSession(params: {
+    ctx: RequestContext;
+    sessionId: string;
+    poolOverride?: pg.Pool | undefined;
+  }): Promise<{ success: boolean }> {
+    if (!params.ctx.isAuthenticated || !params.ctx.userId) {
+      throw new UnauthorizedError('Authentication is required.');
+    }
+
+    const success = await revokeSessionById(
+      params.ctx.companyId,
+      params.ctx.userId,
+      params.sessionId,
+      params.poolOverride,
+    );
+
+    if (success) {
+      await this.auditService.recordEvent(params.ctx, {
+        action: 'auth.session.revoke',
+        entity: 'sessions',
+        entityId: params.sessionId,
+        poolOverride: params.poolOverride,
+      });
+    }
+
+    return { success };
+  }
+
+  /**
+   * Admin revokes all sessions for a target user.
+   */
+  async adminRevokeUserSessions(params: {
+    ctx: RequestContext;
+    targetUserId: string;
+    poolOverride?: pg.Pool | undefined;
+  }): Promise<{ revokedCount: number }> {
+    const revokedCount = await revokeAllUserSessions(
+      params.ctx.companyId,
+      params.targetUserId,
+      params.poolOverride,
+    );
+
+    await this.auditService.recordEvent(params.ctx, {
+      action: 'auth.session.admin_revoke',
+      entity: 'users',
+      entityId: params.targetUserId,
+      meta: { revokedCount },
+      poolOverride: params.poolOverride,
+    });
+
+    return { revokedCount };
   }
 
   /**

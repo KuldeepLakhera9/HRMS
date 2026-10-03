@@ -2,6 +2,8 @@ import type { TenantContext } from '@hrms/db';
 
 export interface RequestContext extends TenantContext {
   requestId: string;
+  sessionId?: string | undefined;
+  stepUpUntil?: string | undefined;
   ip?: string | undefined;
   userAgent?: string | undefined;
   isAuthenticated: boolean;
