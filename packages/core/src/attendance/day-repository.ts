@@ -104,7 +104,7 @@ export class AttendanceDayRepository {
           const id = generateUuidV7();
           const baseIdx = params.length + 1;
           valueStrings.push(
-            `($${baseIdx}, $1, $${baseIdx + 1}, $${baseIdx + 2}, $${baseIdx + 3}, $${baseIdx + 4}, $${baseIdx + 5}, $${baseIdx + 6}, $${baseIdx + 7}, $${baseIdx + 8}, $${baseIdx + 9}, $${baseIdx + 10}, $${baseIdx + 11}, $${baseIdx + 12}, $${baseIdx + 13}, $${baseIdx + 14}, $${baseIdx + 15}, $${baseIdx + 16})`
+            `($${baseIdx}, $1, $${baseIdx + 1}, $${baseIdx + 2}, $${baseIdx + 3}, $${baseIdx + 4}, $${baseIdx + 5}, $${baseIdx + 6}, $${baseIdx + 7}, $${baseIdx + 8}, $${baseIdx + 9}, $${baseIdx + 10}, $${baseIdx + 11}, $${baseIdx + 12}, $${baseIdx + 13}, $${baseIdx + 14}, $${baseIdx + 15}, $${baseIdx + 16}, $${baseIdx + 17})`
           );
           params.push(
             id,
@@ -124,6 +124,7 @@ export class AttendanceDayRepository {
             d.ruleVersion ?? 1,
             d.sourceHash ?? null,
             d.createdBy,
+            d.updatedBy,
           );
         }
 
@@ -132,7 +133,7 @@ export class AttendanceDayRepository {
             id, company_id, employee_id, work_date, shift_id,
             first_in, last_out, punch_count, total_work_minutes, effective_minutes,
             late_in_minutes, early_out_minutes, overtime_minutes, status,
-            is_regularized, rule_version, source_hash, created_by
+            is_regularized, rule_version, source_hash, created_by, updated_by
           ) VALUES ${valueStrings.join(', ')}
           ON CONFLICT (company_id, employee_id, work_date)
           DO UPDATE SET
@@ -149,6 +150,7 @@ export class AttendanceDayRepository {
             is_regularized = EXCLUDED.is_regularized,
             rule_version = EXCLUDED.rule_version,
             source_hash = EXCLUDED.source_hash,
+            updated_by = EXCLUDED.updated_by,
             updated_at = NOW()
           WHERE attendance_days.source_hash IS DISTINCT FROM EXCLUDED.source_hash
           RETURNING id

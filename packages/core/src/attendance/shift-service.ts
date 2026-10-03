@@ -29,6 +29,13 @@ export interface ShiftResolutionResult {
   isNightShift: boolean;
 }
 
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function resolveAuditUserId(userId?: string): string {
+  if (userId && UUID_REGEX.test(userId)) return userId;
+  return NIL_UUID;
+}
+
 export class ShiftService {
   private repository: ShiftRepository;
   private auditService: AuditService;
@@ -57,7 +64,7 @@ export class ShiftService {
 
     const shift = await this.repository.createShift(
       ctx.companyId,
-      { ...input, createdBy: ctx.userId ?? 'system' },
+      { ...input, createdBy: resolveAuditUserId(ctx.userId) },
       poolOverride,
     );
 
@@ -93,7 +100,7 @@ export class ShiftService {
     const updated = await this.repository.updateShift(
       ctx.companyId,
       id,
-      { ...input, updatedBy: ctx.userId ?? 'system' },
+      { ...input, updatedBy: resolveAuditUserId(ctx.userId) },
       poolOverride,
     );
 
@@ -166,7 +173,7 @@ export class ShiftService {
 
     return this.repository.assignRoster(
       ctx.companyId,
-      { ...input, createdBy: ctx.userId ?? 'system' },
+      { ...input, createdBy: resolveAuditUserId(ctx.userId) },
       poolOverride,
     );
   }
@@ -185,7 +192,7 @@ export class ShiftService {
 
     const items = input.assignments.map(a => ({
       ...a,
-      createdBy: ctx.userId ?? 'system',
+      createdBy: resolveAuditUserId(ctx.userId),
     }));
 
     const count = await this.repository.bulkAssignRosters(ctx.companyId, items, poolOverride);

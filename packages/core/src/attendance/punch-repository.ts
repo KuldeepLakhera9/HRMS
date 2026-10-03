@@ -328,7 +328,7 @@ export class AttendancePunchRepository {
     await client.query(
       `INSERT INTO workflow_definitions (
          id, company_id, code, name, entity_type, version, is_active, steps, created_by, updated_by
-       ) VALUES ($1, $2, 'attendance_punch_review', 'Attendance Punch Review', 'attendance_punch_review', 1, true, $3, 'system', 'system')
+       ) VALUES ($1, $2, 'attendance_punch_review', 'Attendance Punch Review', 'attendance_punch_review', 1, true, $3, '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000000')
        ON CONFLICT (company_id, code, version) DO UPDATE SET is_active = true
        RETURNING id`,
       [newId, companyId, JSON.stringify(steps)],
@@ -721,7 +721,7 @@ export class AttendancePunchRepository {
           SELECT
             p.employee_id as "employeeId",
             e.first_name || ' ' || e.last_name as "employeeName",
-            e.employee_number as "employeeNumber",
+            e.emp_code as "employeeNumber",
             d.name as "departmentName",
             wl.name as "locationName",
             p.status,

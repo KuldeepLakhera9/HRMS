@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { runMigrations, seedDatabase, getOwnerPool, getAppPool } from '@hrms/db';
+import { runMigrations, seedDatabase, getOwnerPool, getAppPool, withTenant, generateUuidV7 } from '@hrms/db';
 import {
   AttendancePunchService,
   ShiftService,
@@ -22,80 +22,118 @@ describe('Sprint 2.2 Integration & Query Budget Suite (P2-PUNCH-01, P2-PUNCH-02,
     await runMigrations();
     const seed = await seedDatabase();
     companyId = seed.companyId;
-    adminUserId = seed.adminUserId;
 
     const pool = getOwnerPool();
-
-    // Get an employee
-    const empRes = await pool.query<{ id: string }>(
-      'SELECT id FROM employees WHERE company_id = $1 LIMIT 1',
+    const userRes = await pool.query<{ id: string }>(
+      'SELECT id FROM users WHERE company_id = $1 LIMIT 1',
       [companyId],
     );
-    sampleEmployeeId = empRes.rows[0]?.id || '';
+    adminUserId = userRes.rows[0]?.id || '';
 
-    // Get a location
-    const locRes = await pool.query<{ id: string }>(
-      'SELECT id FROM work_locations WHERE company_id = $1 LIMIT 1',
-      [companyId],
-    );
-    _sampleLocationId = locRes.rows[0]?.id || '';
+    // Get or create an employee inside withTenant (due to FORCE ROW LEVEL SECURITY)
+    sampleEmployeeId = await withTenant({ companyId }, async (_tx, client) => {
+      const empRes = await client.query<{ id: string }>(
+        'SELECT id FROM employees WHERE company_id = $1 LIMIT 1',
+        [companyId],
+      );
+      if (empRes.rows.length > 0 && empRes.rows[0]) {
+        return empRes.rows[0].id;
+      }
+      const newId = generateUuidV7();
+      await client.query(
+        `INSERT INTO employees (
+          id, company_id, emp_code, first_name, last_name, email_work,
+          employment_type, doj, job_effective_from, status, search_key, user_id,
+          created_by, updated_by, created_at, updated_at
+        ) VALUES (
+          $1, $2, 'EMP-S22-001', 'Admin', 'User', 'admin.s22@orghub.internal',
+          'full_time', '2026-01-01', '2026-01-01', 'active', 'admin user emp-s22-001', $3,
+          $3, $3, now(), now()
+        )`,
+        [newId, companyId, adminUserId],
+      );
+      return newId;
+    }, pool);
+
+    // Get a location inside withTenant
+    _sampleLocationId = await withTenant({ companyId }, async (_tx, client) => {
+      const locRes = await client.query<{ id: string }>(
+        'SELECT id FROM work_locations WHERE company_id = $1 LIMIT 1',
+        [companyId],
+      );
+      return locRes.rows[0]?.id || '';
+    }, pool);
 
     // Ensure default general shift exists
-    const shift = await shiftService.createShift(
-      {
-        companyId,
-        userId: adminUserId,
-        roles: ['super_admin'],
-        permissions: ['attendance.shift.manage'],
-        requestId: 'init-shift',
-        isAuthenticated: true,
-      },
-      {
-        code: 'GEN_09_18',
-        name: 'General Shift',
-        startTime: '09:00:00',
-        endTime: '18:00:00',
-        crossesMidnight: false,
-        graceMinutes: 15,
-        breakMinutes: 60,
-        workHours: 8,
-      },
-      pool,
+    const shiftRes = await pool.query<{ id: string }>(
+      'SELECT id FROM shifts WHERE company_id = $1 AND code = $2',
+      [companyId, 'GEN_09_18'],
     );
-    _sampleShiftId = shift.id;
+    if (shiftRes.rows[0]) {
+      _sampleShiftId = shiftRes.rows[0].id;
+    } else {
+      const shift = await shiftService.createShift(
+        {
+          companyId,
+          userId: adminUserId,
+          roles: ['super_admin'],
+          permissions: ['attendance.shift.manage'],
+          requestId: 'init-shift',
+          isAuthenticated: true,
+        },
+        {
+          code: 'GEN_09_18',
+          name: 'General Shift',
+          startTime: '09:00:00',
+          endTime: '18:00:00',
+          crossesMidnight: false,
+          graceMinutes: 15,
+          breakMinutes: 60,
+          workHours: 8,
+        },
+        pool,
+      );
+      _sampleShiftId = shift.id;
+    }
 
     // Create a policy if none exists
-    const pol = await policyRepo.createPolicy(
-      companyId,
-      {
-        code: 'POL_TEST',
-        name: 'Test Attendance Policy',
-        geofenceMode: 'soft',
-        allowSelfie: true,
-        requireSelfie: false,
-        maxGpsAccuracyMeters: 100,
-        allowedSources: ['web', 'mobile'],
-        graceMinutes: 15,
-        halfDayMinutes: 240,
-        fullDayMinutes: 480,
-        autoPunchOutHours: '12.0',
-        createdBy: adminUserId,
-      },
-      pool,
+    const polRes = await pool.query<{ id: string }>(
+      'SELECT id FROM attendance_policies WHERE company_id = $1 AND code = $2',
+      [companyId, 'POL_TEST'],
     );
+    if (!polRes.rows[0]) {
+      const pol = await policyRepo.createPolicy(
+        companyId,
+        {
+          code: 'POL_TEST',
+          name: 'Test Attendance Policy',
+          geofenceMode: 'soft',
+          allowSelfie: true,
+          requireSelfie: false,
+          maxGpsAccuracyMeters: 100,
+          allowedSources: ['web', 'mobile'],
+          graceMinutes: 15,
+          halfDayMinutes: 240,
+          fullDayMinutes: 480,
+          autoPunchOutHours: '12.0',
+          createdBy: adminUserId,
+        },
+        pool,
+      );
 
-    // Assign policy to company
-    await policyRepo.assignPolicy(
-      companyId,
-      {
-        policyId: pol.id,
-        targetType: 'company',
-        priority: 100,
-        validFrom: '2026-01-01',
-        createdBy: adminUserId,
-      },
-      pool,
-    );
+      // Assign policy to company
+      await policyRepo.createAssignment(
+        companyId,
+        {
+          policyId: pol.id,
+          targetType: 'company',
+          priority: 100,
+          validFrom: '2026-01-01',
+          createdBy: adminUserId,
+        },
+        pool,
+      );
+    }
   });
 
   it('proves append-only immutability trigger rejects UPDATE and DELETE on attendance_punches', async () => {

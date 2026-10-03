@@ -163,3 +163,12 @@ CREATE INDEX IF NOT EXISTS idx_attendance_period_locks_lookup
 GRANT SELECT, INSERT, UPDATE, DELETE ON employee_devices TO hrms_app, hrms_worker;
 GRANT SELECT, INSERT, UPDATE, DELETE ON attendance_days TO hrms_app, hrms_worker;
 GRANT SELECT, INSERT, UPDATE, DELETE ON attendance_period_locks TO hrms_app, hrms_worker;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON workflow_definitions TO hrms_app, hrms_worker;
+GRANT SELECT, INSERT, UPDATE, DELETE ON workflow_requests TO hrms_app, hrms_worker;
+GRANT SELECT, INSERT, UPDATE, DELETE ON workflow_steps TO hrms_app, hrms_worker;
+GRANT SELECT, INSERT, UPDATE, DELETE ON workflow_assignees TO hrms_app, hrms_worker;
+GRANT SELECT, INSERT, UPDATE, DELETE ON workflow_actions TO hrms_app, hrms_worker;
+GRANT SELECT, INSERT, UPDATE, DELETE ON employee_locations TO hrms_app, hrms_worker;
+GRANT SELECT, INSERT, UPDATE, DELETE ON attendance_policies TO hrms_app, hrms_worker;
+GRANT SELECT, INSERT, UPDATE, DELETE ON attendance_policy_assignments TO hrms_app, hrms_worker;
