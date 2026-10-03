@@ -3,82 +3,106 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  GitFork,
-  Briefcase,
-  Layers,
-  ScrollText,
+  Users,
+  UserPlus,
+  Clock,
+  FileWarning,
+  FileSpreadsheet,
   ShieldCheck,
-  Building2,
   ArrowUpRight,
+  TrendingUp,
   Database,
   Activity,
-  CheckCircle2,
+  Layers,
 } from 'lucide-react';
 
-interface OrgSummary {
-  departmentsCount: number;
-  designationsCount: number;
-  costCentersCount: number;
-  auditLogsCount: number;
+interface DashboardMetrics {
+  headcount: {
+    total: number;
+    active: number;
+    probation: number;
+    notice: number;
+  };
+  newJoinersThisMonth: number;
+  pendingChangeRequests: number;
+  expiringDocuments: number;
+  recentAuditCount: number;
 }
 
 export default function DashboardPage() {
-  const [summary, setSummary] = useState<OrgSummary>({
-    departmentsCount: 7,
-    designationsCount: 11,
-    costCentersCount: 4,
-    auditLogsCount: 12,
-  });
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch live counts from API
-    async function loadStats() {
+    async function loadMetrics() {
       try {
-        const [deptRes, desRes, ccRes, auditRes] = await Promise.all([
-          fetch('/api/v1/org/departments'),
-          fetch('/api/v1/org/designations'),
-          fetch('/api/v1/org/cost-centers'),
-          fetch('/api/v1/audit-logs?limit=5'),
-        ]);
-
-        const depts = deptRes.ok ? await deptRes.json() : { departments: [] };
-        const des = desRes.ok ? await desRes.json() : { designations: [] };
-        const ccs = ccRes.ok ? await ccRes.json() : { costCenters: [] };
-        const audits = auditRes.ok ? await auditRes.json() : { items: [] };
-
-        setSummary({
-          departmentsCount: depts.departments?.length || 7,
-          designationsCount: des.designations?.length || 11,
-          costCentersCount: ccs.costCenters?.length || 4,
-          auditLogsCount: audits.items?.length || 5,
-        });
+        const res = await fetch('/api/v1/dashboard/metrics');
+        if (res.ok) {
+          const json = await res.json();
+          setMetrics(json.data);
+        } else {
+          // Fallback demo state if database is empty
+          setMetrics({
+            headcount: { total: 0, active: 0, probation: 0, notice: 0 },
+            newJoinersThisMonth: 0,
+            pendingChangeRequests: 0,
+            expiringDocuments: 0,
+            recentAuditCount: 0,
+          });
+        }
       } catch {
-        // Fallback to seeded baseline
+        setMetrics({
+          headcount: { total: 0, active: 0, probation: 0, notice: 0 },
+          newJoinersThisMonth: 0,
+          pendingChangeRequests: 0,
+          expiringDocuments: 0,
+          recentAuditCount: 0,
+        });
       } finally {
         setLoading(false);
       }
     }
 
-    loadStats();
+    loadMetrics();
   }, []);
 
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-          <span style={{ fontSize: '0.8125rem', color: '#818cf8', fontWeight: 600 }}>OVERVIEW</span>
+      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            <span style={{ fontSize: '0.8125rem', color: '#818cf8', fontWeight: 600 }}>OVERVIEW</span>
+          </div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+            Workforce Command Center
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            Real-time telemetry, headcount analytics, pending approvals, and system observability.
+          </p>
         </div>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          Organization Platform Command Center
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          Real-time visibility into organization hierarchy, roles, compliance audit logs, and security infrastructure.
-        </p>
+
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <Link
+            href="/employees/import"
+            className="btn btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}
+          >
+            <FileSpreadsheet size={16} />
+            <span>Bulk Import</span>
+          </Link>
+          <Link
+            href="/employees"
+            className="btn btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}
+          >
+            <UserPlus size={16} />
+            <span>Add Employee</span>
+          </Link>
+        </div>
       </div>
 
-      {/* KPI Cards Grid */}
+      {/* Primary KPI Metric Cards Grid */}
       <div
         style={{
           display: 'grid',
@@ -87,10 +111,10 @@ export default function DashboardPage() {
           marginBottom: '2rem',
         }}
       >
-        {/* Card 1: Departments */}
+        {/* Card 1: Total Headcount */}
         <div className="glass-panel" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Departments</span>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Total Employees</span>
             <div
               style={{
                 width: '36px',
@@ -103,84 +127,25 @@ export default function DashboardPage() {
                 justifyContent: 'center',
               }}
             >
-              <GitFork size={18} />
+              <Users size={18} />
             </div>
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', marginBottom: '0.25rem' }}>
-            {loading ? '...' : summary.departmentsCount}
+            {loading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : metrics?.headcount.total}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <Link href="/org/departments" style={{ color: '#818cf8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <span>View tree hierarchy</span>
-              <ArrowUpRight size={12} />
-            </Link>
-          </div>
-        </div>
-
-        {/* Card 2: Designations */}
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Designations</span>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                color: 'var(--accent)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Briefcase size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', marginBottom: '0.25rem' }}>
-            {loading ? '...' : summary.designationsCount}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <Link href="/org/designations" style={{ color: 'var(--accent)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <span>View job titles</span>
-              <ArrowUpRight size={12} />
-            </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            <span style={{ color: 'var(--success)' }}>{metrics?.headcount.active ?? 0} active</span>
+            <span>•</span>
+            <span style={{ color: 'var(--warning)' }}>{metrics?.headcount.probation ?? 0} probation</span>
+            <span>•</span>
+            <span style={{ color: 'var(--danger)' }}>{metrics?.headcount.notice ?? 0} notice</span>
           </div>
         </div>
 
-        {/* Card 3: Cost Centers */}
+        {/* Card 2: New Joiners This Month */}
         <div className="glass-panel" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Cost Centers</span>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                color: 'var(--warning)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Layers size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', marginBottom: '0.25rem' }}>
-            {loading ? '...' : summary.costCentersCount}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <Link href="/org/cost-centers" style={{ color: 'var(--warning)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <span>Financial entities</span>
-              <ArrowUpRight size={12} />
-            </Link>
-          </div>
-        </div>
-
-        {/* Card 4: Audit Logs */}
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Audit Trail</span>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Joiners This Month</span>
             <div
               style={{
                 width: '36px',
@@ -193,35 +158,94 @@ export default function DashboardPage() {
                 justifyContent: 'center',
               }}
             >
-              <ScrollText size={18} />
+              <TrendingUp size={18} />
             </div>
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', marginBottom: '0.25rem' }}>
-            Append-Only
+            {loading ? <div className="skeleton" style={{ height: '32px', width: '60px' }} /> : metrics?.newJoinersThisMonth}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <Link href="/audit-logs" style={{ color: 'var(--success)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <span>Inspect audit trail</span>
+            <Link href="/employees" style={{ color: 'var(--success)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <span>View workforce roster</span>
               <ArrowUpRight size={12} />
             </Link>
           </div>
         </div>
+
+        {/* Card 3: Pending Approvals */}
+        <div className="glass-panel" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Pending Changes</span>
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                color: 'var(--warning)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Clock size={18} />
+            </div>
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', marginBottom: '0.25rem' }}>
+            {loading ? <div className="skeleton" style={{ height: '32px', width: '60px' }} /> : metrics?.pendingChangeRequests}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            <Link href="/admin/change-requests" style={{ color: 'var(--warning)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <span>Review pending requests</span>
+              <ArrowUpRight size={12} />
+            </Link>
+          </div>
+        </div>
+
+        {/* Card 4: Expiring Documents */}
+        <div className="glass-panel" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Document Expiries</span>
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                color: 'var(--danger)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <FileWarning size={18} />
+            </div>
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', marginBottom: '0.25rem' }}>
+            {loading ? <div className="skeleton" style={{ height: '32px', width: '60px' }} /> : metrics?.expiringDocuments}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            <span style={{ color: metrics?.expiringDocuments ? 'var(--danger)' : 'var(--text-muted)' }}>
+              Next 30 days
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Grid: Organization Quick Actions & Security Posture */}
+      {/* Grid: Quick Actions & System Health */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.5rem' }}>
-        {/* Quick Links & Entity Master */}
+        {/* Quick Operations */}
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
           <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '0.25rem' }}>
-            Organization Management
+            Operational Actions
           </h2>
           <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-            Manage the structural backbone of OrgHub Tech Ltd.
+            Direct administrative and bulk operations.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <Link
-              href="/org/departments"
+              href="/employees/import"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -232,21 +256,20 @@ export default function DashboardPage() {
                 border: '1px solid var(--border-color)',
                 textDecoration: 'none',
                 color: 'var(--text-primary)',
-                transition: 'all 0.15s ease',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <GitFork size={18} color="var(--primary)" />
+                <FileSpreadsheet size={18} color="var(--primary)" />
                 <div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>Departments & Hierarchy</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tree structure with cycle prevention</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>Bulk Import & Upsert</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>CSV/XLSX validation preview & batched transaction</div>
                 </div>
               </div>
               <ArrowUpRight size={16} color="var(--text-muted)" />
             </Link>
 
             <Link
-              href="/org/designations"
+              href="/admin/custom-fields"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -257,21 +280,20 @@ export default function DashboardPage() {
                 border: '1px solid var(--border-color)',
                 textDecoration: 'none',
                 color: 'var(--text-primary)',
-                transition: 'all 0.15s ease',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Briefcase size={18} color="var(--accent)" />
+                <Layers size={18} color="var(--accent)" />
                 <div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>Designations & Job Titles</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Roles catalog with unique company codes</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>Custom Fields Builder</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Configure dynamic fields, types & validation</div>
                 </div>
               </div>
               <ArrowUpRight size={16} color="var(--text-muted)" />
             </Link>
 
             <Link
-              href="/org/company"
+              href="/audit-logs"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -282,14 +304,13 @@ export default function DashboardPage() {
                 border: '1px solid var(--border-color)',
                 textDecoration: 'none',
                 color: 'var(--text-primary)',
-                transition: 'all 0.15s ease',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Building2 size={18} color="var(--warning)" />
+                <ShieldCheck size={18} color="var(--success)" />
                 <div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>Legal Entity & Settings</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Timezone, currency, and fiscal year rules</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>Audit Trail & Security</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{metrics?.recentAuditCount ?? 0} events in last 24h</div>
                 </div>
               </div>
               <ArrowUpRight size={16} color="var(--text-muted)" />
@@ -297,13 +318,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* System Architecture & Security Posture */}
+        {/* Observability & Telemetry */}
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
           <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '0.25rem' }}>
-            Platform Infrastructure Health
+            Observability & Telemetry
           </h2>
           <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-            Underlying data store and security isolation layers.
+            Prometheus metrics and infrastructure health.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -321,11 +342,11 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <Database size={18} color="var(--success)" />
                 <div>
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff' }}>PostgreSQL + PostGIS</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Row Level Security (RLS) FORCED</div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff' }}>PostgreSQL Pool (App & Worker)</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Transaction-mode pooled with forced RLS</div>
                 </div>
               </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>Active</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>Connected</span>
             </div>
 
             <div
@@ -340,13 +361,20 @@ export default function DashboardPage() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <ShieldCheck size={18} color="var(--primary)" />
+                <Activity size={18} color="var(--primary)" />
                 <div>
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff' }}>RBAC Scopes Engine</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>7 system roles with company/self scopes</div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff' }}>Prometheus Telemetry</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Latencies, pool stats & query metrics</div>
                 </div>
               </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>Protected</span>
+              <a
+                href="/api/metrics"
+                target="_blank"
+                rel="noreferrer"
+                style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}
+              >
+                /api/metrics
+              </a>
             </div>
 
             <div
@@ -361,34 +389,13 @@ export default function DashboardPage() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Activity size={18} color="var(--accent)" />
+                <ShieldCheck size={18} color="var(--accent)" />
                 <div>
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff' }}>Redis Sliding Window</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Account lockout & rate-limiting enforced</div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff' }}>Security Headers & CSP</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>HSTS, nosniff, frame-ancestors none</div>
                 </div>
               </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600 }}>Operational</span>
-            </div>
-
-            <div
-              style={{
-                padding: '0.75rem 1rem',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                border: '1px solid rgba(245, 158, 11, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <CheckCircle2 size={18} color="var(--warning)" />
-                <div>
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff' }}>Transactional Outbox</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Background relay worker polling events</div>
-                </div>
-              </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--warning)', fontWeight: 600 }}>Healthy</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600 }}>Enforced</span>
             </div>
           </div>
         </div>

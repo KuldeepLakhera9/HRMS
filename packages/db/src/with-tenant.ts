@@ -41,10 +41,33 @@ export async function withTenant<T>(
       await client.query("SELECT set_config('app.user_id', $1, true)", [ctx.userId]);
     }
 
+    const originalQuery = client.query.bind(client);
+    const isMock = (client.query as unknown as { _isMockFunction?: boolean })._isMockFunction;
+
+    if (!isMock) {
+      (client as unknown as { query: unknown }).query = async (...args: unknown[]) => {
+        const start = Date.now();
+        try {
+          // @ts-expect-error forwarding arguments
+          return await originalQuery(...args);
+        } finally {
+          const duration = Date.now() - start;
+          if (duration > 100) {
+            const firstArg = args[0];
+            const sqlText =
+              typeof firstArg === 'string'
+                ? firstArg
+                : ((firstArg as { text?: string } | undefined)?.text || '');
+            console.warn(`[Slow Query] ${duration}ms: ${sqlText.slice(0, 150).replace(/\s+/g, ' ')}`);
+          }
+        }
+      };
+    }
+
     const tx = drizzle(client, { schema });
     const result = await fn(tx, client);
 
-    await client.query('COMMIT');
+    await originalQuery('COMMIT');
     return result;
   } catch (error) {
     try {

@@ -11,3 +11,5 @@ export * from './files.js';
 export * from './documents.js';
 export * from './change-requests.js';
 export * from './notifications.js';
+export * from './custom-fields.js';
+export * from './import-jobs.js';

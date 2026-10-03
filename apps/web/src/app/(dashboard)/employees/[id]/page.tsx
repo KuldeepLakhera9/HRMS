@@ -50,6 +50,7 @@ interface MaskedEmployee {
   pan: string | null;
   aadhaar: string | null;
   bankAccount: string | null;
+  customFields?: Record<string, unknown>;
 }
 
 interface EmployeeHistoryItem {
@@ -519,6 +520,27 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                   <span className="font-semibold text-foreground font-mono">{employee.jobEffectiveFrom}</span>
                 </div>
               </div>
+            </div>
+
+            {/* Custom Attributes Panel */}
+            <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" /> Custom Profile Attributes
+              </h3>
+              {employee.customFields && Object.keys(employee.customFields).length > 0 ? (
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  {Object.entries(employee.customFields).map(([key, val]) => (
+                    <div key={key}>
+                      <span className="text-muted-foreground block capitalize">{key.replace(/_/g, ' ')}</span>
+                      <span className="font-semibold text-foreground">
+                        {typeof val === 'object' ? JSON.stringify(val) : String(val ?? 'None')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">No custom attributes recorded for this employee.</p>
+              )}
             </div>
           </div>
 
