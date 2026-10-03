@@ -21,5 +21,6 @@ export * from './bulk/index.js';
 export * from './dashboard/index.js';
 export * from './location/index.js';
 export * from './workflow/index.js';
+export * from './attendance/index.js';
 export * from './metrics/index.js';
 export * from './modules/sample/index.js';
