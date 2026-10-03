@@ -6,6 +6,8 @@ import {
   integer,
   numeric,
   date,
+  time,
+  timestamp,
   uniqueIndex,
   index,
 } from 'drizzle-orm/pg-core';
@@ -59,7 +61,125 @@ export const attendancePolicyAssignments = pgTable(
   ],
 );
 
+export const shifts = pgTable(
+  'shifts',
+  {
+    ...baseTenantColumns,
+    code: text('code').notNull(),
+    name: text('name').notNull(),
+    startTime: time('start_time').notNull(),
+    endTime: time('end_time').notNull(),
+    crossesMidnight: boolean('crosses_midnight').default(false).notNull(),
+    graceMinutes: integer('grace_minutes').default(15).notNull(),
+    breakMinutes: integer('break_minutes').default(60).notNull(),
+    workHours: numeric('work_hours', { precision: 4, scale: 2 }).default('8.00').notNull(),
+  },
+  table => [
+    uniqueIndex('idx_shifts_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_shifts_code').on(table.companyId, table.code),
+  ],
+);
+
+export const rosters = pgTable(
+  'rosters',
+  {
+    ...baseTenantColumns,
+    employeeId: uuid('employee_id').notNull(),
+    shiftId: uuid('shift_id').notNull(),
+    workDate: date('work_date').notNull(),
+    isWeeklyOff: boolean('is_weekly_off').default(false).notNull(),
+    isHoliday: boolean('is_holiday').default(false).notNull(),
+    status: text('status').$type<'draft' | 'published'>().default('published').notNull(),
+  },
+  table => [
+    uniqueIndex('idx_rosters_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_rosters_employee_date').on(table.companyId, table.employeeId, table.workDate),
+    index('idx_rosters_lookup').on(table.companyId, table.employeeId, table.workDate),
+  ],
+);
+
+export const attendancePunches = pgTable(
+  'attendance_punches',
+  {
+    id: uuid('id').notNull(),
+    companyId: uuid('company_id').notNull(),
+    employeeId: uuid('employee_id').notNull(),
+    punchTime: timestamp('punch_time', { withTimezone: true, mode: 'date' }).notNull(),
+    punchType: text('punch_type').$type<'in' | 'out' | 'auto_out'>().notNull(),
+    source: text('source').$type<'mobile' | 'web' | 'biometric' | 'qr'>().notNull(),
+    workDate: date('work_date').notNull(),
+    shiftId: uuid('shift_id'),
+    locationId: uuid('location_id'),
+    gpsAccuracy: numeric('gps_accuracy', { precision: 6, scale: 2 }),
+    isInsideGeofence: boolean('is_inside_geofence').default(true).notNull(),
+    distanceMeters: numeric('distance_meters', { precision: 8, scale: 2 }),
+    selfieFileId: uuid('selfie_file_id'),
+    deviceId: text('device_id'),
+    deviceModel: text('device_model'),
+    isMockLocation: boolean('is_mock_location').default(false).notNull(),
+    status: text('status').$type<'valid' | 'flagged' | 'soft_pending' | 'rejected'>().default('valid').notNull(),
+    reasonCode: text('reason_code').default('PUNCH_SUCCESS').notNull(),
+    flagReasons: text('flag_reasons').array().default([]).notNull(),
+    idempotencyKey: text('idempotency_key'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex('idx_attendance_punches_pk').on(table.companyId, table.id, table.punchTime),
+    index('idx_attendance_punches_emp').on(table.companyId, table.employeeId, table.punchTime),
+    index('idx_attendance_punches_work_date').on(table.companyId, table.workDate),
+  ],
+);
+
+export const attendancePunchReviews = pgTable(
+  'attendance_punch_reviews',
+  {
+    ...baseTenantColumns,
+    punchId: uuid('punch_id').notNull(),
+    punchTime: timestamp('punch_time', { withTimezone: true, mode: 'date' }).notNull(),
+    workflowRequestId: uuid('workflow_request_id').notNull(),
+    status: text('status').$type<'pending' | 'approved' | 'rejected'>().default('pending').notNull(),
+    reviewerId: uuid('reviewer_id'),
+    reviewComments: text('review_comments'),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true, mode: 'date' }),
+  },
+  table => [
+    uniqueIndex('idx_attendance_punch_reviews_company_id').on(table.companyId, table.id),
+    index('idx_punch_reviews_lookup').on(table.companyId, table.punchId, table.status),
+    index('idx_punch_reviews_wf').on(table.companyId, table.workflowRequestId),
+  ],
+);
+
+export const attendancePresence = pgTable(
+  'attendance_presence',
+  {
+    id: uuid('id').notNull(),
+    companyId: uuid('company_id').notNull(),
+    employeeId: uuid('employee_id').notNull(),
+    status: text('status').$type<'in' | 'out'>().notNull(),
+    lastPunchId: uuid('last_punch_id').notNull(),
+    lastPunchTime: timestamp('last_punch_time', { withTimezone: true, mode: 'date' }).notNull(),
+    locationId: uuid('location_id'),
+    shiftDate: date('shift_date').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex('idx_attendance_presence_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_attendance_presence_employee').on(table.companyId, table.employeeId),
+    index('idx_attendance_presence_status').on(table.companyId, table.status, table.shiftDate),
+  ],
+);
+
 export type AttendancePolicy = typeof attendancePolicies.$inferSelect;
 export type NewAttendancePolicy = typeof attendancePolicies.$inferInsert;
 export type AttendancePolicyAssignment = typeof attendancePolicyAssignments.$inferSelect;
 export type NewAttendancePolicyAssignment = typeof attendancePolicyAssignments.$inferInsert;
+export type Shift = typeof shifts.$inferSelect;
+export type NewShift = typeof shifts.$inferInsert;
+export type Roster = typeof rosters.$inferSelect;
+export type NewRoster = typeof rosters.$inferInsert;
+export type AttendancePunch = typeof attendancePunches.$inferSelect;
+export type NewAttendancePunch = typeof attendancePunches.$inferInsert;
+export type AttendancePunchReview = typeof attendancePunchReviews.$inferSelect;
+export type NewAttendancePunchReview = typeof attendancePunchReviews.$inferInsert;
+export type AttendancePresence = typeof attendancePresence.$inferSelect;
+export type NewAttendancePresence = typeof attendancePresence.$inferInsert;
