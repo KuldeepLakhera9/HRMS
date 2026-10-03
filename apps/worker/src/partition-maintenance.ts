@@ -26,14 +26,22 @@ export class PartitionMaintenanceWorker {
         const year = targetDate.getFullYear();
         const month = targetDate.getMonth() + 1; // 1-12
 
-        const res = await client.query<{ create_audit_logs_partition: string }>(
+        const auditRes = await client.query<{ create_audit_logs_partition: string }>(
           `SELECT create_audit_logs_partition($1, $2)`,
           [year, month],
         );
+        const auditPart = auditRes.rows[0]?.create_audit_logs_partition;
+        if (auditPart) {
+          createdPartitions.push(auditPart);
+        }
 
-        const partitionName = res.rows[0]?.create_audit_logs_partition;
-        if (partitionName) {
-          createdPartitions.push(partitionName);
+        const punchRes = await client.query<{ create_attendance_punches_partition: string }>(
+          `SELECT create_attendance_punches_partition($1, $2)`,
+          [year, month],
+        );
+        const punchPart = punchRes.rows[0]?.create_attendance_punches_partition;
+        if (punchPart) {
+          createdPartitions.push(punchPart);
         }
       }
 
