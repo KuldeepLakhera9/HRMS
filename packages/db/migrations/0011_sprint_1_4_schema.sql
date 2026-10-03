@@ -73,8 +73,7 @@ ALTER TABLE custom_field_definitions FORCE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS custom_field_definitions_tenant_isolation ON custom_field_definitions;
 CREATE POLICY custom_field_definitions_tenant_isolation ON custom_field_definitions
-  AS RESTRICTIVE
-  FOR ALL
+  FOR ALL TO hrms_app, hrms_worker
   USING (company_id = app_company_id())
   WITH CHECK (company_id = app_company_id());
 
@@ -83,10 +82,14 @@ ALTER TABLE import_jobs FORCE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS import_jobs_tenant_isolation ON import_jobs;
 CREATE POLICY import_jobs_tenant_isolation ON import_jobs
-  AS RESTRICTIVE
-  FOR ALL
+  FOR ALL TO hrms_app, hrms_worker
   USING (company_id = app_company_id())
   WITH CHECK (company_id = app_company_id());
+
+-- Supporting index for dashboard new joiners query
+CREATE INDEX IF NOT EXISTS idx_employees_company_doj
+  ON employees (company_id, doj)
+  WHERE deleted_at IS NULL;
 
 -- ------------------------------------------------------------------------------
 -- 4. Automatic Timestamp Update Triggers
