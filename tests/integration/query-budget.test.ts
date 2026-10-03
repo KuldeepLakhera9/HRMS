@@ -143,4 +143,122 @@ describe('Sprint 1.1 Query Budget & Execution Plan Tests', () => {
       pool.query = origQuery;
     }
   });
+
+  it('asserts query budget for employee list endpoint (<= 5 queries including tx)', async () => {
+    const employeeService = new (await import('@hrms/core')).EmployeeService();
+    let queryCount = 0;
+    const pool = getAppPool();
+
+    const origQuery = pool.query.bind(pool);
+    const targetPool = pool as unknown as Record<string, unknown>;
+    targetPool.query = async function (this: unknown, ...args: unknown[]) {
+      queryCount++;
+      return (origQuery as (...a: unknown[]) => unknown).apply(this, args);
+    };
+
+    try {
+      const list = await employeeService.listEmployees(
+        {
+          companyId,
+          userId: '00000000-0000-0000-0000-000000000000',
+          roles: ['super_admin'],
+          permissions: ['employee.profile.read'],
+          requestId: 'query-budget-test',
+          isAuthenticated: true,
+        },
+        { limit: 20 },
+        pool,
+      );
+
+      expect(list.employees).toBeDefined();
+      expect(queryCount).toBeLessThanOrEqual(5);
+    } finally {
+      pool.query = origQuery;
+    }
+  });
+
+  it('asserts query budget for org chart hierarchy (single query budget <= 4 queries including tx)', async () => {
+    let queryCount = 0;
+    const pool = getAppPool();
+
+    const origQuery = pool.query.bind(pool);
+    const targetPool = pool as unknown as Record<string, unknown>;
+    targetPool.query = async function (this: unknown, ...args: unknown[]) {
+      queryCount++;
+      return (origQuery as (...a: unknown[]) => unknown).apply(this, args);
+    };
+
+    try {
+      const chart = await orgService.getOrgChart(
+        {
+          companyId,
+          userId: '00000000-0000-0000-0000-000000000000',
+          roles: ['super_admin'],
+          permissions: ['org.chart.read'],
+          requestId: 'query-budget-test',
+          isAuthenticated: true,
+        },
+        undefined,
+        pool,
+      );
+
+      expect(chart).toBeDefined();
+      // Fetches entire hierarchy in 1 single SQL query inside tenant transaction (SET app.company_id + SET app.user_id + SELECT + COMMIT = 4 queries)
+      expect(queryCount).toBeLessThanOrEqual(4);
+    } finally {
+      pool.query = origQuery;
+    }
+  });
+
+  it('verifies work locations center utilizes idx_work_locations_center GIST index', async () => {
+    const pool = getOwnerPool();
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+      await client.query("SELECT set_config('app.company_id', $1, true)", [companyId]);
+      await client.query('SET LOCAL enable_seqscan = off');
+
+      const planRes = await client.query<{ 'QUERY PLAN': string }>(
+        `EXPLAIN SELECT id, name, center
+         FROM work_locations
+         WHERE company_id = $1 AND center IS NOT NULL
+           AND ST_DWithin(center, ST_SetSRID(ST_MakePoint(77.5946, 12.9716), 4326)::geography, 5000)
+           AND deleted_at IS NULL`,
+        [companyId],
+      );
+
+      const planText = planRes.rows.map(r => r['QUERY PLAN']).join('\n');
+      expect(planText).toMatch(/idx_work_locations_center|Index Scan|Bitmap Index Scan/i);
+      await client.query('COMMIT');
+    } finally {
+      client.release();
+    }
+  });
+
+  it('verifies employees reporting_path utilizes idx_employees_reporting_path GIN index', async () => {
+    const pool = getOwnerPool();
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+      await client.query("SELECT set_config('app.company_id', $1, true)", [companyId]);
+      await client.query('SET LOCAL enable_seqscan = off');
+
+      const planRes = await client.query<{ 'QUERY PLAN': string }>(
+        `EXPLAIN SELECT id, first_name, last_name, reporting_path
+         FROM employees
+         WHERE company_id = $1 AND reporting_path @> ARRAY['00000000-0000-0000-0000-000000000001'::uuid]
+           AND deleted_at IS NULL`,
+        [companyId],
+      );
+
+      const planText = planRes.rows.map(r => r['QUERY PLAN']).join('\n');
+      expect(planText).toMatch(/idx_employees_reporting_path|Bitmap Index Scan|Index Scan/i);
+      await client.query('COMMIT');
+    } finally {
+      client.release();
+    }
+  });
 });
+
