@@ -15,3 +15,6 @@ export * from './device-service.js';
 export * from './device-validation.js';
 export * from './day-engine.js';
 export * from './day-context-provider.js';
+export * from './lock-service.js';
+export * from './day-repository.js';
+export * from './day-service.js';

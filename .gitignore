@@ -44,3 +44,6 @@ Thumbs.db
 
 # Turborepo cache
 .turbo/
+
+# Expo
+.expo/
