@@ -13,3 +13,6 @@ export * from './change-requests.js';
 export * from './notifications.js';
 export * from './custom-fields.js';
 export * from './import-jobs.js';
+export * from './employee-locations.js';
+export * from './workflow.js';
+export * from './attendance.js';

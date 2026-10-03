@@ -66,6 +66,11 @@ export const workLocations = pgTable(
     timezone: text('timezone').default('Asia/Kolkata').notNull(),
     center: text('center'), // PostgreSQL geography(Point, 4326)
     radiusMeters: integer('radius_meters'),
+    geofenceType: text('geofence_type').default('radius').notNull(),
+    polygon: text('polygon'), // PostgreSQL geography(Polygon, 4326)
+    wifiBssids: text('wifi_bssids').array().default([]).notNull(),
+    qrSecret: text('qr_secret'),
+    geofenceVersion: integer('geofence_version').default(1).notNull(),
     active: boolean('active').default(true).notNull(),
   },
   table => [

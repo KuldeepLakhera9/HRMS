@@ -56,6 +56,20 @@ export const PERMISSIONS = {
 
   // Notifications
   NOTIFICATION_PREFERENCE_MANAGE: 'notification.preference.manage',
+
+  // Workflow Engine (Phase 2)
+  WORKFLOW_DEFINITION_MANAGE: 'workflow.definition.manage',
+  WORKFLOW_REQUEST_CREATE: 'workflow.request.create',
+  WORKFLOW_REQUEST_READ: 'workflow.request.read',
+  WORKFLOW_ACTION_EXECUTE: 'workflow.action.execute',
+  WORKFLOW_DELEGATION_MANAGE: 'workflow.delegation.manage',
+
+  // Attendance & Geofencing (Phase 2)
+  ATTENDANCE_POLICY_READ: 'attendance.policy.read',
+  ATTENDANCE_POLICY_MANAGE: 'attendance.policy.manage',
+  ATTENDANCE_LOCATION_ASSIGN: 'attendance.location.assign',
+  ATTENDANCE_PUNCH_CREATE: 'attendance.punch.create',
+  ATTENDANCE_PUNCH_READ: 'attendance.punch.read',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
