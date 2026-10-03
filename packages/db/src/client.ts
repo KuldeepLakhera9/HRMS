@@ -93,3 +93,16 @@ export async function closePools(): Promise<void> {
   }
   globalThis.__hrms_drizzle_app_db__ = undefined;
 }
+
+export function getPoolStats() {
+  const app = globalThis.__hrms_app_pool__;
+  const worker = globalThis.__hrms_worker_pool__;
+  return {
+    app: app
+      ? { total: app.totalCount, idle: app.idleCount, waiting: app.waitingCount }
+      : { total: 0, idle: 0, waiting: 0 },
+    worker: worker
+      ? { total: worker.totalCount, idle: worker.idleCount, waiting: worker.waitingCount }
+      : { total: 0, idle: 0, waiting: 0 },
+  };
+}

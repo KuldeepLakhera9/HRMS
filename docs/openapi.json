@@ -1,0 +1,178 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HRMS Platform API (Phase 1)",
+    "description": "Production-grade, self-hosted, multi-tenant HRMS API. All tenant endpoints strictly enforce Row-Level Security (RLS) and fine-grained RBAC permissions.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local Development Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque-token"
+      },
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "hrms_session"
+      }
+    }
+  },
+  "security": [
+    { "bearerAuth": [] },
+    { "cookieAuth": [] }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Liveness Probe",
+        "description": "Returns 200 OK as long as the application process is running.",
+        "security": [],
+        "responses": {
+          "200": { "description": "Process is alive." }
+        }
+      }
+    },
+    "/api/ready": {
+      "get": {
+        "summary": "Readiness Probe",
+        "description": "Checks connectivity to PostgreSQL (hrms_app) and Redis.",
+        "security": [],
+        "responses": {
+          "200": { "description": "Database and Redis are ready." },
+          "503": { "description": "Database or Redis is not connected." }
+        }
+      }
+    },
+    "/api/metrics": {
+      "get": {
+        "summary": "Prometheus Metrics",
+        "description": "Exposes standard Prometheus 0.0.4 metrics (pool stats, latencies, counters). Protected by internal network / token.",
+        "responses": {
+          "200": { "description": "Prometheus exposition text format." }
+        }
+      }
+    },
+    "/api/v1/dashboard/metrics": {
+      "get": {
+        "summary": "Dashboard Aggregated Metrics",
+        "description": "Returns role-based real-time telemetry (headcount, joiners, pending change requests, expiring documents, recent audit count).",
+        "responses": {
+          "200": { "description": "Aggregated metrics." }
+        }
+      }
+    },
+    "/api/v1/custom-fields": {
+      "get": {
+        "summary": "List Custom Fields",
+        "description": "Retrieves active custom field definitions for employee, department, or location with Redis caching.",
+        "parameters": [
+          { "name": "entity", "in": "query", "schema": { "type": "string", "enum": ["employee", "department", "location"] } }
+        ],
+        "responses": {
+          "200": { "description": "List of custom field definitions." }
+        }
+      },
+      "post": {
+        "summary": "Create Custom Field",
+        "description": "Creates a new custom field definition and invalidates Redis cache.",
+        "responses": {
+          "200": { "description": "Created field definition." }
+        }
+      }
+    },
+    "/api/v1/custom-fields/{id}": {
+      "patch": {
+        "summary": "Update Custom Field",
+        "description": "Updates an existing custom field definition.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Updated definition." } }
+      },
+      "delete": {
+        "summary": "Delete Custom Field",
+        "description": "Soft-deletes a custom field definition.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Deleted." } }
+      }
+    },
+    "/api/v1/employees/import": {
+      "post": {
+        "summary": "Validate Bulk CSV Import",
+        "description": "Parses RFC-4180 CSV, validates against standard fields and dynamic custom fields, returns preview and error rows.",
+        "responses": {
+          "200": { "description": "Validation preview and job ID." }
+        }
+      }
+    },
+    "/api/v1/employees/import/{id}": {
+      "get": {
+        "summary": "Get Import Job Status",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Import job status and summary." } }
+      }
+    },
+    "/api/v1/employees/import/{id}/confirm": {
+      "post": {
+        "summary": "Confirm Bulk Import",
+        "description": "Executes batched idempotent upsert of valid rows in chunks of 500 inside tenant transaction.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Execution result." } }
+      }
+    },
+    "/api/v1/employees/import/{id}/errors": {
+      "get": {
+        "summary": "Download Import Error CSV",
+        "description": "Streams downloadable CSV containing all failed rows with row number, column, and reason.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Error CSV file." } }
+      }
+    },
+    "/api/v1/employees/export": {
+      "get": {
+        "summary": "Export Employees CSV",
+        "description": "Exports employee records to RFC-4180 CSV. Masks sensitive fields unless caller has employee:read_sensitive and active step-up session.",
+        "parameters": [
+          { "name": "includeSensitive", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": { "200": { "description": "CSV stream." } }
+      }
+    },
+    "/api/v1/employees/directory": {
+      "get": {
+        "summary": "Employee Directory Search",
+        "description": "Keyset-paginated search utilizing pg_trgm trigram indices with departmental, status, and location filters.",
+        "responses": { "200": { "description": "Employee directory rows." } }
+      }
+    },
+    "/api/v1/employees/{id}": {
+      "get": {
+        "summary": "Get Employee Profile",
+        "description": "Fetches employee details with sensitive fields masked by default.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Masked employee profile." } }
+      }
+    },
+    "/api/v1/employees/{id}/sensitive": {
+      "post": {
+        "summary": "Reveal Sensitive Fields",
+        "description": "Decrypts and reveals PAN, Aadhaar, and Bank Account after verifying step-up MFA challenge. Fully audited.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Decrypted sensitive fields." } }
+      }
+    },
+    "/api/v1/audit-logs": {
+      "get": {
+        "summary": "Query Audit Trail",
+        "description": "Keyset-paginated query of append-only monthly partitioned audit logs.",
+        "responses": { "200": { "description": "Audit log entries." } }
+      }
+    }
+  }
+}
