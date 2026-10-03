@@ -10,6 +10,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { apiClient } from '../services/api.js';
+import { offlineQueue } from '../services/offline-queue.js';
 
 interface TodayPunchItem {
   id: string;
@@ -53,6 +54,8 @@ export function ClockScreen() {
   const [summary, setSummary] = useState<TodaySummaryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPunching, setIsPunching] = useState(false);
+  const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Simulated GPS telemetry with live polling
   const [gpsAccuracy, setGpsAccuracy] = useState<number>(35);
@@ -91,7 +94,25 @@ export function ClockScreen() {
 
   useEffect(() => {
     fetchTodaySummary();
+    setPendingOfflineCount(offlineQueue.getPendingCount());
   }, [fetchTodaySummary]);
+
+  const handleSyncOffline = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await offlineQueue.syncQueue();
+      setPendingOfflineCount(offlineQueue.getPendingCount());
+      if (res.synced > 0) {
+        setFeedbackBanner({
+          message: `Synced ${res.synced} offline punch(es) successfully!`,
+          type: 'success',
+        });
+        await fetchTodaySummary();
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Simulate live GPS accuracy polling (improving over time or oscillating slightly)
   useEffect(() => {
@@ -146,11 +167,20 @@ export function ClockScreen() {
           type: 'error',
         });
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to record punch.';
+    } catch {
+      // Offline fallback: enqueue punch with client UUIDv7 idempotency key
+      const queued = offlineQueue.enqueue({
+        id: idempotencyKey,
+        punchType,
+        eventTs: new Date().toISOString(),
+        latitude,
+        longitude,
+        accuracyMeters: gpsAccuracy,
+      });
+      setPendingOfflineCount(offlineQueue.getPendingCount());
       setFeedbackBanner({
-        message: msg,
-        type: 'error',
+        message: `Offline mode: Punch queued locally (${queued.id.slice(0, 8)}). Will sync when connection is restored.`,
+        type: 'warning',
       });
     } finally {
       setIsPunching(false);
@@ -170,6 +200,26 @@ export function ClockScreen() {
             <Text style={styles.infoBadgeText}>Geofence Policy ?</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Offline Queue Status Banner */}
+        {pendingOfflineCount > 0 && (
+          <View style={styles.offlineBanner}>
+            <View style={styles.offlineRow}>
+              <Text style={styles.offlineText}>
+                ⚠️ {pendingOfflineCount} punch{pendingOfflineCount > 1 ? 'es' : ''} queued offline
+              </Text>
+              <TouchableOpacity
+                onPress={handleSyncOffline}
+                disabled={isSyncing}
+                style={styles.syncButton}
+              >
+                <Text style={styles.syncButtonText}>
+                  {isSyncing ? 'Syncing...' : 'Sync Now'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Live Digital Clock & Date */}
         <View style={styles.clockCard}>
@@ -703,6 +753,35 @@ const styles = StyleSheet.create({
   modalCloseText: {
     color: '#ffffff',
     fontSize: 15,
+    fontWeight: '700',
+  },
+  offlineBanner: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  offlineRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  offlineText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  syncButton: {
+    backgroundColor: '#D97706',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  syncButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '700',
   },
 });
