@@ -273,10 +273,10 @@ Phase 7                                                                 ongoing
 ### Sprint plan
 | Sprint | Focus |
 |---|---|
-| 2.1 | WF-01..03, LOC-01/02, POL-01, MOB-01 |
-| 2.2 | PUNCH-01/02/05, LOC-03, POL-02, MOB-02, WF-04 |
-| 2.3 | PUNCH-03/04/06, DAY-01..03, MOB-03/05, POL-03, QA-01 |
-| 2.4 | DAY-04..06, MOB-04, WF-05/06, BIO-01, QA-02..04, beta to IT department (**R1a**) |
+| 2.1 | WF-01..03, LOC-01/02, POL-01, MOB-01 | COMPLETED |
+| 2.2 | PUNCH-01/02/05, LOC-03, POL-02, MOB-02, WF-04 | COMPLETED |
+| 2.3 | PUNCH-03/04/06, DAY-01..03, MOB-03/05, POL-03, QA-01 | COMPLETED |
+| 2.4 | DAY-04..06, MOB-04, WF-05/06, BIO-01, QA-02..04, beta to IT department (**R1a**) | **COMPLETED** (Gate G2 Passed, see `docs/GATE_G2_REPORT.md`) |
 
 ### Acceptance criteria
 - Server rejects or flags punches with: outside fence (per policy), accuracy over limit, mock location, unregistered device, impossible travel; each returns a clear reason code
