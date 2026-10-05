@@ -692,4 +692,28 @@ export class EmployeeService {
 
     return this.repository.getDirectory(ctx.companyId, params, poolOverride);
   }
+
+  /**
+   * Retrieves upcoming birthdays and work anniversaries for the directory.
+   */
+  async getCelebrations(
+    ctx: RequestContext,
+    daysAhead: number = 30,
+    poolOverride?: pg.Pool,
+  ): Promise<Array<{
+    id: string;
+    empCode: string;
+    name: string;
+    department?: string | null;
+    type: 'birthday' | 'anniversary';
+    date: string;
+    years?: number;
+  }>> {
+    if (!can(ctx, PERMISSIONS.EMPLOYEE_PROFILE_READ)) {
+      throw new ForbiddenError('You do not have permission to view employee celebrations.');
+    }
+
+    return this.repository.getCelebrations(ctx.companyId, daysAhead, poolOverride);
+  }
 }
+

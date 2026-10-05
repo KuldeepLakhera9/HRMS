@@ -812,4 +812,122 @@ export class EmployeeRepository {
       poolOverride,
     );
   }
+
+  /**
+   * Retrieves upcoming birthdays and anniversaries honoring opt-out flag.
+   */
+  async getCelebrations(
+    companyId: string,
+    daysAhead: number = 30,
+    poolOverride?: pg.Pool,
+  ): Promise<Array<{
+    id: string;
+    empCode: string;
+    name: string;
+    department?: string | null;
+    type: 'birthday' | 'anniversary';
+    date: string;
+    years?: number;
+  }>> {
+    return withTenant(
+      { companyId },
+      async (_tx, client) => {
+        const res = await client.query<{
+          id: string;
+          emp_code: string;
+          first_name: string;
+          last_name: string;
+          dob: string | null;
+          doj: string;
+          dept_name: string | null;
+          opt_out: boolean;
+        }>(
+          `SELECT 
+            e.id,
+            e.emp_code,
+            e.first_name,
+            e.last_name,
+            TO_CHAR(e.dob, 'YYYY-MM-DD') AS dob,
+            TO_CHAR(e.doj, 'YYYY-MM-DD') AS doj,
+            d.name AS dept_name,
+            COALESCE((e.custom_fields->>'opt_out_celebrations')::boolean, false) AS opt_out
+          FROM employees e
+          LEFT JOIN departments d ON d.company_id = e.company_id AND d.id = e.department_id
+          WHERE e.company_id = $1 
+            AND e.status = 'active' 
+            AND e.deleted_at IS NULL
+            AND COALESCE((e.custom_fields->>'opt_out_celebrations')::boolean, false) = false`,
+          [companyId],
+        );
+
+        const now = new Date();
+        const results: Array<{
+          id: string;
+          empCode: string;
+          name: string;
+          department?: string | null;
+          type: 'birthday' | 'anniversary';
+          date: string;
+          years?: number;
+        }> = [];
+
+        for (const row of res.rows) {
+          const fullName = `${row.first_name} ${row.last_name}`;
+
+          // 1. Birthday
+          if (row.dob) {
+            const dobParts = row.dob.split('-');
+            if (dobParts.length === 3) {
+              const month = parseInt(dobParts[1]!, 10) - 1;
+              const day = parseInt(dobParts[2]!, 10);
+              const bdayThisYear = new Date(now.getFullYear(), month, day);
+              const diffTime = bdayThisYear.getTime() - now.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+              if (diffDays >= 0 && diffDays <= daysAhead) {
+                results.push({
+                  id: row.id,
+                  empCode: row.emp_code,
+                  name: fullName,
+                  department: row.dept_name,
+                  type: 'birthday',
+                  date: `${now.getFullYear()}-${dobParts[1]}-${dobParts[2]}`,
+                });
+              }
+            }
+          }
+
+          // 2. Work Anniversary
+          if (row.doj) {
+            const dojParts = row.doj.split('-');
+            if (dojParts.length === 3) {
+              const dojYear = parseInt(dojParts[0]!, 10);
+              const month = parseInt(dojParts[1]!, 10) - 1;
+              const day = parseInt(dojParts[2]!, 10);
+              const anniThisYear = new Date(now.getFullYear(), month, day);
+              const diffTime = anniThisYear.getTime() - now.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              const years = now.getFullYear() - dojYear;
+
+              if (diffDays >= 0 && diffDays <= daysAhead && years > 0) {
+                results.push({
+                  id: row.id,
+                  empCode: row.emp_code,
+                  name: fullName,
+                  department: row.dept_name,
+                  type: 'anniversary',
+                  date: `${now.getFullYear()}-${dojParts[1]}-${dojParts[2]}`,
+                  years,
+                });
+              }
+            }
+          }
+        }
+
+        results.sort((a, b) => a.date.localeCompare(b.date));
+        return results;
+      },
+      poolOverride,
+    );
+  }
 }

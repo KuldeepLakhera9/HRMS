@@ -26,3 +26,5 @@ export * from './metrics/index.js';
 export * from './modules/sample/index.js';
 export * from './leave/index.js';
 export * from './report/index.js';
+export * from './announcement/index.js';
+export * from './helpdesk/index.js';
