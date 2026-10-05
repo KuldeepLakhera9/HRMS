@@ -3,6 +3,7 @@ import {
   runMigrations,
   seedDatabase,
   getOwnerPool,
+  getAppPool,
   withTenant,
   generateUuidV7,
 } from '@hrms/db';
@@ -79,12 +80,15 @@ describe('P3-PILOT-01: Feature Flags, Feedback & Pilot Metrics Suite', () => {
       deptOtherId = deptORes.rows[0]!.id;
 
       // 2. Employee User
-      await client.query(
+      const userRes = await client.query<{ id: string }>(
         `INSERT INTO users (id, company_id, email, password_hash, status)
          VALUES ($1, $2, 'pilot.user@test.internal', 'dummy_hash', 'active')
-         ON CONFLICT (company_id, email) WHERE deleted_at IS NULL DO NOTHING`,
+         ON CONFLICT (company_id, email) WHERE deleted_at IS NULL DO UPDATE SET status = 'active'
+         RETURNING id`,
         [employeeUserId, companyId]
       );
+      employeeUserId = userRes.rows[0]!.id;
+      employeeCtx.userId = employeeUserId;
 
       // 3. Employee Master in Pilot Department
       await client.query(
@@ -186,9 +190,9 @@ describe('P3-PILOT-01: Feature Flags, Feedback & Pilot Metrics Suite', () => {
     });
 
     it('allows admin/HR to retrieve and review feedback submissions', async () => {
-      const ownerPool = getOwnerPool();
+      const appPool = getAppPool();
 
-      const list = await pilotService.listFeedback(adminCtx, ownerPool);
+      const list = await pilotService.listFeedback(adminCtx, appPool);
       expect(list.length).toBeGreaterThanOrEqual(1);
 
       const match = list.find(f => f.id === feedbackId);
@@ -200,9 +204,9 @@ describe('P3-PILOT-01: Feature Flags, Feedback & Pilot Metrics Suite', () => {
 
   describe('Pilot Metrics Aggregation', () => {
     it('computes pilot metrics: adoption, CSAT score, and channel breakdown', async () => {
-      const ownerPool = getOwnerPool();
+      const appPool = getAppPool();
 
-      const metrics = await pilotService.getPilotMetrics(adminCtx, deptPilotId, ownerPool);
+      const metrics = await pilotService.getPilotMetrics(adminCtx, deptPilotId, appPool);
 
       expect(metrics.totalEmployees).toBeGreaterThanOrEqual(1);
       expect(metrics.activeEmployees).toBeGreaterThanOrEqual(1);

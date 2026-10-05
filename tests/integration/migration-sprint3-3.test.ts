@@ -3,6 +3,7 @@ import {
   runMigrations,
   seedDatabase,
   getOwnerPool,
+  getAppPool,
   withTenant,
   generateUuidV7,
 } from '@hrms/db';
@@ -158,14 +159,14 @@ MIG_EMP2,PL,2026,-3.0
       }, ownerPool);
     });
 
-    it('reverts opening leave balance batch cleanly', async () => {
-      const ownerPool = getOwnerPool();
+    it('reverts opening leave balance batch cleanly and records ledger reversals', async () => {
+      const appPool = getAppPool();
 
-      const revertResult = await migrationService.revertLeaveBalances(adminCtx, batchId, ownerPool);
+      const revertResult = await migrationService.revertLeaveBalances(adminCtx, batchId, appPool);
       expect(revertResult.status).toBe('reverted');
       expect(revertResult.revertedCount).toBe(2);
 
-      // Verify leave_balances restored
+      // Verify leave_balances restored and ledger reversals recorded
       await withTenant({ companyId }, async (_tx, client) => {
         const bal1 = await client.query<{ opening: string; closing: string }>(
           `SELECT opening, closing FROM leave_balances 
@@ -175,7 +176,15 @@ MIG_EMP2,PL,2026,-3.0
         expect(bal1.rows.length).toBe(1);
         expect(parseFloat(bal1.rows[0]!.opening)).toBe(0);
         expect(parseFloat(bal1.rows[0]!.closing)).toBe(0);
-      }, ownerPool);
+
+        // Verify ledger reversal entries
+        const revLedger = await client.query<{ count: number }>(
+          `SELECT COUNT(*)::int AS count FROM leave_ledger 
+           WHERE company_id = $1 AND ref_id = $2 AND entry_type = 'reversal'`,
+          [companyId, batchId],
+        );
+        expect(revLedger.rows[0]!.count).toBe(2);
+      }, appPool);
     });
   });
 
@@ -183,7 +192,7 @@ MIG_EMP2,PL,2026,-3.0
     let attBatchId: string;
 
     it('previews attendance CSV and identifies valid vs invalid rows', async () => {
-      const ownerPool = getOwnerPool();
+      const appPool = getAppPool();
 
       const csvContent = `emp_code,date,in_time,out_time,status
 MIG_EMP1,2026-07-01,09:00:00,18:00:00,present
@@ -192,7 +201,7 @@ MIG_EMP1,2026-07-02,,,absent
 NON_EXISTENT,2026-07-01,09:00:00,18:00:00,present
 `;
 
-      const preview = await migrationService.previewAttendance(adminCtx, csvContent, ownerPool);
+      const preview = await migrationService.previewAttendance(adminCtx, csvContent, appPool);
       expect(preview.type).toBe('attendance_punches');
       expect(preview.totalRows).toBe(4);
       expect(preview.validRows).toBe(3);
@@ -203,9 +212,9 @@ NON_EXISTENT,2026-07-01,09:00:00,18:00:00,present
     });
 
     it('confirms attendance batch and writes computed attendance_days', async () => {
-      const ownerPool = getOwnerPool();
+      const appPool = getAppPool();
 
-      const confirmResult = await migrationService.confirmAttendance(adminCtx, attBatchId, ownerPool);
+      const confirmResult = await migrationService.confirmAttendance(adminCtx, attBatchId, appPool);
       expect(confirmResult.status).toBe('completed');
       expect(confirmResult.processedCount).toBe(3);
 
@@ -228,17 +237,36 @@ NON_EXISTENT,2026-07-01,09:00:00,18:00:00,present
         expect(day2.rows.length).toBe(1);
         expect(day2.rows[0]!.status).toBe('absent');
         expect(day2.rows[0]!.total_work_minutes).toBe(0);
-      }, ownerPool);
+      }, appPool);
+    });
+
+    it('reverts historical attendance migration batch cleanly', async () => {
+      const appPool = getAppPool();
+      const revertRes = await migrationService.revertBatch(adminCtx, attBatchId, appPool);
+      expect(revertRes.status).toBe('reverted');
+      expect(revertRes.revertedCount).toBe(3);
+
+      // Verify attendance_days reset to absent with 0 work minutes
+      await withTenant({ companyId }, async (_tx, client) => {
+        const day1 = await client.query<{ status: string; total_work_minutes: number; first_in: string | null }>(
+          `SELECT status, total_work_minutes, first_in FROM attendance_days 
+           WHERE company_id = $1 AND employee_id = $2 AND work_date = '2026-07-01'`,
+          [companyId, employeeId1],
+        );
+        expect(day1.rows[0]!.status).toBe('absent');
+        expect(day1.rows[0]!.total_work_minutes).toBe(0);
+        expect(day1.rows[0]!.first_in).toBeNull();
+      }, appPool);
     });
 
     it('lists past migration batches for the company', async () => {
-      const ownerPool = getOwnerPool();
-      const batches = await migrationService.listBatches(adminCtx, ownerPool);
+      const appPool = getAppPool();
+      const batches = await migrationService.listBatches(adminCtx, appPool);
 
       expect(batches.length).toBeGreaterThanOrEqual(2);
       const leaveBatch = batches.find(b => b.id === attBatchId);
       expect(leaveBatch).toBeDefined();
-      expect(leaveBatch!.status).toBe('completed');
+      expect(leaveBatch!.status).toBe('reverted');
     });
   });
 });
