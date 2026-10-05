@@ -1,0 +1,44 @@
+appId: com.orghub.hrms
+---
+# ==============================================================================
+# Maestro E2E Mobile Automation Flow: Employee Leave Application (P3-LV-05)
+# ==============================================================================
+
+- launchApp:
+    clearState: false
+
+# 1. Assert bottom navigation and switch to Leave tab
+- assertVisible: "Clock In"
+- tapOn:
+    text: "Leave"
+
+# 2. Assert Leave & Balances Dashboard
+- assertVisible: "Leave & Balances"
+- assertVisible: "Earned Leave"
+
+# 3. Open Leave Application Sheet
+- tapOn:
+    text: "Apply for Leave"
+
+# 4. Form interaction & Live Preview
+- assertVisible: "Apply Leave"
+- tapOn:
+    id: "leave-type-selector"
+- tapOn:
+    text: "Paid Leave (Earned)"
+
+# 5. Toggle half-day option
+- tapOn:
+    id: "half-day-toggle"
+
+# 6. Enter Reason
+- tapOn:
+    id: "leave-reason-input"
+- inputText: "Personal time off - Maestro Automated Test"
+
+# 7. Submit request
+- tapOn:
+    text: "Submit Leave Request"
+
+# 8. Assert confirmation
+- assertVisible: "Leave request submitted successfully"
