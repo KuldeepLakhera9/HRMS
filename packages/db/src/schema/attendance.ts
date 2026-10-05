@@ -106,7 +106,7 @@ export const attendancePunches = pgTable(
     employeeId: uuid('employee_id').notNull(),
     punchTime: timestamp('punch_time', { withTimezone: true, mode: 'date' }).notNull(),
     punchType: text('punch_type').$type<'in' | 'out' | 'auto_out'>().notNull(),
-    source: text('source').$type<'mobile' | 'web' | 'biometric' | 'qr'>().notNull(),
+    source: text('source').$type<'mobile' | 'web' | 'biometric' | 'qr' | 'regularization'>().notNull(),
     workDate: date('work_date').notNull(),
     shiftId: uuid('shift_id'),
     locationId: uuid('location_id'),
@@ -121,6 +121,7 @@ export const attendancePunches = pgTable(
     reasonCode: text('reason_code').default('PUNCH_SUCCESS').notNull(),
     flagReasons: text('flag_reasons').array().default([]).notNull(),
     idempotencyKey: text('idempotency_key'),
+    isSynthetic: boolean('is_synthetic').default(false).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   },
   table => [
@@ -219,6 +220,34 @@ export const attendancePeriodLocks = pgTable(
   ],
 );
 
+export const attendanceRegularizationRequests = pgTable(
+  'attendance_regularization_requests',
+  {
+    ...baseTenantColumns,
+    employeeId: uuid('employee_id').notNull(),
+    date: date('date').notNull(),
+    requestType: text('request_type')
+      .$type<'punch_missing' | 'in_time_change' | 'out_time_change' | 'on_duty' | 'work_from_home'>()
+      .notNull(),
+    inTime: text('in_time'),
+    outTime: text('out_time'),
+    reason: text('reason').notNull(),
+    workflowRequestId: uuid('workflow_request_id'),
+    status: text('status')
+      .$type<'pending' | 'approved' | 'rejected' | 'cancelled'>()
+      .default('pending')
+      .notNull(),
+    syntheticInPunchId: uuid('synthetic_in_punch_id'),
+    syntheticOutPunchId: uuid('synthetic_out_punch_id'),
+  },
+  table => [
+    uniqueIndex('idx_attendance_reg_company_id').on(table.companyId, table.id),
+    index('idx_attendance_reg_emp_date').on(table.companyId, table.employeeId, table.date),
+    index('idx_attendance_reg_status').on(table.companyId, table.status),
+    index('idx_attendance_reg_wf_id').on(table.companyId, table.workflowRequestId),
+  ],
+);
+
 export type AttendancePolicy = typeof attendancePolicies.$inferSelect;
 export type NewAttendancePolicy = typeof attendancePolicies.$inferInsert;
 export type AttendancePolicyAssignment = typeof attendancePolicyAssignments.$inferSelect;
@@ -237,3 +266,5 @@ export type AttendanceDay = typeof attendanceDays.$inferSelect;
 export type NewAttendanceDay = typeof attendanceDays.$inferInsert;
 export type AttendancePeriodLock = typeof attendancePeriodLocks.$inferSelect;
 export type NewAttendancePeriodLock = typeof attendancePeriodLocks.$inferInsert;
+export type AttendanceRegularizationRequest = typeof attendanceRegularizationRequests.$inferSelect;
+export type NewAttendanceRegularizationRequest = typeof attendanceRegularizationRequests.$inferInsert;
