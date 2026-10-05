@@ -483,4 +483,55 @@ describe('P2-DAY-01 & P2-QA-01: Attendance Day Engine Golden Table Suite (>= 25 
 
     expect(res1.sourceHash).not.toBe(res2.sourceHash);
   });
+
+  // --- Case 30: Full Day Approved Leave (P3-INT-01) ---
+  it('Case 30: Full day approved paid leave sets on_leave and 0 LOP days', () => {
+    const context: DayContext = {
+      ...baseContext,
+      leavePortion: 1.0,
+      isPaidLeave: true,
+    };
+    const res = computeDay([], generalShift, defaultPolicy, context);
+
+    expect(res.status).toBe('on_leave');
+    expect(res.leavePortion).toBe(1.0);
+    expect(res.lopDays).toBe(0.0);
+    expect(res.flags).toContain('APPROVED_LEAVE');
+  });
+
+  // --- Case 31: Half Day Leave + Half Day Present (P3-INT-01) ---
+  it('Case 31: Half day leave + working >= halfDayMinutes sets present with leavePortion 0.5', () => {
+    const punches = [
+      createPunch('p1', '2026-10-03T09:00:00Z', 'in'),
+      createPunch('p2', '2026-10-03T13:30:00Z', 'out'), // 4.5 hours = 270 minutes (>= 240)
+    ];
+    const context: DayContext = {
+      ...baseContext,
+      leavePortion: 0.5,
+      isPaidLeave: true,
+    };
+    const res = computeDay(punches, generalShift, defaultPolicy, context);
+
+    expect(res.status).toBe('present');
+    expect(res.leavePortion).toBe(0.5);
+    expect(res.lopDays).toBe(0.0);
+    expect(res.flags).toContain('HALF_DAY_LEAVE');
+    expect(res.flags).toContain('HALF_DAY_PRESENT');
+  });
+
+  // --- Case 32: Half Day Leave with No Punches (P3-INT-01) ---
+  it('Case 32: Half day leave with no punches sets half_day with lopDays', () => {
+    const context: DayContext = {
+      ...baseContext,
+      leavePortion: 0.5,
+      isPaidLeave: true,
+    };
+    const res = computeDay([], generalShift, defaultPolicy, context);
+
+    expect(res.status).toBe('half_day');
+    expect(res.leavePortion).toBe(0.5);
+    expect(res.lopDays).toBe(0.5); // Second half absent => 0.5 LOP
+    expect(res.flags).toContain('HALF_DAY_LEAVE');
+  });
 });
+

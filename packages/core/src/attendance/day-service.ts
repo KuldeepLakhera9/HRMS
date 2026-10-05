@@ -6,7 +6,8 @@ import {
   ForbiddenError,
   PERMISSIONS,
 } from '@hrms/shared';
-import { getAppPool, withTenant, type AttendanceDay } from '@hrms/db';
+import { DateTime } from 'luxon';
+import { getAppPool, withTenant, generateUuidV7, type AttendanceDay } from '@hrms/db';
 import type { RequestContext } from '../routing/context.js';
 import { can } from '../routing/authorization.js';
 import { AuditService } from '../audit/service.js';
@@ -166,6 +167,9 @@ export class AttendanceDayService {
         isLocked: false,
         ruleVersion: calculation.ruleVersion,
         sourceHash: calculation.sourceHash,
+        lopDays: calculation.lopDays.toFixed(2),
+        leavePortion: calculation.leavePortion.toFixed(2),
+        holidayId: calculation.holidayId,
         createdBy: ctx.userId ?? '00000000-0000-0000-0000-000000000001',
         updatedBy: ctx.userId ?? '00000000-0000-0000-0000-000000000001',
       },
@@ -313,14 +317,105 @@ export class AttendanceDayService {
           isLocked: false,
           ruleVersion: calc.ruleVersion,
           sourceHash: calc.sourceHash,
+          lopDays: calc.lopDays.toFixed(2),
+          leavePortion: calc.leavePortion.toFixed(2),
+          holidayId: calc.holidayId,
           createdBy: systemUserId,
           updatedBy: systemUserId,
         });
+
+        // Comp-off generation (P3-INT-02): If worked on weekly off or holiday
+        if ((context.isWeeklyOff || context.isHoliday) && calc.effectiveMinutes >= policy.halfDayMinutes) {
+          const daysGranted = calc.effectiveMinutes >= policy.fullDayMinutes ? '1.00' : '0.50';
+          const sourceType = context.isWeeklyOff ? 'weekly_off' : 'holiday';
+          const expiresOn = DateTime.fromISO(workDate).plus({ days: 90 }).toISODate()!;
+          const creditId = generateUuidV7();
+
+          await withTenant({ companyId }, async (_tx, client) => {
+            await client.query(
+              `INSERT INTO comp_off_credits (
+                id, company_id, employee_id, source_date, source_type,
+                minutes_worked, days_granted, expires_on, status,
+                created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'granted', now(), now())
+              ON CONFLICT (company_id, employee_id, source_date, source_type)
+              DO NOTHING`,
+              [
+                creditId,
+                companyId,
+                emp.id,
+                workDate,
+                sourceType,
+                calc.effectiveMinutes,
+                daysGranted,
+                expiresOn,
+              ],
+            );
+          }, pool);
+        }
       }
 
       // Batch upsert chunk
       const updatedInChunk = await this.dayRepo.batchUpsertDays(companyId, dayInputs, poolOverride);
       totalUpdated += updatedInChunk;
+
+      // Upsert attendance_period_summary for each employee in chunk (P3-INT-02)
+      const periodKey = workDate.slice(0, 7); // 'YYYY-MM'
+      const startOfMonth = `${periodKey}-01`;
+      const endOfMonth = DateTime.fromISO(startOfMonth).endOf('month').toISODate()!;
+
+      await withTenant({ companyId }, async (_tx, client) => {
+        for (const emp of employees) {
+          const summaryId = generateUuidV7();
+          await client.query(
+            `INSERT INTO attendance_period_summary (
+              id, company_id, employee_id, period,
+              present_days, absent_days, half_days, late_count, early_exit_count,
+              weekly_off, holidays, leave_days, od_days, wfh_days,
+              worked_minutes, overtime_minutes, lop_days, computed_at
+            )
+            SELECT
+              $1, $2, $3, $4,
+              COALESCE(SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(CASE WHEN status = 'half_day' THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(CASE WHEN late_in_minutes > 0 THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(CASE WHEN early_out_minutes > 0 THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(CASE WHEN status = 'weekly_off' THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(CASE WHEN status = 'holiday' THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(leave_portion::numeric), 0),
+              COALESCE(SUM(CASE WHEN flags @> '["APPROVED_OD"]' THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(CASE WHEN flags @> '["APPROVED_WFH"]' THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(total_work_minutes), 0),
+              COALESCE(SUM(overtime_minutes), 0),
+              COALESCE(SUM(lop_days::numeric), 0),
+              NOW()
+            FROM attendance_days
+            WHERE company_id = $2
+              AND employee_id = $3
+              AND work_date >= $5::date
+              AND work_date <= $6::date
+              AND deleted_at IS NULL
+            ON CONFLICT (company_id, employee_id, period)
+            DO UPDATE SET
+              present_days = EXCLUDED.present_days,
+              absent_days = EXCLUDED.absent_days,
+              half_days = EXCLUDED.half_days,
+              late_count = EXCLUDED.late_count,
+              early_exit_count = EXCLUDED.early_exit_count,
+              weekly_off = EXCLUDED.weekly_off,
+              holidays = EXCLUDED.holidays,
+              leave_days = EXCLUDED.leave_days,
+              od_days = EXCLUDED.od_days,
+              wfh_days = EXCLUDED.wfh_days,
+              worked_minutes = EXCLUDED.worked_minutes,
+              overtime_minutes = EXCLUDED.overtime_minutes,
+              lop_days = EXCLUDED.lop_days,
+              computed_at = NOW()`,
+            [summaryId, companyId, emp.id, periodKey, startOfMonth, endOfMonth],
+          );
+        }
+      }, pool);
     }
 
     return { totalEmployees, totalUpdated };

@@ -97,6 +97,7 @@ export const PERMISSIONS = {
   LEAVE_BALANCE_ADJUST: 'leave.balance.adjust',
   LEAVE_REQUEST_CREATE: 'leave.request.create',
   LEAVE_REQUEST_READ: 'leave.request.read',
+  LEAVE_REQUEST_APPROVE: 'leave.request.approve',
   LEAVE_REQUEST_CANCEL: 'leave.request.cancel',
   LEAVE_CALENDAR_READ: 'leave.calendar.read',
   LEAVE_COMPOFF_CLAIM: 'leave.compoff.claim',

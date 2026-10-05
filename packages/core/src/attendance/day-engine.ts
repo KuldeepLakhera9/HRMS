@@ -3,13 +3,16 @@ import type { EffectivePunchRecord } from './punch-repository.js';
 import type { ShiftRecord } from './shift-repository.js';
 import type { AttendancePolicyRecord } from './repository.js';
 
-export const RULE_VERSION = 1;
+export const RULE_VERSION = 2;
 
 export interface DayContext {
   isWeeklyOff: boolean;
   isHoliday: boolean;
   isApprovedOD: boolean;
   isApprovedWFH: boolean;
+  leavePortion?: number | undefined;
+  isPaidLeave?: boolean | undefined;
+  holidayId?: string | null | undefined;
 }
 
 export type DayStatus =
@@ -34,6 +37,9 @@ export interface DayCalculationResult {
   ruleVersion: number;
   sourceHash: string;
   flags: string[];
+  lopDays: number;
+  leavePortion: number;
+  holidayId: string | null;
 }
 
 /**
@@ -73,6 +79,9 @@ function computeSourceHash(
     `hol=${context.isHoliday}`,
     `od=${context.isApprovedOD}`,
     `wfh=${context.isApprovedWFH}`,
+    `lp=${context.leavePortion ?? 0}`,
+    `pl=${context.isPaidLeave ?? false}`,
+    `hid=${context.holidayId ?? 'none'}`,
     `punches=[${punchSignatures}]`,
   ].join('|');
 
@@ -80,7 +89,7 @@ function computeSourceHash(
 }
 
 /**
- * Pure Attendance Day Calculation Engine (P2-DAY-01)
+ * Pure Attendance Day Calculation Engine (P2-DAY-01, P3-INT-01)
  * Follows specification rules for punch pairing, grace period, night shifts, and status categorization.
  */
 export function computeDay(
@@ -92,7 +101,29 @@ export function computeDay(
   const flags: string[] = [];
   const sourceHash = computeSourceHash(punches, shift?.id ?? null, context);
 
-  // 1. Handle No-Punch Scenarios
+  // 1. Full Day Approved Leave
+  if (context.leavePortion === 1) {
+    flags.push('APPROVED_LEAVE');
+    return {
+      firstIn: null,
+      lastOut: null,
+      punchCount: 0,
+      totalWorkMinutes: 0,
+      effectiveMinutes: 0,
+      lateInMinutes: 0,
+      earlyOutMinutes: 0,
+      overtimeMinutes: 0,
+      status: 'on_leave',
+      ruleVersion: RULE_VERSION,
+      sourceHash,
+      flags,
+      lopDays: context.isPaidLeave ? 0.0 : 1.0,
+      leavePortion: 1.0,
+      holidayId: null,
+    };
+  }
+
+  // 2. Handle No-Punch Scenarios
   if (!punches || punches.length === 0) {
     if (context.isHoliday) {
       return {
@@ -108,6 +139,9 @@ export function computeDay(
         ruleVersion: RULE_VERSION,
         sourceHash,
         flags: ['HOLIDAY'],
+        lopDays: 0.0,
+        leavePortion: 0.0,
+        holidayId: context.holidayId ?? null,
       };
     }
 
@@ -125,6 +159,30 @@ export function computeDay(
         ruleVersion: RULE_VERSION,
         sourceHash,
         flags: ['WEEKLY_OFF'],
+        lopDays: 0.0,
+        leavePortion: 0.0,
+        holidayId: null,
+      };
+    }
+
+    if (context.leavePortion === 0.5) {
+      flags.push('HALF_DAY_LEAVE', 'NO_PUNCHES');
+      return {
+        firstIn: null,
+        lastOut: null,
+        punchCount: 0,
+        totalWorkMinutes: 0,
+        effectiveMinutes: 0,
+        lateInMinutes: 0,
+        earlyOutMinutes: 0,
+        overtimeMinutes: 0,
+        status: 'half_day',
+        ruleVersion: RULE_VERSION,
+        sourceHash,
+        flags,
+        lopDays: (context.isPaidLeave ? 0.0 : 0.5) + 0.5,
+        leavePortion: 0.5,
+        holidayId: null,
       };
     }
 
@@ -143,6 +201,9 @@ export function computeDay(
         ruleVersion: RULE_VERSION,
         sourceHash,
         flags,
+        lopDays: 0.0,
+        leavePortion: 0.0,
+        holidayId: null,
       };
     }
 
@@ -161,6 +222,9 @@ export function computeDay(
         ruleVersion: RULE_VERSION,
         sourceHash,
         flags,
+        lopDays: 0.0,
+        leavePortion: 0.0,
+        holidayId: null,
       };
     }
 
@@ -177,10 +241,13 @@ export function computeDay(
       ruleVersion: RULE_VERSION,
       sourceHash,
       flags: ['NO_PUNCHES'],
+      lopDays: 1.0,
+      leavePortion: 0.0,
+      holidayId: null,
     };
   }
 
-  // 2. Sort valid punches chronologically
+  // 3. Sort valid punches chronologically
   const validPunches = punches
     .filter(p => p.status !== 'rejected')
     .sort((a, b) => a.punchTime.getTime() - b.punchTime.getTime());
@@ -189,7 +256,7 @@ export function computeDay(
   const firstIn = validPunches[0]?.punchTime ?? null;
   const lastOut = validPunches[validPunches.length - 1]?.punchTime ?? null;
 
-  // 3. Pair Punches (IN -> OUT)
+  // 4. Pair Punches (IN -> OUT)
   let totalWorkMinutes = 0;
   let hasMissingPunch = false;
   let currentIn: Date | null = null;
@@ -197,7 +264,6 @@ export function computeDay(
   for (const punch of validPunches) {
     if (punch.punchType === 'in') {
       if (currentIn) {
-        // Two consecutive INs -> missing OUT on first
         hasMissingPunch = true;
       }
       currentIn = punch.punchTime;
@@ -209,13 +275,11 @@ export function computeDay(
         totalWorkMinutes += diffMinutes(currentIn, punch.punchTime);
         currentIn = null;
       } else {
-        // OUT without prior IN
         hasMissingPunch = true;
       }
     }
   }
 
-  // If ended with unclosed IN
   if (currentIn) {
     hasMissingPunch = true;
   }
@@ -224,14 +288,14 @@ export function computeDay(
     flags.push('MISSING_PUNCH');
   }
 
-  // 4. Effective Minutes calculation
+  // 5. Effective Minutes calculation
   let effectiveMinutes = totalWorkMinutes;
   if (context.isApprovedOD || context.isApprovedWFH) {
     effectiveMinutes = Math.max(totalWorkMinutes, policy.fullDayMinutes);
     flags.push(context.isApprovedOD ? 'APPROVED_OD' : 'APPROVED_WFH');
   }
 
-  // 5. Late In & Early Out against Shift
+  // 6. Late In & Early Out against Shift
   let lateInMinutes = 0;
   let earlyOutMinutes = 0;
 
@@ -239,12 +303,10 @@ export function computeDay(
     const shiftStartMinutes = parseTimeToMinutes(shift.startTime);
     const shiftEndMinutes = parseTimeToMinutes(shift.endTime);
 
-    // Get time in UTC/local minutes for firstIn
     const inHours = firstIn.getUTCHours();
     const inMinutes = firstIn.getUTCMinutes();
     const punchInMinutes = inHours * 60 + inMinutes;
 
-    // Grace threshold
     const graceThreshold = shiftStartMinutes + policy.graceMinutes;
     if (punchInMinutes > graceThreshold) {
       lateInMinutes = punchInMinutes - shiftStartMinutes;
@@ -272,10 +334,9 @@ export function computeDay(
     }
   }
 
-  // 6. Overtime Calculation
+  // 7. Overtime Calculation
   let overtimeMinutes = 0;
   if (context.isWeeklyOff || context.isHoliday) {
-    // Work on weekly off or holiday counts fully towards overtime
     overtimeMinutes = effectiveMinutes;
     flags.push(context.isWeeklyOff ? 'WORKED_WEEKLY_OFF' : 'WORKED_HOLIDAY');
   } else if (shift && shift.workHours) {
@@ -286,18 +347,37 @@ export function computeDay(
     }
   }
 
-  // 7. Status Resolution
+  // 8. Status & LOP Resolution
   let status: DayStatus;
-  if (hasMissingPunch && totalWorkMinutes === 0) {
+  let lopDays = 0.0;
+  const leavePortion = context.leavePortion ?? 0.0;
+
+  if (leavePortion === 0.5) {
+    flags.push('HALF_DAY_LEAVE');
+    if (effectiveMinutes >= policy.halfDayMinutes) {
+      status = 'present';
+      flags.push('HALF_DAY_PRESENT');
+      lopDays = context.isPaidLeave ? 0.0 : 0.5;
+    } else {
+      status = 'half_day';
+      flags.push('ABSENT_SECOND_HALF');
+      lopDays = (context.isPaidLeave ? 0.0 : 0.5) + 0.5;
+    }
+  } else if (hasMissingPunch && totalWorkMinutes === 0) {
     status = 'missing_punch';
+    lopDays = 1.0;
   } else if (effectiveMinutes >= policy.fullDayMinutes) {
     status = 'present';
+    lopDays = 0.0;
   } else if (effectiveMinutes >= policy.halfDayMinutes) {
     status = 'half_day';
+    lopDays = 0.5;
   } else if (hasMissingPunch) {
     status = 'missing_punch';
+    lopDays = 1.0;
   } else {
     status = 'absent';
+    lopDays = 1.0;
   }
 
   return {
@@ -313,5 +393,8 @@ export function computeDay(
     ruleVersion: RULE_VERSION,
     sourceHash,
     flags,
+    lopDays,
+    leavePortion,
+    holidayId: context.isHoliday ? (context.holidayId ?? null) : null,
   };
 }

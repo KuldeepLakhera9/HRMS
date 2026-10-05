@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AttendanceDayService } from './day-service.js';
+import { computeDay } from './day-engine.js';
 import type { RequestContext } from '../routing/context.js';
 import type { AttendanceDayRepository } from './day-repository.js';
 import type { AttendanceLockService } from './lock-service.js';
 import type { DayContextProvider } from './day-context-provider.js';
 import type { AttendancePunchRepository } from './punch-repository.js';
 import type { ShiftService } from './shift-service.js';
-import type { AttendancePolicyRepository } from './repository.js';
+import type { ShiftRecord } from './shift-repository.js';
+import type { AttendancePolicyRepository, AttendancePolicyRecord } from './repository.js';
 import type { AuditService } from '../audit/service.js';
 import { ValidationError, ForbiddenError, UnauthorizedError } from '@hrms/shared';
 
@@ -82,8 +84,10 @@ describe('P2-DAY-01: AttendanceDayService Tests', () => {
       getDayContext: vi.fn().mockResolvedValue({
         isWeeklyOff: false,
         isHoliday: false,
-        hasApprovedOd: false,
-        hasApprovedWfh: false,
+        isApprovedOD: false,
+        isApprovedWFH: false,
+        leavePortion: 0,
+        isPaidLeave: true,
       }),
     };
     mockPunchRepo = {
@@ -150,14 +154,30 @@ describe('P2-DAY-01: AttendanceDayService Tests', () => {
   });
 
   it('skips DB write if sourceHash is unchanged (idempotent)', async () => {
+    const ctxVal = {
+      isWeeklyOff: false,
+      isHoliday: false,
+      isApprovedOD: false,
+      isApprovedWFH: false,
+      leavePortion: 0,
+      isPaidLeave: true,
+    };
+    mockContextProvider.getDayContext.mockResolvedValue(ctxVal);
+    const expectedCalc = computeDay(
+      [],
+      { id: 'shift-gen' } as unknown as ShiftRecord,
+      samplePolicy as unknown as AttendancePolicyRecord,
+      ctxVal,
+    );
+
     // Return existing day with expected hash
     mockDayRepo.getDay.mockResolvedValue({
       id: 'day-existing-1',
       companyId: adminCtx.companyId,
       employeeId: 'emp-target',
       workDate: '2026-03-10',
-      sourceHash: '2941bcb205419ee3a807d100008d75445b1849bbaa43ded4677506025d51b3d9', // matching absent hash
-      ruleVersion: 1,
+      sourceHash: expectedCalc.sourceHash,
+      ruleVersion: 2,
       status: 'absent',
       payableDay: '0.00',
     });

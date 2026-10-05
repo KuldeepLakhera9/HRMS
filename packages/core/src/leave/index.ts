@@ -14,3 +14,5 @@ export * from './policy-resolver.js';
 export * from './ledger-repository.js';
 export * from './balance-repository.js';
 export * from './jobs.js';
+export * from './holiday-service.js';
+export * from './service.js';
