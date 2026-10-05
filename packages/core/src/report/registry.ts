@@ -130,7 +130,7 @@ export const attendanceSummaryReport: ReportDefinition<AttendanceSummaryFilters>
     // Data query
     let dataSql = `
       SELECT 
-        e.employee_code AS "empCode",
+        e.emp_code AS "empCode",
         CONCAT(e.first_name, ' ', e.last_name) AS "name",
         COALESCE(d.name, 'Unassigned') AS "department",
         aps.period,
@@ -149,7 +149,7 @@ export const attendanceSummaryReport: ReportDefinition<AttendanceSummaryFilters>
       JOIN employees e ON e.company_id = aps.company_id AND e.id = aps.employee_id
       LEFT JOIN departments d ON d.company_id = e.company_id AND d.id = e.department_id
       WHERE ${whereClause}
-      ORDER BY e.employee_code ASC
+      ORDER BY e.emp_code ASC
     `;
 
     if (pagination?.limit) {
@@ -242,22 +242,20 @@ export const dailyAttendanceRegisterReport: ReportDefinition<DailyAttendanceRegi
     let dataSql = `
       SELECT 
         TO_CHAR(ad.work_date, 'YYYY-MM-DD') AS "date",
-        e.employee_code AS "empCode",
+        e.emp_code AS "empCode",
         CONCAT(e.first_name, ' ', e.last_name) AS "name",
         COALESCE(d.name, 'Unassigned') AS "department",
         ad.status,
-        TO_CHAR(p_in.punch_time, 'HH24:MI') AS "inTime",
-        TO_CHAR(p_out.punch_time, 'HH24:MI') AS "outTime",
-        ad.total_minutes AS "workedMinutes",
-        ad.late_minutes AS "lateMinutes",
-        ad.early_exit_minutes AS "earlyExitMinutes"
+        TO_CHAR(ad.first_in, 'HH24:MI') AS "inTime",
+        TO_CHAR(ad.last_out, 'HH24:MI') AS "outTime",
+        ad.total_work_minutes AS "workedMinutes",
+        ad.late_in_minutes AS "lateMinutes",
+        ad.early_out_minutes AS "earlyExitMinutes"
       FROM attendance_days ad
       JOIN employees e ON e.company_id = ad.company_id AND e.id = ad.employee_id
       LEFT JOIN departments d ON d.company_id = e.company_id AND d.id = e.department_id
-      LEFT JOIN attendance_punches p_in ON p_in.company_id = ad.company_id AND p_in.id = ad.in_punch_id
-      LEFT JOIN attendance_punches p_out ON p_out.company_id = ad.company_id AND p_out.id = ad.out_punch_id
       WHERE ${whereClause}
-      ORDER BY ad.work_date DESC, e.employee_code ASC
+      ORDER BY ad.work_date DESC, e.emp_code ASC
     `;
 
     if (pagination?.limit) {
@@ -304,13 +302,13 @@ export const lateMarksAndAbsenteeismReport: ReportDefinition<LateMarksFilters> =
     let paramIndex = 4;
 
     if (filters.incidentType === 'late') {
-      conditions.push('ad.late_minutes > 0');
+      conditions.push('ad.late_in_minutes > 0');
     } else if (filters.incidentType === 'absent') {
       conditions.push("ad.status = 'absent'");
     } else if (filters.incidentType === 'early_exit') {
-      conditions.push('ad.early_exit_minutes > 0');
+      conditions.push('ad.early_out_minutes > 0');
     } else {
-      conditions.push("(ad.late_minutes > 0 OR ad.early_exit_minutes > 0 OR ad.status = 'absent')");
+      conditions.push("(ad.late_in_minutes > 0 OR ad.early_out_minutes > 0 OR ad.status = 'absent')");
     }
 
     const roles = ctx.roles ?? [];
@@ -353,18 +351,18 @@ export const lateMarksAndAbsenteeismReport: ReportDefinition<LateMarksFilters> =
     let dataSql = `
       SELECT 
         TO_CHAR(ad.work_date, 'YYYY-MM-DD') AS "date",
-        e.employee_code AS "empCode",
+        e.emp_code AS "empCode",
         CONCAT(e.first_name, ' ', e.last_name) AS "name",
         COALESCE(d.name, 'Unassigned') AS "department",
         CASE 
           WHEN ad.status = 'absent' THEN 'Absent'
-          WHEN ad.late_minutes > 0 AND ad.early_exit_minutes > 0 THEN 'Late & Early Exit'
-          WHEN ad.late_minutes > 0 THEN 'Late Arrival'
-          WHEN ad.early_exit_minutes > 0 THEN 'Early Exit'
+          WHEN ad.late_in_minutes > 0 AND ad.early_out_minutes > 0 THEN 'Late & Early Exit'
+          WHEN ad.late_in_minutes > 0 THEN 'Late Arrival'
+          WHEN ad.early_out_minutes > 0 THEN 'Early Exit'
           ELSE 'Anomaly'
         END AS "incidentType",
-        ad.late_minutes AS "lateMinutes",
-        ad.early_exit_minutes AS "earlyExitMinutes",
+        ad.late_in_minutes AS "lateMinutes",
+        ad.early_out_minutes AS "earlyExitMinutes",
         ad.status,
         CASE 
           WHEN ad.lop_days > 0 THEN 'Yes (LOP)'
@@ -374,7 +372,7 @@ export const lateMarksAndAbsenteeismReport: ReportDefinition<LateMarksFilters> =
       JOIN employees e ON e.company_id = ad.company_id AND e.id = ad.employee_id
       LEFT JOIN departments d ON d.company_id = e.company_id AND d.id = e.department_id
       WHERE ${whereClause}
-      ORDER BY ad.work_date DESC, e.employee_code ASC
+      ORDER BY ad.work_date DESC, e.emp_code ASC
     `;
 
     if (pagination?.limit) {

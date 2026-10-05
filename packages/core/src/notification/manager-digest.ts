@@ -57,7 +57,7 @@ export class ManagerDigestJob {
         `SELECT 
           e.manager_id,
           COUNT(ar.id)::text AS pending_regs
-        FROM attendance_regularizations ar
+        FROM attendance_regularization_requests ar
         JOIN employees e ON e.company_id = ar.company_id AND e.id = ar.employee_id
         WHERE ar.company_id = $1 AND ar.status = 'pending' AND e.manager_id IS NOT NULL
         GROUP BY e.manager_id`,

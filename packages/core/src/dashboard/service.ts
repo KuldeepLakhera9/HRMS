@@ -162,13 +162,11 @@ export class DashboardService {
         const res = await client.query(
           `SELECT 
             ad.status,
-            ad.total_minutes AS "workedMinutes",
-            ad.late_minutes AS "lateMinutes",
-            TO_CHAR(p_in.punch_time, 'HH24:MI') AS "inTime",
-            TO_CHAR(p_out.punch_time, 'HH24:MI') AS "outTime"
+            ad.total_work_minutes AS "workedMinutes",
+            ad.late_in_minutes AS "lateMinutes",
+            TO_CHAR(ad.first_in, 'HH24:MI') AS "inTime",
+            TO_CHAR(ad.last_out, 'HH24:MI') AS "outTime"
           FROM attendance_days ad
-          LEFT JOIN attendance_punches p_in ON p_in.company_id = ad.company_id AND p_in.id = ad.in_punch_id
-          LEFT JOIN attendance_punches p_out ON p_out.company_id = ad.company_id AND p_out.id = ad.out_punch_id
           WHERE ad.company_id = $1 AND ad.employee_id = $2 AND ad.work_date = CURRENT_DATE
           LIMIT 1`,
           [ctx.companyId, ctx.employeeId],
@@ -231,7 +229,7 @@ export class DashboardService {
             COUNT(*) FILTER (WHERE ad.status = 'present')::int AS "present",
             COUNT(*) FILTER (WHERE ad.status = 'absent')::int AS "absent",
             COUNT(*) FILTER (WHERE ad.status = 'on_leave')::int AS "onLeave",
-            COUNT(*) FILTER (WHERE ad.is_late)::int AS "late"
+            COUNT(*) FILTER (WHERE ad.late_in_minutes > 0)::int AS "late"
           FROM attendance_days ad
           JOIN employees e ON e.company_id = ad.company_id AND e.id = ad.employee_id
           WHERE ad.company_id = $1 AND ad.work_date = CURRENT_DATE
@@ -245,7 +243,7 @@ export class DashboardService {
         const managerFilter = isHrOrAdmin ? null : ctx.employeeId;
         const res = await client.query(
           `SELECT 
-            e.employee_code AS "empCode",
+            e.emp_code AS "empCode",
             CONCAT(e.first_name, ' ', e.last_name) AS "name",
             lt.name AS "leaveType",
             TO_CHAR(lrd.leave_date, 'YYYY-MM-DD') AS "date"
@@ -269,8 +267,8 @@ export class DashboardService {
         const res = await client.query(
           `SELECT 
             COUNT(*) FILTER (WHERE status = 'active')::int AS "active",
-            COUNT(*) FILTER (WHERE doj >= date_trunc('month', CURRENT_DATE))::int AS "joinersThisMonth",
-            COUNT(*) FILTER (WHERE exit_date >= date_trunc('month', CURRENT_DATE))::int AS "leaversThisMonth"
+            COUNT(*) FILTER (WHERE doj >= date_trunc('month', CURRENT_DATE)::date)::int AS "joinersThisMonth",
+            COUNT(*) FILTER (WHERE status = 'terminated')::int AS "leaversThisMonth"
           FROM employees
           WHERE company_id = $1 AND deleted_at IS NULL`,
           [ctx.companyId],
