@@ -60,13 +60,11 @@ export async function generate5000Employees(poolOverride?: pg.Pool): Promise<{ c
     const companyId = compRes.rows[0].id;
     await client.query("SELECT set_config('app.company_id', $1, true)", [companyId]);
 
-    // 2. Fetch org references
-    const [deptRes, desRes, locRes, ccRes] = await Promise.all([
-      client.query<{ id: string }>('SELECT id FROM departments WHERE company_id = $1', [companyId]),
-      client.query<{ id: string }>('SELECT id FROM designations WHERE company_id = $1', [companyId]),
-      client.query<{ id: string }>('SELECT id FROM locations WHERE company_id = $1', [companyId]),
-      client.query<{ id: string }>('SELECT id FROM cost_centers WHERE company_id = $1', [companyId]),
-    ]);
+    // 2. Fetch org references sequentially (pg client cannot execute concurrent queries on same connection)
+    const deptRes = await client.query<{ id: string }>('SELECT id FROM departments WHERE company_id = $1', [companyId]);
+    const desRes = await client.query<{ id: string }>('SELECT id FROM designations WHERE company_id = $1', [companyId]);
+    const locRes = await client.query<{ id: string }>('SELECT id FROM work_locations WHERE company_id = $1', [companyId]);
+    const ccRes = await client.query<{ id: string }>('SELECT id FROM cost_centers WHERE company_id = $1', [companyId]);
 
     const deptIds = deptRes.rows.map(r => r.id);
     const desIds = desRes.rows.map(r => r.id);
@@ -215,7 +213,7 @@ export async function generate5000Employees(poolOverride?: pg.Pool): Promise<{ c
 }
 
 // Direct execution entrypoint
-if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`) {
+if (process.argv[1]?.includes('seed-load')) {
   generate5000Employees()
     .then(res => {
       console.info(`[Seed Complete] ${res.count} records loaded in ${res.elapsedMs}ms`);

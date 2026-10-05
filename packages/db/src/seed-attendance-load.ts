@@ -363,7 +363,7 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
 }
 
 // Direct execution entrypoint
-if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`) {
+if (process.argv[1]?.includes('seed-attendance-load')) {
   seedAttendanceLoadData()
     .then(res => {
       console.info(`[Attendance Seed Success] Seeded in ${res.elapsedMs}ms`);
