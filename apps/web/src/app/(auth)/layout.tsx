@@ -48,9 +48,9 @@ export default function AuthLayout({
               width: '48px',
               height: '48px',
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #38bdf8 100%)',
+              background: 'var(--brand-primary, #004B2A)',
               color: '#ffffff',
-              boxShadow: '0 8px 24px rgba(99, 102, 241, 0.35)',
+              boxShadow: '0 8px 24px rgba(0, 75, 42, 0.25)',
               marginBottom: '0.75rem',
             }}
           >
@@ -60,12 +60,12 @@ export default function AuthLayout({
             style={{
               fontSize: '1.5rem',
               fontWeight: 800,
-              color: '#ffffff',
+              color: 'var(--brand-primary, #004B2A)',
               letterSpacing: '-0.02em',
               marginBottom: '0.25rem',
             }}
           >
-            OrgHub HRMS
+            AIC-ADT HRMS
           </h1>
           <p
             style={{
@@ -73,7 +73,7 @@ export default function AuthLayout({
               color: 'var(--text-secondary)',
             }}
           >
-            Enterprise Human Resource Management System
+            AIC-ADT Incubation Centre Management Platform
           </p>
         </div>
 

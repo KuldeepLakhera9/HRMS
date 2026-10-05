@@ -109,8 +109,8 @@ export default function LoginPage() {
             padding: '0.75rem',
             borderRadius: '8px',
             backgroundColor: 'var(--success-light)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            color: '#6ee7b7',
+            border: '1px solid var(--success)',
+            color: 'var(--success)',
             fontSize: '0.8125rem',
             marginBottom: '1.25rem',
           }}

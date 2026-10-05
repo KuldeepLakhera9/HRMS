@@ -31,7 +31,7 @@ import {
 interface NavItem {
   title: string;
   href: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: React.ComponentType<{ size?: number; color?: string; className?: string }>;
   badge?: string;
   phase?: string;
 }
@@ -98,8 +98,8 @@ export function Sidebar() {
         position: 'fixed',
         top: 0,
         left: 0,
-        backgroundColor: 'var(--bg-secondary)',
-        borderRight: '1px solid var(--border-color)',
+        backgroundColor: 'var(--brand-dark, #063D27)',
+        borderRight: '1px solid var(--sidebar-border, rgba(255, 255, 255, 0.08))',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 40,
@@ -109,7 +109,7 @@ export function Sidebar() {
       <div
         style={{
           padding: '1.25rem 1.5rem',
-          borderBottom: '1px solid var(--border-color)',
+          borderBottom: '1px solid var(--sidebar-border, rgba(255, 255, 255, 0.08))',
           display: 'flex',
           alignItems: 'center',
           gap: '0.75rem',
@@ -120,22 +120,22 @@ export function Sidebar() {
             width: '36px',
             height: '36px',
             borderRadius: '10px',
-            background: 'var(--primary)',
+            background: 'var(--brand-secondary, #73992A)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--primary-foreground)',
-            boxShadow: 'var(--shadow-sm)',
+            color: '#FFFFFF',
+            boxShadow: '0 2px 8px rgba(115, 153, 42, 0.4)',
           }}
         >
           <ShieldCheck size={20} />
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: '1rem', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-            OrgHub HRMS
+          <div style={{ fontWeight: 700, fontSize: '1rem', letterSpacing: '-0.02em', color: '#FFFFFF' }}>
+            AIC-ADT HRMS
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Enterprise Platform
+          <div style={{ fontSize: '0.6875rem', color: '#A9C46C', fontWeight: 600, letterSpacing: '0.04em' }}>
+            INCUBATION CENTRE
           </div>
         </div>
       </div>
@@ -145,8 +145,8 @@ export function Sidebar() {
         style={{
           margin: '1rem 1rem 0.5rem',
           padding: '0.625rem 0.875rem',
-          backgroundColor: 'var(--bg-tertiary)',
-          border: '1px solid var(--border)',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
           borderRadius: '8px',
           display: 'flex',
           alignItems: 'center',
@@ -154,11 +154,11 @@ export function Sidebar() {
         }}
       >
         <div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 600, textTransform: 'uppercase' }}>
-            Active Entity
+          <div style={{ fontSize: '0.6875rem', color: '#A9C46C', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Active Campus
           </div>
-          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            OrgHub Tech Ltd
+          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#FFFFFF' }}>
+            AIC-ADT Campus
           </div>
         </div>
         <div
@@ -166,8 +166,8 @@ export function Sidebar() {
             width: '8px',
             height: '8px',
             borderRadius: '50%',
-            backgroundColor: 'var(--success)',
-            boxShadow: '0 0 8px var(--success)',
+            backgroundColor: 'var(--brand-secondary, #73992A)',
+            boxShadow: '0 0 8px var(--brand-secondary, #73992A)',
           }}
         />
       </div>
@@ -189,7 +189,7 @@ export function Sidebar() {
               style={{
                 fontSize: '0.6875rem',
                 fontWeight: 700,
-                color: 'var(--text-muted)',
+                color: '#8CA08E',
                 letterSpacing: '0.05em',
                 padding: '0 0.75rem',
                 marginBottom: '0.375rem',
@@ -207,6 +207,7 @@ export function Sidebar() {
                   <Link
                     key={itemIdx}
                     href={item.href}
+                    aria-current={isActive ? 'page' : undefined}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -215,15 +216,15 @@ export function Sidebar() {
                       borderRadius: '8px',
                       fontSize: '0.875rem',
                       fontWeight: isActive ? 600 : 500,
-                      color: isActive ? 'var(--primary-foreground)' : isUpcoming ? 'var(--text-muted)' : 'var(--text-secondary)',
-                      backgroundColor: isActive ? 'var(--primary)' : 'transparent',
+                      color: isActive ? '#FFFFFF' : isUpcoming ? '#8CA08E' : 'var(--sidebar-foreground, #E8EEE9)',
+                      backgroundColor: isActive ? 'var(--brand-secondary, #73992A)' : 'transparent',
                       textDecoration: 'none',
                       transition: 'all 0.15s ease',
                       cursor: isUpcoming ? 'default' : 'pointer',
-                      opacity: isUpcoming ? 0.7 : 1,
+                      opacity: isUpcoming ? 0.6 : 1,
                     }}
                   >
-                    <Icon size={18} />
+                    <Icon size={18} color={isActive ? '#FFFFFF' : isUpcoming ? '#8CA08E' : 'var(--sidebar-icon, #C7D7C5)'} />
                     <span style={{ flex: 1 }}>{item.title}</span>
                     {item.phase && (
                       <span
@@ -232,13 +233,13 @@ export function Sidebar() {
                           padding: '0.125rem 0.375rem',
                           borderRadius: '4px',
                           backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                          color: 'var(--text-muted)',
+                          color: '#A9C46C',
                         }}
                       >
                         {item.phase}
                       </span>
                     )}
-                    {isActive && <ChevronRight size={14} />}
+                    {isActive && <ChevronRight size={14} color="#FFFFFF" />}
                   </Link>
                 );
               })}
@@ -251,20 +252,20 @@ export function Sidebar() {
       <div
         style={{
           padding: '1rem 1.25rem',
-          borderTop: '1px solid var(--border-color)',
+          borderTop: '1px solid var(--sidebar-border, rgba(255, 255, 255, 0.08))',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           fontSize: '0.75rem',
-          color: 'var(--text-muted)',
+          color: '#8CA08E',
         }}
       >
-        <span>OrgHub Platform</span>
+        <span>AIC-ADT Platform</span>
         <span
           style={{
             padding: '0.125rem 0.375rem',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            color: 'var(--success)',
+            backgroundColor: 'rgba(115, 153, 42, 0.2)',
+            color: '#A9C46C',
             borderRadius: '4px',
             fontWeight: 600,
           }}

@@ -154,10 +154,8 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
         height: '64px',
         position: 'sticky',
         top: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.75)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        borderBottom: '1px solid var(--border-color)',
+        backgroundColor: 'var(--surface, #FFFFFF)',
+        borderBottom: '1px solid var(--border)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -171,8 +169,8 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
           display: 'flex',
           alignItems: 'center',
           gap: '0.625rem',
-          backgroundColor: 'rgba(30, 41, 59, 0.6)',
-          border: '1px solid var(--border-color)',
+          backgroundColor: 'var(--brand-soft, #F3F7EC)',
+          border: '1px solid var(--border)',
           borderRadius: '8px',
           padding: '0.4rem 0.75rem',
           width: '320px',
@@ -184,7 +182,7 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
         <span style={{ flex: 1 }}>Search employees, org, settings...</span>
         <kbd
           style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            backgroundColor: 'var(--border)',
             padding: '0.125rem 0.375rem',
             borderRadius: '4px',
             fontSize: '0.6875rem',
@@ -206,8 +204,8 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
               width: '36px',
               height: '36px',
               borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              backgroundColor: 'rgba(30, 41, 59, 0.6)',
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--brand-soft, #F3F7EC)',
               color: 'var(--text-secondary)',
               display: 'flex',
               alignItems: 'center',
@@ -227,7 +225,7 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
                   minWidth: '18px',
                   height: '18px',
                   borderRadius: '9999px',
-                  backgroundColor: '#ef4444',
+                  backgroundColor: 'var(--danger)',
                   color: '#ffffff',
                   fontSize: '0.65rem',
                   fontWeight: 700,
@@ -235,7 +233,7 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
                   alignItems: 'center',
                   justifyContent: 'center',
                   padding: '0 4px',
-                  border: '2px solid rgba(15, 23, 42, 0.9)',
+                  border: '2px solid #FFFFFF',
                 }}
               >
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -252,12 +250,10 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
                 top: '46px',
                 width: '360px',
                 maxHeight: '480px',
-                backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--surface, #FFFFFF)',
+                border: '1px solid var(--border)',
                 borderRadius: '16px',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+                boxShadow: '0 12px 32px rgba(0, 75, 42, 0.12)',
                 display: 'flex',
                 flexDirection: 'column',
                 zIndex: 50,
@@ -268,14 +264,14 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
               <div
                 style={{
                   padding: '0.875rem 1rem',
-                  borderBottom: '1px solid var(--border-color)',
+                  borderBottom: '1px solid var(--border)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Bell size={16} color="var(--primary)" />
+                  <Bell size={16} color="var(--brand-primary, #004B2A)" />
                   <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                     Notifications
                   </span>
@@ -284,8 +280,8 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
                       style={{
                         fontSize: '0.6875rem',
                         fontWeight: 600,
-                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                        color: 'var(--primary)',
+                        backgroundColor: 'var(--brand-light, #E8F0D9)',
+                        color: 'var(--brand-primary, #004B2A)',
                         padding: '0.125rem 0.5rem',
                         borderRadius: '9999px',
                       }}
@@ -335,8 +331,8 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
                         onClick={() => handleMarkRead(n.id, n.link)}
                         style={{
                           padding: '0.75rem 1rem',
-                          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                          backgroundColor: isUnread ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                          borderBottom: '1px solid var(--border)',
+                          backgroundColor: isUnread ? 'var(--brand-soft, #F3F7EC)' : 'transparent',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'flex-start',
@@ -349,7 +345,7 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
                             width: '8px',
                             height: '8px',
                             borderRadius: '50%',
-                            backgroundColor: isUnread ? '#3b82f6' : 'transparent',
+                            backgroundColor: isUnread ? 'var(--brand-secondary, #73992A)' : 'transparent',
                             marginTop: '0.35rem',
                             flexShrink: 0,
                           }}
@@ -389,8 +385,8 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
               <div
                 style={{
                   padding: '0.625rem 1rem',
-                  borderTop: '1px solid var(--border-color)',
-                  backgroundColor: 'rgba(30, 41, 59, 0.4)',
+                  borderTop: '1px solid var(--border)',
+                  backgroundColor: 'var(--brand-soft, #F3F7EC)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -401,11 +397,12 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
                   href="/settings/notifications"
                   onClick={() => setNotifOpen(false)}
                   style={{
-                    color: 'var(--text-secondary)',
+                    color: 'var(--brand-primary, #004B2A)',
                     textDecoration: 'none',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.375rem',
+                    fontWeight: 600,
                   }}
                 >
                   <Settings size={14} /> Preferences
@@ -437,8 +434,8 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
               display: 'flex',
               alignItems: 'center',
               gap: '0.75rem',
-              backgroundColor: 'rgba(30, 41, 59, 0.6)',
-              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--brand-soft, #F3F7EC)',
+              border: '1px solid var(--border)',
               borderRadius: '9999px',
               padding: '0.3rem 0.875rem 0.3rem 0.4rem',
               color: 'var(--text-primary)',
@@ -450,7 +447,7 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
                 width: '28px',
                 height: '28px',
                 borderRadius: '50%',
-                backgroundColor: 'var(--primary)',
+                backgroundColor: 'var(--brand-primary, #004B2A)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -463,7 +460,7 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
             </div>
             <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{userEmail}</span>
-              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{roleName}</span>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--brand-secondary, #73992A)', fontWeight: 600 }}>{roleName}</span>
             </div>
             <ChevronDown size={14} color="var(--text-muted)" />
           </button>
@@ -476,13 +473,11 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
                 right: 0,
                 top: '46px',
                 width: '220px',
-                backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--surface, #FFFFFF)',
+                border: '1px solid var(--border)',
                 borderRadius: '12px',
                 padding: '0.5rem',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+                boxShadow: '0 12px 32px rgba(0, 75, 42, 0.12)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0.25rem',
@@ -492,7 +487,7 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
               <div
                 style={{
                   padding: '0.5rem 0.75rem',
-                  borderBottom: '1px solid var(--border-color)',
+                  borderBottom: '1px solid var(--border)',
                   marginBottom: '0.25rem',
                 }}
               >
@@ -550,7 +545,7 @@ export function Header({ userEmail = 'admin@orghub.internal', roleName = 'SUPER 
               <div
                 style={{
                   height: '1px',
-                  backgroundColor: 'var(--border-color)',
+                  backgroundColor: 'var(--border)',
                   margin: '0.25rem 0',
                 }}
               />

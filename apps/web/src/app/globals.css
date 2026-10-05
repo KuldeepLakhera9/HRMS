@@ -1,26 +1,71 @@
 @layer base {
   :root {
-    --bg-primary: #0a0f1d;
-    --bg-secondary: #0f172a;
-    --bg-card: rgba(17, 24, 39, 0.85);
-    --bg-card-hover: rgba(30, 41, 59, 0.7);
-    --bg-input: #1e293b;
-    --border-color: rgba(255, 255, 255, 0.08);
-    --border-color-focus: rgba(99, 102, 241, 0.6);
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --primary: #6366f1;
-    --primary-hover: #4f46e5;
-    --primary-light: rgba(99, 102, 241, 0.15);
-    --success: #10b981;
-    --success-light: rgba(16, 185, 129, 0.15);
-    --warning: #f59e0b;
-    --warning-light: rgba(245, 158, 11, 0.15);
-    --danger: #ef4444;
-    --danger-light: rgba(239, 68, 68, 0.15);
-    --accent: #38bdf8;
+    /* Brand Core Tokens (AIC-ADT Green Innovation) */
+    --brand-primary: #004B2A;
+    --brand-secondary: #73992A;
+    --brand-dark: #063D27;
+    --brand-hover: #00643A;
+    --brand-light: #E8F0D9;
+    --brand-soft: #F3F7EC;
+
+    /* Base Surfaces & Backgrounds */
+    --background: #F8FAF7;
+    --surface: #FFFFFF;
+    --bg-primary: #F8FAF7;
+    --bg-secondary: #FFFFFF;
+    --bg-tertiary: #F3F7EC;
+    --bg-card: #FFFFFF;
+    --bg-card-hover: #F8FAF7;
+    --bg-input: #FFFFFF;
+
+    /* Typography Colors */
+    --text-primary: #17231D;
+    --text-secondary: #647067;
+    --text-muted: #859388;
+
+    /* Borders & Outlines */
+    --border: #DDE5DC;
+    --border-color: #DDE5DC;
+    --border-color-focus: #73992A;
+
+    /* Brand Primary & Interactive */
+    --primary: #004B2A;
+    --primary-hover: #00643A;
+    --primary-light: #E8F0D9;
+    --primary-foreground: #FFFFFF;
+
+    /* Brand Secondary & Highlights */
+    --secondary: #E8F0D9;
+    --secondary-foreground: #004B2A;
+    --accent: #73992A;
+    --accent-foreground: #004B2A;
+    --ring: #73992A;
+
+    /* Status Indicators */
+    --success: #2E7D32;
+    --success-light: #E3F1E4;
+    --warning: #C58B00;
+    --warning-light: #FBF0D5;
+    --danger: #C62828;
+    --danger-light: #FBE6E6;
+
+    /* Sidebar Tokens (Dark Forest Identity) */
+    --sidebar: #063D27;
+    --sidebar-foreground: #E8EEE9;
+    --sidebar-icon: #C7D7C5;
+    --sidebar-active-bg: #73992A;
+    --sidebar-hover-bg: rgba(115, 153, 42, 0.22);
+    --sidebar-border: rgba(255, 255, 255, 0.08);
     --sidebar-width: 260px;
+
+    /* Shape & Shadows */
+    --radius-card: 14px;
+    --radius-modal: 16px;
+    --radius-control: 8px;
+    --radius-badge: 999px;
+    --shadow-card: 0 4px 20px rgba(0, 75, 42, 0.06);
+    --shadow-sm: 0 1px 3px rgba(0, 75, 42, 0.05);
+    --shadow-elevated: 0 12px 32px rgba(0, 75, 42, 0.12);
   }
 }
 
@@ -40,22 +85,19 @@ body {
   min-height: 100vh;
 }
 
-/* Glassmorphism helpers */
+/* Institutional Panels & Cards */
 .glass-panel {
-  background: var(--bg-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--surface);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .glass-panel-elevated {
-  background: rgba(17, 24, 39, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-modal);
+  box-shadow: var(--shadow-elevated);
 }
 
 /* Scrollbar styling */
@@ -64,59 +106,38 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
+  background: var(--bg-primary);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
+  background: #cbd7ca;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.4);
+  background: #9fb39e;
 }
 
-/* Ambient gradient effects */
-.ambient-glow {
-  position: absolute;
-  width: 500px;
-  height: 500px;
-  border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.15;
-  pointer-events: none;
-}
-.glow-primary {
-  background: radial-gradient(circle, #6366f1 0%, transparent 70%);
-  top: -100px;
-  right: -100px;
-}
-.glow-cyan {
-  background: radial-gradient(circle, #06b6d4 0%, transparent 70%);
-  bottom: -150px;
-  left: -150px;
-}
-
-/* Button & interactive effects */
+/* Clean Institutional Button Styles */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: var(--brand-primary);
   color: #ffffff;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.875rem;
   padding: 0.625rem 1.25rem;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-control);
+  border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   text-decoration: none;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 75, 42, 0.2);
 }
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  background: var(--brand-hover);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 75, 42, 0.3);
 }
 .btn-primary:disabled {
   opacity: 0.6;
@@ -128,20 +149,20 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background: rgba(30, 41, 59, 0.8);
-  color: var(--text-primary);
-  font-weight: 500;
+  background: var(--brand-light);
+  color: var(--brand-primary);
+  font-weight: 600;
   font-size: 0.875rem;
   padding: 0.625rem 1.25rem;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border-color);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   text-decoration: none;
 }
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(51, 65, 85, 0.8);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: #dde8cb;
+  border-color: rgba(0, 75, 42, 0.2);
 }
 .btn-secondary:disabled {
   opacity: 0.5;
@@ -152,7 +173,7 @@ body {
   width: 100%;
   background: var(--bg-input);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   color: var(--text-primary);
   font-size: 0.875rem;
   padding: 0.625rem 0.875rem;
@@ -160,8 +181,8 @@ body {
   transition: all 0.2s ease;
 }
 .form-input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+  border-color: var(--brand-secondary);
+  box-shadow: 0 0 0 3px rgba(115, 153, 42, 0.25);
 }
 .form-input::placeholder {
   color: var(--text-muted);

@@ -3,8 +3,8 @@ import React from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'OrgHub HRMS - Production Core Platform',
-  description: 'Enterprise HRMS platform built for performance, security, and scalability.',
+  title: 'AIC-ADT HRMS - Incubation & Innovation Platform',
+  description: 'Enterprise HRMS platform for AIC-ADT, built for performance, security, and scalability.',
 };
 
 export default function RootLayout({

@@ -102,9 +102,9 @@ export default function DashboardPage() {
       <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            <span style={{ fontSize: '0.8125rem', color: '#818cf8', fontWeight: 600 }}>OVERVIEW</span>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--brand-secondary, #73992A)', fontWeight: 700, letterSpacing: '0.05em' }}>OVERVIEW</span>
           </div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--brand-primary, #004B2A)', letterSpacing: '-0.02em' }}>
             Workforce Command Center
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
@@ -150,8 +150,8 @@ export default function DashboardPage() {
                 width: '36px',
                 height: '36px',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(99, 102, 241, 0.15)',
-                color: 'var(--primary)',
+                backgroundColor: 'var(--brand-light, #E8F0D9)',
+                color: 'var(--brand-primary, #004B2A)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -160,15 +160,15 @@ export default function DashboardPage() {
               <Users size={18} />
             </div>
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', marginBottom: '0.25rem' }}>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
             {loading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : metrics?.headcount.total}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <span style={{ color: 'var(--success)' }}>{metrics?.headcount.active ?? 0} active</span>
+            <span style={{ color: 'var(--success)', fontWeight: 600 }}>{metrics?.headcount.active ?? 0} active</span>
             <span>•</span>
-            <span style={{ color: 'var(--warning)' }}>{metrics?.headcount.probation ?? 0} probation</span>
+            <span style={{ color: 'var(--warning)', fontWeight: 600 }}>{metrics?.headcount.probation ?? 0} probation</span>
             <span>•</span>
-            <span style={{ color: 'var(--danger)' }}>{metrics?.headcount.notice ?? 0} notice</span>
+            <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{metrics?.headcount.notice ?? 0} notice</span>
           </div>
         </div>
 
@@ -181,8 +181,8 @@ export default function DashboardPage() {
                 width: '36px',
                 height: '36px',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                color: 'var(--success)',
+                backgroundColor: 'var(--brand-light, #E8F0D9)',
+                color: 'var(--brand-primary, #004B2A)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -191,11 +191,11 @@ export default function DashboardPage() {
               <TrendingUp size={18} />
             </div>
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', marginBottom: '0.25rem' }}>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
             {loading ? <div className="skeleton" style={{ height: '32px', width: '60px' }} /> : metrics?.newJoinersThisMonth}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <Link href="/employees" style={{ color: 'var(--success)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Link href="/employees" style={{ color: 'var(--brand-primary, #004B2A)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
               <span>View workforce roster</span>
               <ArrowUpRight size={12} />
             </Link>
@@ -211,8 +211,8 @@ export default function DashboardPage() {
                 width: '36px',
                 height: '36px',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                color: 'var(--warning)',
+                backgroundColor: 'var(--warning-light, #FBF0D5)',
+                color: 'var(--warning, #C58B00)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -221,11 +221,11 @@ export default function DashboardPage() {
               <Clock size={18} />
             </div>
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', marginBottom: '0.25rem' }}>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
             {loading ? <div className="skeleton" style={{ height: '32px', width: '60px' }} /> : metrics?.pendingChangeRequests}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <Link href="/admin/change-requests" style={{ color: 'var(--warning)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Link href="/admin/change-requests" style={{ color: 'var(--warning, #C58B00)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
               <span>Review pending requests</span>
               <ArrowUpRight size={12} />
             </Link>
@@ -241,8 +241,8 @@ export default function DashboardPage() {
                 width: '36px',
                 height: '36px',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                color: 'var(--danger)',
+                backgroundColor: 'var(--danger-light, #FBE6E6)',
+                color: 'var(--danger, #C62828)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -251,11 +251,11 @@ export default function DashboardPage() {
               <FileWarning size={18} />
             </div>
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', marginBottom: '0.25rem' }}>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
             {loading ? <div className="skeleton" style={{ height: '32px', width: '60px' }} /> : metrics?.expiringDocuments}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <span style={{ color: metrics?.expiringDocuments ? 'var(--danger)' : 'var(--text-muted)' }}>
+            <span style={{ color: metrics?.expiringDocuments ? 'var(--danger)' : 'var(--text-muted)', fontWeight: 600 }}>
               Next 30 days
             </span>
           </div>
@@ -264,8 +264,8 @@ export default function DashboardPage() {
 
       {/* Role Pulse & Live Telemetry Cards (P3-DASH-01) */}
       <div style={{ marginBottom: '2rem' }}>
-        <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Activity size={18} color="var(--primary)" />
+        <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--brand-primary, #004B2A)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Activity size={18} color="var(--brand-primary, #004B2A)" />
           Live Attendance & Leave Telemetry
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
@@ -273,9 +273,9 @@ export default function DashboardPage() {
           <div className="glass-panel" style={{ padding: '1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Today's Shift & Clock</span>
-              <Clock size={16} color="var(--primary)" />
+              <Clock size={16} color="var(--brand-primary, #004B2A)" />
             </div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', marginBottom: '0.25rem' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
               {String(clockCard?.status || 'Present').toUpperCase()}
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -287,14 +287,14 @@ export default function DashboardPage() {
           <div className="glass-panel" style={{ padding: '1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Leave Balances</span>
-              <Calendar size={16} color="var(--primary)" />
+              <Calendar size={16} color="var(--brand-primary, #004B2A)" />
             </div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.25rem' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--brand-primary, #004B2A)', marginBottom: '0.25rem' }}>
               {Array.isArray(leaveCard?.balances) && leaveCard.balances.length > 0
                 ? `${leaveCard.balances.length} Policies Active`
                 : 'Available Time-Off'}
             </div>
-            <Link href="/leave" style={{ fontSize: '0.8rem', color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
+            <Link href="/leave" style={{ fontSize: '0.8rem', color: 'var(--brand-primary, #004B2A)', textDecoration: 'none', fontWeight: 600 }}>
               View Balances & Apply →
             </Link>
           </div>
@@ -303,9 +303,9 @@ export default function DashboardPage() {
           <div className="glass-panel" style={{ padding: '1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Next Holidays</span>
-              <Calendar size={16} color="var(--warning)" />
+              <Calendar size={16} color="var(--warning, #C58B00)" />
             </div>
-            <div style={{ fontSize: '0.9rem', color: '#fff', fontWeight: 600 }}>
+            <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 600 }}>
               {Array.isArray(holidayCard?.holidays) && holidayCard.holidays.length > 0 ? (
                 (holidayCard.holidays as Array<{ name: string; date: string }>).slice(0, 2).map((h, idx) => (
                   <div key={idx} style={{ marginBottom: '0.25rem' }}>
@@ -326,8 +326,8 @@ export default function DashboardPage() {
             </div>
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
               <div>Present: <strong style={{ color: 'var(--success)' }}>{String(presenceCard?.present ?? 4)}</strong></div>
-              <div>On Leave: <strong style={{ color: 'var(--primary)' }}>{String(presenceCard?.onLeave ?? 1)}</strong></div>
-              <div>Late: <strong style={{ color: 'var(--warning)' }}>{String(presenceCard?.late ?? 0)}</strong></div>
+              <div>On Leave: <strong style={{ color: 'var(--brand-primary, #004B2A)' }}>{String(presenceCard?.onLeave ?? 1)}</strong></div>
+              <div>Late: <strong style={{ color: 'var(--warning, #C58B00)' }}>{String(presenceCard?.late ?? 0)}</strong></div>
             </div>
           </div>
         </div>
@@ -337,7 +337,7 @@ export default function DashboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.5rem' }}>
         {/* Quick Operations */}
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '0.25rem' }}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-primary, #004B2A)', marginBottom: '0.25rem' }}>
             Operational Actions
           </h2>
           <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
@@ -352,15 +352,15 @@ export default function DashboardPage() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '0.875rem 1rem',
-                backgroundColor: 'rgba(30, 41, 59, 0.6)',
+                backgroundColor: 'var(--brand-soft, #F3F7EC)',
                 borderRadius: '8px',
-                border: '1px solid var(--border-color)',
+                border: '1px solid var(--border)',
                 textDecoration: 'none',
                 color: 'var(--text-primary)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <FileSpreadsheet size={18} color="var(--primary)" />
+                <FileSpreadsheet size={18} color="var(--brand-primary, #004B2A)" />
                 <div>
                   <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>Bulk Import & Upsert</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>CSV/XLSX validation preview & batched transaction</div>
@@ -376,15 +376,15 @@ export default function DashboardPage() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '0.875rem 1rem',
-                backgroundColor: 'rgba(30, 41, 59, 0.6)',
+                backgroundColor: 'var(--brand-soft, #F3F7EC)',
                 borderRadius: '8px',
-                border: '1px solid var(--border-color)',
+                border: '1px solid var(--border)',
                 textDecoration: 'none',
                 color: 'var(--text-primary)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Layers size={18} color="var(--accent)" />
+                <Layers size={18} color="var(--brand-secondary, #73992A)" />
                 <div>
                   <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>Custom Fields Builder</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Configure dynamic fields, types & validation</div>
@@ -400,9 +400,9 @@ export default function DashboardPage() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '0.875rem 1rem',
-                backgroundColor: 'rgba(30, 41, 59, 0.6)',
+                backgroundColor: 'var(--brand-soft, #F3F7EC)',
                 borderRadius: '8px',
-                border: '1px solid var(--border-color)',
+                border: '1px solid var(--border)',
                 textDecoration: 'none',
                 color: 'var(--text-primary)',
               }}
@@ -421,7 +421,7 @@ export default function DashboardPage() {
 
         {/* Observability & Telemetry */}
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '0.25rem' }}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--brand-primary, #004B2A)', marginBottom: '0.25rem' }}>
             Observability & Telemetry
           </h2>
           <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
@@ -433,8 +433,8 @@ export default function DashboardPage() {
               style={{
                 padding: '0.75rem 1rem',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                border: '1px solid rgba(16, 185, 129, 0.2)',
+                backgroundColor: 'var(--brand-soft, #F3F7EC)',
+                border: '1px solid var(--border)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -443,7 +443,7 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <Database size={18} color="var(--success)" />
                 <div>
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff' }}>PostgreSQL Pool (App & Worker)</div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>PostgreSQL Pool (App & Worker)</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Transaction-mode pooled with forced RLS</div>
                 </div>
               </div>
@@ -454,17 +454,17 @@ export default function DashboardPage() {
               style={{
                 padding: '0.75rem 1rem',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(99, 102, 241, 0.08)',
-                border: '1px solid rgba(99, 102, 241, 0.2)',
+                backgroundColor: 'var(--brand-soft, #F3F7EC)',
+                border: '1px solid var(--border)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Activity size={18} color="var(--primary)" />
+                <Activity size={18} color="var(--brand-primary, #004B2A)" />
                 <div>
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff' }}>Prometheus Telemetry</div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>Prometheus Telemetry</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Latencies, pool stats & query metrics</div>
                 </div>
               </div>
@@ -472,7 +472,7 @@ export default function DashboardPage() {
                 href="/api/metrics"
                 target="_blank"
                 rel="noreferrer"
-                style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}
+                style={{ fontSize: '0.75rem', color: 'var(--brand-primary, #004B2A)', fontWeight: 600, textDecoration: 'none' }}
               >
                 /api/metrics
               </a>
@@ -482,21 +482,21 @@ export default function DashboardPage() {
               style={{
                 padding: '0.75rem 1rem',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(56, 189, 248, 0.08)',
-                border: '1px solid rgba(56, 189, 248, 0.2)',
+                backgroundColor: 'var(--brand-soft, #F3F7EC)',
+                border: '1px solid var(--border)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <ShieldCheck size={18} color="var(--accent)" />
+                <ShieldCheck size={18} color="var(--brand-secondary, #73992A)" />
                 <div>
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff' }}>Security Headers & CSP</div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>Security Headers & CSP</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>HSTS, nosniff, frame-ancestors none</div>
                 </div>
               </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600 }}>Enforced</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--brand-secondary, #73992A)', fontWeight: 600 }}>Enforced</span>
             </div>
           </div>
         </div>
