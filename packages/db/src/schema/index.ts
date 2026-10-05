@@ -20,3 +20,4 @@ export * from './devices.js';
 export * from './biometric.js';
 export * from './leave.js';
 export * from './holidays.js';
+export * from './reports.js';
