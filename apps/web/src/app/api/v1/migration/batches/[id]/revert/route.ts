@@ -12,7 +12,7 @@ export const POST = createNextRoute({
     id: z.string().uuid(),
   }),
   handler: async (params, ctx) => {
-    const result = await migrationService.revertLeaveBalances(ctx, params.id);
+    const result = await migrationService.revertBatch(ctx, params.id);
     return { data: result };
   },
 });

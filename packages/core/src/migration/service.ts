@@ -242,7 +242,7 @@ export class MigrationService {
           ) ON CONFLICT (company_id, employee_id, leave_type_id, period_key)
           DO UPDATE SET 
             opening = EXCLUDED.opening,
-            closing = EXCLUDED.opening + leave_balances.accrued - leave_balances.used + leave_balances.adjusted,
+            closing = EXCLUDED.opening + leave_balances.accrued - leave_balances.used + leave_balances.adjusted - leave_balances.expired - leave_balances.encashed,
             updated_by = EXCLUDED.updated_by,
             updated_at = CURRENT_TIMESTAMP`,
           [
@@ -346,7 +346,32 @@ export class MigrationService {
         const leaveTypeId = ltMap.get(row.leaveTypeCode);
         if (!empId || !leaveTypeId) continue;
 
-        // Reset opening balance and subtract from closing
+        const dedupeKey = `${ctx.companyId}:migration_reversal:${batchId}:${empId}:${leaveTypeId}:${row.periodYear}`;
+
+        // 1. Insert compensating reversal entry in immutable leave_ledger
+        const ledgerId = generateUuidV7();
+        await client.query(
+          `INSERT INTO leave_ledger (
+            id, company_id, employee_id, leave_type_id, period_key, entry_type,
+            delta_days, effective_date, ref_type, ref_id, reason, dedupe_key, created_by
+          ) VALUES (
+            $1, $2, $3, $4, $5, 'reversal',
+            $6, CURRENT_DATE, 'migration', $7, 'Reversal of opening balance migration', $8, $9
+          ) ON CONFLICT (company_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`,
+          [
+            ledgerId,
+            ctx.companyId,
+            empId,
+            leaveTypeId,
+            row.periodYear,
+            (-row.openingBalance).toFixed(3),
+            batchId,
+            dedupeKey,
+            ctx.userId,
+          ],
+        );
+
+        // 2. Reset opening balance and subtract from closing
         await client.query(
           `UPDATE leave_balances
            SET opening = '0.000',
@@ -376,6 +401,112 @@ export class MigrationService {
         revertedCount,
       };
     }, pool ?? getAppPool());
+  }
+
+  /**
+   * Reverts an applied historical attendance batch by resetting modified attendance day records.
+   */
+  async revertAttendancePunches(
+    ctx: RequestContext,
+    batchId: string,
+    pool?: pg.Pool,
+  ): Promise<{ batchId: string; status: 'reverted'; revertedCount: number }> {
+    if (!can(ctx, PERMISSIONS.IMPORT_ATTENDANCE)) {
+      throw new ForbiddenError('You do not have permission to import attendance');
+    }
+
+    return withTenant(ctx, async (_tx, client) => {
+      const batchRes = await client.query<{
+        id: string;
+        status: string;
+        summary_json: { validRows: AttendanceImportRow[] };
+      }>(
+        `SELECT id, status, summary_json
+         FROM data_migration_batches
+         WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL
+         FOR UPDATE`,
+        [ctx.companyId, batchId],
+      );
+
+      if (batchRes.rows.length === 0) {
+        throw new NotFoundError('Migration batch not found');
+      }
+
+      const batch = batchRes.rows[0]!;
+      if (batch.status === 'reverted') {
+        throw new ConflictError('Batch has already been reverted');
+      }
+      if (batch.status !== 'completed') {
+        throw new ConflictError(`Cannot revert batch in status '${batch.status}'`);
+      }
+
+      const rows = batch.summary_json.validRows ?? [];
+      const empRes = await client.query<{ id: string; emp_code: string }>(
+        `SELECT id, emp_code FROM employees WHERE company_id = $1 AND deleted_at IS NULL`,
+        [ctx.companyId],
+      );
+      const empMap = new Map(empRes.rows.map(e => [e.emp_code.toUpperCase(), e.id]));
+
+      let revertedCount = 0;
+      for (const row of rows) {
+        const empId = empMap.get(row.empCode);
+        if (!empId) continue;
+
+        await client.query(
+          `UPDATE attendance_days
+           SET status = 'absent',
+               total_work_minutes = 0,
+               first_in = NULL,
+               last_out = NULL,
+               updated_by = $4,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE company_id = $1 AND employee_id = $2 AND work_date = $3`,
+          [ctx.companyId, empId, row.date, ctx.userId],
+        );
+        revertedCount++;
+      }
+
+      await client.query(
+        `UPDATE data_migration_batches
+         SET status = 'reverted',
+             reverted_at = CURRENT_TIMESTAMP,
+             updated_by = $3,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE company_id = $1 AND id = $2`,
+        [ctx.companyId, batchId, ctx.userId],
+      );
+
+      return {
+        batchId,
+        status: 'reverted',
+        revertedCount,
+      };
+    }, pool ?? getAppPool());
+  }
+
+  /**
+   * Unified batch revert method that inspects batch type and executes the appropriate reversal logic.
+   */
+  async revertBatch(
+    ctx: RequestContext,
+    batchId: string,
+    pool?: pg.Pool,
+  ): Promise<{ batchId: string; status: 'reverted'; revertedCount: number }> {
+    const batch = await withTenant(ctx, async (_tx, client) => {
+      const res = await client.query<{ type: string }>(
+        `SELECT type FROM data_migration_batches WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL LIMIT 1`,
+        [ctx.companyId, batchId],
+      );
+      if (res.rows.length === 0) {
+        throw new NotFoundError('Migration batch not found');
+      }
+      return res.rows[0]!;
+    }, pool ?? getAppPool());
+
+    if (batch.type === 'attendance_punches') {
+      return this.revertAttendancePunches(ctx, batchId, pool);
+    }
+    return this.revertLeaveBalances(ctx, batchId, pool);
   }
 
   /**
