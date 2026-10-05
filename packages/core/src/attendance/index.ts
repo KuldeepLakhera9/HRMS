@@ -21,3 +21,6 @@ export * from './day-service.js';
 export * from './regularization-validation.js';
 export * from './regularization-repository.js';
 export * from './regularization-service.js';
+export * from './exceptions-validation.js';
+export * from './exceptions-repository.js';
+export * from './exceptions-service.js';
