@@ -21,3 +21,7 @@ export * from './biometric.js';
 export * from './leave.js';
 export * from './holidays.js';
 export * from './reports.js';
+export * from './announcements.js';
+export * from './helpdesk.js';
+export * from './pilot.js';
+export * from './migrations.js';
