@@ -24,3 +24,6 @@ export * from './regularization-service.js';
 export * from './exceptions-validation.js';
 export * from './exceptions-repository.js';
 export * from './exceptions-service.js';
+export * from './biometric-validation.js';
+export * from './biometric-repository.js';
+export * from './biometric-service.js';
