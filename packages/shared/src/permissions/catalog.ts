@@ -79,6 +79,13 @@ export const PERMISSIONS = {
   ATTENDANCE_LOCK_MANAGE: 'attendance.lock.manage',
   ATTENDANCE_DAY_READ: 'attendance.day.read',
   ATTENDANCE_DAY_RECALCULATE: 'attendance.day.recalculate',
+  ATTENDANCE_REGULARIZATION_CREATE: 'attendance.regularization.create',
+  ATTENDANCE_REGULARIZATION_READ: 'attendance.regularization.read',
+  ATTENDANCE_REGULARIZATION_APPROVE: 'attendance.regularization.approve',
+  ATTENDANCE_EXCEPTION_READ: 'attendance.exception.read',
+  ATTENDANCE_EXCEPTION_MANAGE: 'attendance.exception.manage',
+  ATTENDANCE_BIOMETRIC_MANAGE: 'attendance.biometric.manage',
+  ATTENDANCE_PUNCH_VIEW_MAP: 'attendance.punch.view_map',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

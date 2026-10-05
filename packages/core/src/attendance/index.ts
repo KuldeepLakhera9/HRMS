@@ -18,3 +18,6 @@ export * from './day-context-provider.js';
 export * from './lock-service.js';
 export * from './day-repository.js';
 export * from './day-service.js';
+export * from './regularization-validation.js';
+export * from './regularization-repository.js';
+export * from './regularization-service.js';
