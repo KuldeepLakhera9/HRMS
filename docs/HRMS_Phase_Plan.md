@@ -82,7 +82,7 @@ Lint, typecheck, unit tests, integration tests (real DB), dependency audit, cont
 | **0** | Discovery, Design and Foundation | 4 weeks | none | G0: scope, designs, ADRs signed; "hello world" deployed to staging via CI |
 | **1** | Platform Core | 8 weeks | **R0** Internal alpha | G1: all roles log in with MFA; employee master; audit trail; staging stable |
 | **2** | Workflow Engine + Attendance and Geofencing | 8 weeks | **R1a** Attendance beta (IT dept) | G2: geofenced punch works on real devices; exceptions flow end to end |
-| **3** | Leave, Calendars, Reports v1 and Pilot | 6 weeks | **R1** Pilot (one department, 4 weeks live) | G3: pilot signed off by HR; zero critical bugs open |
+| **3** | Stabilize (performance + brand theme), Leave, Calendars, Reports v1 and Pilot | 7-8 weeks | **R1** Pilot (one department, 4 weeks live) | G3: pilot signed off by HR; zero critical bugs open |
 | **4** | Payroll, Expenses and Tax | 12 weeks | **R2** Parallel payroll (2-3 cycles) | G4: payroll output matches current process; CA sign-off |
 | **5** | Hardening and Production Go-live | 6 weeks | **R3** Production GA | G5: go/no-go checklist (section 10) signed |
 | **6** | Talent and Growth Modules | 12 weeks | **R4** | G6: spreadsheets retired for hiring/performance/assets |
@@ -273,10 +273,10 @@ Phase 7                                                                 ongoing
 ### Sprint plan
 | Sprint | Focus |
 |---|---|
-| 2.1 | WF-01..03, LOC-01/02, POL-01, MOB-01 | COMPLETED |
-| 2.2 | PUNCH-01/02/05, LOC-03, POL-02, MOB-02, WF-04 | COMPLETED |
-| 2.3 | PUNCH-03/04/06, DAY-01..03, MOB-03/05, POL-03, QA-01 | COMPLETED |
-| 2.4 | DAY-04..06, MOB-04, WF-05/06, BIO-01, QA-02..04, beta to IT department (**R1a**) | **COMPLETED** (Gate G2 Passed, see `docs/GATE_G2_REPORT.md`) |
+| 2.1 | WF-01..03, LOC-01/02, POL-01, MOB-01 |
+| 2.2 | PUNCH-01/02/05, LOC-03, POL-02, MOB-02, WF-04 |
+| 2.3 | PUNCH-03/04/06, DAY-01..03, MOB-03/05, POL-03, QA-01 |
+| 2.4 | DAY-04..06, MOB-04, WF-05/06, BIO-01, QA-02..04, beta to IT department (**R1a**) |
 
 ### Acceptance criteria
 - Server rejects or flags punches with: outside fence (per policy), accuracy over limit, mock location, unregistered device, impossible travel; each returns a clear reason code
@@ -291,9 +291,19 @@ Phase 7                                                                 ongoing
 
 ---
 
-## PHASE 3: Leave, Calendars, Reports v1 and Pilot (6 weeks, 3 sprints)
+## PHASE 3: Stabilize, Leave, Calendars, Reports v1 and Pilot (7-8 weeks, 4 sprints)
 
-**Goal:** complete the daily-use modules and prove them with one real department.
+**Goal:** first remove the lag found in testing and apply the AIC-ADT brand theme (Sprint 3.0), then complete the daily-use modules and prove them with one real department.
+
+### Sprint 3.0 (Stabilize) tasks
+| ID | Task | Layer |
+|---|---|---|
+| P3-PERF-01 | Baseline on a production build: k6, Lighthouse CI, pg_stat_statements, query counts, bundle sizes; ranked offender list | Performance |
+| P3-PERF-02 | Diagnose and fix offenders in measured order; before/after report | Performance |
+| P3-PERF-03 | CI regression guards (Lighthouse budgets, bundle budget, query budgets, k6 smoke) | DevOps |
+| P3-PERF-04 | Developer-speed guide and local setup | DevOps |
+| P3-THEME-01..06 | `packages/ui-tokens`, Tailwind/shadcn mapping, Inter, Lucide, full re-skin, mobile theme, design-system page, contrast test, hex lint (see DESIGN_SYSTEM.md) | Frontend |
+
 
 ### Epics and tasks
 | ID | Task | Layer | BP |
@@ -321,6 +331,7 @@ Phase 7                                                                 ongoing
 ### Sprint plan
 | Sprint | Focus |
 |---|---|
+| 3.0 | PERF-01..04, THEME-01..06 (before any new feature) |
 | 3.1 | LV-01..04, HOL-01, INT-01 |
 | 3.2 | LV-05..07, INT-02, REP-01, DASH-01, NOTIF-01 |
 | 3.3 | REP-02, ANN-01, MIG-01, QA-01/02, PILOT-01; start pilot (**R1**) |
