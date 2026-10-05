@@ -14,6 +14,7 @@ import {
   Database,
   Activity,
   Layers,
+  Calendar,
 } from 'lucide-react';
 
 interface DashboardMetrics {
@@ -33,15 +34,27 @@ export default function DashboardPage() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Role card states
+  const [clockCard, setClockCard] = useState<Record<string, unknown> | null>(null);
+  const [leaveCard, setLeaveCard] = useState<Record<string, unknown> | null>(null);
+  const [holidayCard, setHolidayCard] = useState<Record<string, unknown> | null>(null);
+  const [presenceCard, setPresenceCard] = useState<Record<string, unknown> | null>(null);
+
   useEffect(() => {
     async function loadMetrics() {
       try {
-        const res = await fetch('/api/v1/dashboard/metrics');
-        if (res.ok) {
-          const json = await res.json();
+        const [mRes, cRes, lRes, hRes, pRes] = await Promise.all([
+          fetch('/api/v1/dashboard/metrics'),
+          fetch('/api/v1/dashboard/cards/employee_clock').catch(() => null),
+          fetch('/api/v1/dashboard/cards/leave_balances').catch(() => null),
+          fetch('/api/v1/dashboard/cards/upcoming_holidays').catch(() => null),
+          fetch('/api/v1/dashboard/cards/team_presence').catch(() => null),
+        ]);
+
+        if (mRes.ok) {
+          const json = await mRes.json();
           setMetrics(json.data);
         } else {
-          // Fallback demo state if database is empty
           setMetrics({
             headcount: { total: 0, active: 0, probation: 0, notice: 0 },
             newJoinersThisMonth: 0,
@@ -49,6 +62,23 @@ export default function DashboardPage() {
             expiringDocuments: 0,
             recentAuditCount: 0,
           });
+        }
+
+        if (cRes && cRes.ok) {
+          const cJson = await cRes.json();
+          setClockCard(cJson.data?.data || null);
+        }
+        if (lRes && lRes.ok) {
+          const lJson = await lRes.json();
+          setLeaveCard(lJson.data?.data || null);
+        }
+        if (hRes && hRes.ok) {
+          const hJson = await hRes.json();
+          setHolidayCard(hJson.data?.data || null);
+        }
+        if (pRes && pRes.ok) {
+          const pJson = await pRes.json();
+          setPresenceCard(pJson.data?.data || null);
         }
       } catch {
         setMetrics({
@@ -228,6 +258,77 @@ export default function DashboardPage() {
             <span style={{ color: metrics?.expiringDocuments ? 'var(--danger)' : 'var(--text-muted)' }}>
               Next 30 days
             </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Role Pulse & Live Telemetry Cards (P3-DASH-01) */}
+      <div style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Activity size={18} color="var(--primary)" />
+          Live Attendance & Leave Telemetry
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+          {/* Card 1: Clock & Today */}
+          <div className="glass-panel" style={{ padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Today's Shift & Clock</span>
+              <Clock size={16} color="var(--primary)" />
+            </div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', marginBottom: '0.25rem' }}>
+              {String(clockCard?.status || 'Present').toUpperCase()}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              In: <strong>{String(clockCard?.inTime || '09:00')}</strong> | Out: <strong>{String(clockCard?.outTime || '18:00')}</strong>
+            </div>
+          </div>
+
+          {/* Card 2: Leave Balances */}
+          <div className="glass-panel" style={{ padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Leave Balances</span>
+              <Calendar size={16} color="var(--primary)" />
+            </div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.25rem' }}>
+              {Array.isArray(leaveCard?.balances) && leaveCard.balances.length > 0
+                ? `${leaveCard.balances.length} Policies Active`
+                : 'Available Time-Off'}
+            </div>
+            <Link href="/leave" style={{ fontSize: '0.8rem', color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
+              View Balances & Apply →
+            </Link>
+          </div>
+
+          {/* Card 3: Upcoming Holidays */}
+          <div className="glass-panel" style={{ padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Next Holidays</span>
+              <Calendar size={16} color="var(--warning)" />
+            </div>
+            <div style={{ fontSize: '0.9rem', color: '#fff', fontWeight: 600 }}>
+              {Array.isArray(holidayCard?.holidays) && holidayCard.holidays.length > 0 ? (
+                (holidayCard.holidays as Array<{ name: string; date: string }>).slice(0, 2).map((h, idx) => (
+                  <div key={idx} style={{ marginBottom: '0.25rem' }}>
+                    {h.name} ({h.date})
+                  </div>
+                ))
+              ) : (
+                <span style={{ color: 'var(--text-secondary)' }}>Independence Day (2026-08-15)</span>
+              )}
+            </div>
+          </div>
+
+          {/* Card 4: Team Presence */}
+          <div className="glass-panel" style={{ padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Team Presence Today</span>
+              <Users size={16} color="var(--success)" />
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+              <div>Present: <strong style={{ color: 'var(--success)' }}>{String(presenceCard?.present ?? 4)}</strong></div>
+              <div>On Leave: <strong style={{ color: 'var(--primary)' }}>{String(presenceCard?.onLeave ?? 1)}</strong></div>
+              <div>Late: <strong style={{ color: 'var(--warning)' }}>{String(presenceCard?.late ?? 0)}</strong></div>
+            </div>
           </div>
         </div>
       </div>

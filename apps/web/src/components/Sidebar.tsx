@@ -20,6 +20,8 @@ import {
   FileEdit,
   Bell,
   CheckSquare,
+  Calendar,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface NavItem {
@@ -41,6 +43,8 @@ const NAVIGATION: NavSection[] = [
     items: [
       { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
       { title: 'Approvals Inbox', href: '/workflow/inbox', icon: CheckSquare },
+      { title: 'Leave & Time Off', href: '/leave', icon: Calendar },
+      { title: 'Reports & Analytics', href: '/reports', icon: FileSpreadsheet },
     ],
   },
   {

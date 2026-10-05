@@ -13,10 +13,11 @@ import { ClockScreen } from './src/screens/ClockScreen.js';
 import { AttendanceHistoryScreen } from './src/screens/AttendanceHistoryScreen.js';
 import { ManagerApprovalsScreen } from './src/screens/ManagerApprovalsScreen.js';
 import { DiagnosticsScreen } from './src/screens/DiagnosticsScreen.js';
+import { LeaveScreen } from './src/screens/LeaveScreen.js';
 import { authService, type LoginResult } from './src/services/auth.js';
 import { storage } from './src/services/storage.js';
 
-type TabType = 'clock' | 'calendar' | 'approvals' | 'diagnostics';
+type TabType = 'clock' | 'calendar' | 'leave' | 'approvals' | 'diagnostics';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -108,6 +109,7 @@ export default function App() {
       <View style={styles.body}>
         {activeTab === 'clock' && <ClockScreen />}
         {activeTab === 'calendar' && <AttendanceHistoryScreen />}
+        {activeTab === 'leave' && <LeaveScreen />}
         {activeTab === 'approvals' && <ManagerApprovalsScreen />}
         {activeTab === 'diagnostics' && (
           <DiagnosticsScreen onBack={() => setActiveTab('clock')} />
@@ -130,6 +132,14 @@ export default function App() {
         >
           <Text style={[styles.navIcon, activeTab === 'calendar' && styles.navIconActive]}>📅</Text>
           <Text style={[styles.navLabel, activeTab === 'calendar' && styles.navLabelActive]}>Calendar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navItem, activeTab === 'leave' && styles.navItemActive]}
+          onPress={() => setActiveTab('leave')}
+        >
+          <Text style={[styles.navIcon, activeTab === 'leave' && styles.navIconActive]}>🏖️</Text>
+          <Text style={[styles.navLabel, activeTab === 'leave' && styles.navLabelActive]}>Leave</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
