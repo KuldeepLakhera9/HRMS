@@ -47,7 +47,7 @@ export async function withTenant<T>(
       _isMockFunction?: boolean;
     };
     const originalQuery = clientWithTracking.__originalQuery ?? client.query.bind(client);
-    const isMock = !!clientWithTracking._isMockFunction;
+    const isMock = Boolean((client.query as unknown as { _isMockFunction?: boolean })?._isMockFunction);
 
     if (!isMock && !clientWithTracking.__originalQuery) {
       clientWithTracking.__originalQuery = originalQuery;

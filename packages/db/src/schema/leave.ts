@@ -286,3 +286,21 @@ export const compOffCredits = pgTable(
     index('idx_comp_off_credits_emp_status').on(table.companyId, table.employeeId, table.status),
   ],
 );
+
+export type LeaveType = typeof leaveTypes.$inferSelect;
+export type NewLeaveType = typeof leaveTypes.$inferInsert;
+export type LeavePolicy = typeof leavePolicies.$inferSelect;
+export type NewLeavePolicy = typeof leavePolicies.$inferInsert;
+export type LeavePolicyAssignment = typeof leavePolicyAssignments.$inferSelect;
+export type NewLeavePolicyAssignment = typeof leavePolicyAssignments.$inferInsert;
+export type LeaveLedgerEntry = typeof leaveLedger.$inferSelect;
+export type NewLeaveLedgerEntry = typeof leaveLedger.$inferInsert;
+export type LeaveBalance = typeof leaveBalances.$inferSelect;
+export type NewLeaveBalance = typeof leaveBalances.$inferInsert;
+export type LeaveRequest = typeof leaveRequests.$inferSelect;
+export type NewLeaveRequest = typeof leaveRequests.$inferInsert;
+export type LeaveRequestDay = typeof leaveRequestDays.$inferSelect;
+export type NewLeaveRequestDay = typeof leaveRequestDays.$inferInsert;
+export type CompOffCredit = typeof compOffCredits.$inferSelect;
+export type NewCompOffCredit = typeof compOffCredits.$inferInsert;
+

@@ -116,6 +116,7 @@ export function defineRoute<TInput = unknown, TOutput = unknown>(
       }
 
       // 5. Execution (with or without tenant transaction envelope)
+      const tHandlerStart = performance.now();
       let result: TOutput;
       if (def.skipTenantTransaction) {
         result = await def.handler(parsedInput, ctx);
@@ -124,6 +125,11 @@ export function defineRoute<TInput = unknown, TOutput = unknown>(
           return await def.handler(parsedInput, ctx, tx);
         });
       }
+      const tHandlerEnd = performance.now();
+      const handlerDur = (tHandlerEnd - tHandlerStart).toFixed(1);
+      headers['Server-Timing'] = def.skipTenantTransaction
+        ? `handler;dur=${handlerDur}`
+        : `db;dur=${handlerDur}`;
 
       return {
         statusCode: 200,
@@ -210,6 +216,7 @@ export function createNextRoute<TInput = unknown, TOutput = unknown>(
     }
 
     // 4. Resolve session & context
+    const t0 = performance.now();
     let ctx: RequestContext;
     if (token) {
       const session = await getSessionByToken(token);
@@ -243,6 +250,7 @@ export function createNextRoute<TInput = unknown, TOutput = unknown>(
         rawBody: rawText,
       };
     }
+    const tAuth = performance.now();
 
     // Merge route params if provided
     if (context?.params) {
@@ -254,8 +262,19 @@ export function createNextRoute<TInput = unknown, TOutput = unknown>(
 
     // 5. Run route runner
     const result = await runner(rawInput, ctx);
+    const tEnd = performance.now();
 
-    let responseHeaders: Record<string, string> = { ...result.headers };
+    const authDur = (tAuth - t0).toFixed(1);
+    const totalDur = (tEnd - t0).toFixed(1);
+    const innerTiming = result.headers['Server-Timing'];
+    const timingParts: string[] = [`auth;dur=${authDur}`];
+    if (innerTiming) timingParts.push(innerTiming);
+    timingParts.push(`total;dur=${totalDur}`);
+
+    let responseHeaders: Record<string, string> = {
+      ...result.headers,
+      'Server-Timing': timingParts.join(', '),
+    };
     let responseBody: unknown = result.body;
 
     if (

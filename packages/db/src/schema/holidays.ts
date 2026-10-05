@@ -54,3 +54,11 @@ export const holidayAssignments = pgTable(
     index('idx_holiday_assignments_lookup').on(table.companyId, table.scope, table.locationId),
   ],
 );
+
+export type HolidayList = typeof holidayLists.$inferSelect;
+export type NewHolidayList = typeof holidayLists.$inferInsert;
+export type Holiday = typeof holidays.$inferSelect;
+export type NewHoliday = typeof holidays.$inferInsert;
+export type HolidayAssignment = typeof holidayAssignments.$inferSelect;
+export type NewHolidayAssignment = typeof holidayAssignments.$inferInsert;
+

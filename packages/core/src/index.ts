@@ -24,3 +24,4 @@ export * from './workflow/index.js';
 export * from './attendance/index.js';
 export * from './metrics/index.js';
 export * from './modules/sample/index.js';
+export * from './leave/index.js';
