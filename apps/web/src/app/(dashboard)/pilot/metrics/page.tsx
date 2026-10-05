@@ -212,7 +212,7 @@ export default function PilotMetricsPage() {
             <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>
               AVERAGE CSAT SCORE
             </span>
-            <Star size={18} style={{ color: '#f59e0b' }} />
+            <Star size={18} style={{ color: 'var(--color-warning, #ca8a04)' }} />
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.5rem' }}>
             {metrics?.csatScore?.toFixed(1) ?? '4.5'} / 5.0
@@ -234,7 +234,7 @@ export default function PilotMetricsPage() {
             <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>
               REGULARIZATION RATE
             </span>
-            <Clock size={18} style={{ color: '#38bdf8' }} />
+            <Clock size={18} style={{ color: 'var(--color-info, #0284c7)' }} />
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.5rem' }}>
             {metrics?.regularizationRate ?? 0}%
@@ -256,7 +256,7 @@ export default function PilotMetricsPage() {
             <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>
               AVG APPROVAL TURNAROUND
             </span>
-            <Clock size={18} style={{ color: '#10b981' }} />
+            <Clock size={18} style={{ color: 'var(--color-success, #15803d)' }} />
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.5rem' }}>
             {metrics?.avgApprovalTurnaroundHours ?? 4.2}h
@@ -285,7 +285,7 @@ export default function PilotMetricsPage() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
-                  <Smartphone size={16} style={{ color: '#6366f1' }} /> Mobile App
+                  <Smartphone size={16} style={{ color: 'var(--color-primary, #15803d)' }} /> Mobile App
                 </span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                   {metrics?.channelSplit.mobile || 0} (
@@ -299,7 +299,7 @@ export default function PilotMetricsPage() {
                 <div
                   style={{
                     height: '100%',
-                    backgroundColor: '#6366f1',
+                    backgroundColor: 'var(--color-primary, #15803d)',
                     width: `${
                       totalPunches > 0
                         ? ((metrics?.channelSplit.mobile || 0) / totalPunches) * 100
@@ -313,7 +313,7 @@ export default function PilotMetricsPage() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
-                  <Globe size={16} style={{ color: '#38bdf8' }} /> Web Browser
+                  <Globe size={16} style={{ color: 'var(--color-info, #0284c7)' }} /> Web Browser
                 </span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                   {metrics?.channelSplit.web || 0} (
@@ -327,7 +327,7 @@ export default function PilotMetricsPage() {
                 <div
                   style={{
                     height: '100%',
-                    backgroundColor: '#38bdf8',
+                    backgroundColor: 'var(--color-info, #0284c7)',
                     width: `${
                       totalPunches > 0
                         ? ((metrics?.channelSplit.web || 0) / totalPunches) * 100
@@ -341,7 +341,7 @@ export default function PilotMetricsPage() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
-                  <Clock size={16} style={{ color: '#10b981' }} /> Biometric / Kiosk
+                  <Clock size={16} style={{ color: 'var(--color-success, #15803d)' }} /> Biometric / Kiosk
                 </span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                   {metrics?.channelSplit.kiosk || 0} (
@@ -355,7 +355,7 @@ export default function PilotMetricsPage() {
                 <div
                   style={{
                     height: '100%',
-                    backgroundColor: '#10b981',
+                    backgroundColor: 'var(--color-success, #15803d)',
                     width: `${
                       totalPunches > 0
                         ? ((metrics?.channelSplit.kiosk || 0) / totalPunches) * 100
@@ -385,7 +385,7 @@ export default function PilotMetricsPage() {
                 }}
               >
                 <span style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <AlertTriangle size={14} style={{ color: '#ef4444' }} />
+                  <AlertTriangle size={14} style={{ color: 'var(--color-destructive, #b91c1c)' }} />
                   {f.reason}
                 </span>
                 <span
@@ -394,7 +394,7 @@ export default function PilotMetricsPage() {
                     fontWeight: 700,
                     padding: '0.125rem 0.5rem',
                     backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                    color: '#ef4444',
+                    color: 'var(--color-destructive, #b91c1c)',
                     borderRadius: '4px',
                   }}
                 >
@@ -461,8 +461,8 @@ export default function PilotMetricsPage() {
                     <Star
                       size={24}
                       style={{
-                        color: star <= feedbackRating ? '#f59e0b' : 'var(--border-color)',
-                        fill: star <= feedbackRating ? '#f59e0b' : 'none',
+                        color: star <= feedbackRating ? 'var(--color-warning, #ca8a04)' : 'var(--border-color)',
+                        fill: star <= feedbackRating ? 'var(--color-warning, #ca8a04)' : 'none',
                       }}
                     />
                   </button>
@@ -526,7 +526,7 @@ export default function PilotMetricsPage() {
                 gap: '0.5rem',
                 padding: '0.625rem',
                 backgroundColor: 'var(--primary)',
-                color: '#fff',
+                color: 'var(--color-primary-foreground, #fff)',
                 border: 'none',
                 borderRadius: '6px',
                 fontSize: '0.875rem',
@@ -582,8 +582,8 @@ export default function PilotMetricsPage() {
                           key={s}
                           size={13}
                           style={{
-                            color: s <= f.rating ? '#f59e0b' : 'var(--border-color)',
-                            fill: s <= f.rating ? '#f59e0b' : 'none',
+                            color: s <= f.rating ? 'var(--color-warning, #ca8a04)' : 'var(--border-color)',
+                            fill: s <= f.rating ? 'var(--color-warning, #ca8a04)' : 'none',
                           }}
                         />
                       ))}

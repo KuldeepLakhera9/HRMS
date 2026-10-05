@@ -263,8 +263,8 @@ export default function AnnouncementsPage() {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '0.25rem',
-                          backgroundColor: 'rgba(234, 179, 8, 0.15)',
-                          color: '#ca8a04',
+                          backgroundColor: 'var(--color-warning-subtle, rgba(234, 179, 8, 0.15))',
+                          color: 'var(--color-warning, var(--warning))',
                           padding: '0.2rem 0.5rem',
                           borderRadius: 'var(--border-radius-sm)',
                           fontSize: '0.75rem',
@@ -301,13 +301,13 @@ export default function AnnouncementsPage() {
                         width: '10px',
                         height: '10px',
                         borderRadius: '50%',
-                        backgroundColor: 'var(--primary-color)',
+                        backgroundColor: 'var(--primary)',
                         flexShrink: 0,
                       }}
                     />
                   ) : (
                     <span title="Read" style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                      <CheckCircle2 size={14} color="#16a34a" />
+                      <CheckCircle2 size={14} color="var(--success)" />
                     </span>
                   )}
                 </div>

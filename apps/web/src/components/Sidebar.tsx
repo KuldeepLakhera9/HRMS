@@ -120,18 +120,18 @@ export function Sidebar() {
             width: '36px',
             height: '36px',
             borderRadius: '10px',
-            background: 'linear-gradient(135deg, #6366f1 0%, #38bdf8 100%)',
+            background: 'var(--primary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#fff',
-            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+            color: 'var(--primary-foreground)',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
           <ShieldCheck size={20} />
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: '1rem', letterSpacing: '-0.02em', color: '#fff' }}>
+          <div style={{ fontWeight: 700, fontSize: '1rem', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
             OrgHub HRMS
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -145,8 +145,8 @@ export function Sidebar() {
         style={{
           margin: '1rem 1rem 0.5rem',
           padding: '0.625rem 0.875rem',
-          backgroundColor: 'rgba(99, 102, 241, 0.08)',
-          border: '1px solid rgba(99, 102, 241, 0.2)',
+          backgroundColor: 'var(--bg-tertiary)',
+          border: '1px solid var(--border)',
           borderRadius: '8px',
           display: 'flex',
           alignItems: 'center',
@@ -154,7 +154,7 @@ export function Sidebar() {
         }}
       >
         <div>
-          <div style={{ fontSize: '0.7rem', color: '#818cf8', fontWeight: 600, textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 600, textTransform: 'uppercase' }}>
             Active Entity
           </div>
           <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -215,7 +215,7 @@ export function Sidebar() {
                       borderRadius: '8px',
                       fontSize: '0.875rem',
                       fontWeight: isActive ? 600 : 500,
-                      color: isActive ? '#fff' : isUpcoming ? 'var(--text-muted)' : 'var(--text-secondary)',
+                      color: isActive ? 'var(--primary-foreground)' : isUpcoming ? 'var(--text-muted)' : 'var(--text-secondary)',
                       backgroundColor: isActive ? 'var(--primary)' : 'transparent',
                       textDecoration: 'none',
                       transition: 'all 0.15s ease',

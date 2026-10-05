@@ -215,7 +215,7 @@ export default function MigrationPage() {
             cursor: 'pointer',
             border: 'none',
             backgroundColor: activeTab === 'leave' ? 'var(--primary-color)' : 'transparent',
-            color: activeTab === 'leave' ? '#ffffff' : 'var(--text-secondary)',
+            color: activeTab === 'leave' ? 'var(--color-primary-foreground, #fff)' : 'var(--text-secondary)',
           }}
         >
           Opening Leave Balances
@@ -230,7 +230,7 @@ export default function MigrationPage() {
             cursor: 'pointer',
             border: 'none',
             backgroundColor: activeTab === 'attendance' ? 'var(--primary-color)' : 'transparent',
-            color: activeTab === 'attendance' ? '#ffffff' : 'var(--text-secondary)',
+            color: activeTab === 'attendance' ? 'var(--color-primary-foreground, #fff)' : 'var(--text-secondary)',
           }}
         >
           Historical Attendance Records
@@ -239,12 +239,12 @@ export default function MigrationPage() {
 
       {/* Notifications */}
       {errorMsg && (
-        <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#dc2626', padding: '0.75rem 1rem', borderRadius: 'var(--border-radius-md)', fontSize: '0.875rem' }}>
+        <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--color-destructive, #b91c1c)', color: 'var(--color-destructive, #b91c1c)', padding: '0.75rem 1rem', borderRadius: 'var(--border-radius-md)', fontSize: '0.875rem' }}>
           {errorMsg}
         </div>
       )}
       {successMsg && (
-        <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid #22c55e', color: '#16a34a', padding: '0.75rem 1rem', borderRadius: 'var(--border-radius-md)', fontSize: '0.875rem' }}>
+        <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid var(--color-success, #15803d)', color: 'var(--color-success, #15803d)', padding: '0.75rem 1rem', borderRadius: 'var(--border-radius-md)', fontSize: '0.875rem' }}>
           {successMsg}
         </div>
       )}
@@ -282,7 +282,7 @@ export default function MigrationPage() {
               gap: '0.5rem',
               padding: '0.5rem 1.25rem',
               backgroundColor: 'var(--primary-color)',
-              color: '#ffffff',
+              color: 'var(--color-primary-foreground, #fff)',
               border: 'none',
               borderRadius: 'var(--border-radius-md)',
               fontWeight: 600,
@@ -304,8 +304,8 @@ export default function MigrationPage() {
               <h2 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Validation Summary</h2>
               <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem', fontSize: '0.875rem' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Total Rows: <strong>{preview.totalRows}</strong></span>
-                <span style={{ color: '#16a34a' }}>Valid Rows: <strong>{preview.validRows}</strong></span>
-                <span style={{ color: preview.errorRows > 0 ? '#dc2626' : 'var(--text-secondary)' }}>
+                <span style={{ color: 'var(--color-success, #15803d)' }}>Valid Rows: <strong>{preview.validRows}</strong></span>
+                <span style={{ color: preview.errorRows > 0 ? 'var(--color-destructive, #b91c1c)' : 'var(--text-secondary)' }}>
                   Error Rows: <strong>{preview.errorRows}</strong>
                 </span>
               </div>
@@ -319,8 +319,8 @@ export default function MigrationPage() {
                 alignItems: 'center',
                 gap: '0.5rem',
                 padding: '0.625rem 1.5rem',
-                backgroundColor: '#16a34a',
-                color: '#ffffff',
+                backgroundColor: 'var(--color-success, #15803d)',
+                color: 'var(--color-primary-foreground, #fff)',
                 border: 'none',
                 borderRadius: 'var(--border-radius-md)',
                 fontWeight: 700,
@@ -336,11 +336,11 @@ export default function MigrationPage() {
           {/* Errors list */}
           {preview.errors.length > 0 && (
             <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--border-radius-md)', padding: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#dc2626', fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-destructive, #b91c1c)', fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.5rem' }}>
                 <AlertTriangle size={16} />
                 Identified Validation Issues ({preview.errors.length})
               </div>
-              <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8125rem', color: '#dc2626' }}>
+              <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8125rem', color: 'var(--color-destructive, #b91c1c)' }}>
                 {preview.errors.slice(0, 5).map((err, idx) => (
                   <li key={idx}>Row {err.rowNumber}: {err.reason} {err.empCode ? `(${err.empCode})` : ''}</li>
                 ))}
@@ -387,17 +387,17 @@ export default function MigrationPage() {
                         fontSize: '0.75rem',
                         fontWeight: 700,
                         backgroundColor: batch.status === 'completed' ? 'rgba(34, 197, 94, 0.15)' : batch.status === 'reverted' ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-primary)',
-                        color: batch.status === 'completed' ? '#16a34a' : batch.status === 'reverted' ? '#dc2626' : 'var(--text-secondary)',
+                        color: batch.status === 'completed' ? 'var(--color-success, #15803d)' : batch.status === 'reverted' ? 'var(--color-destructive, #b91c1c)' : 'var(--text-secondary)',
                       }}
                     >
                       {batch.status.toUpperCase()}
                     </span>
                   </td>
                   <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{batch.totalRows}</td>
-                  <td style={{ padding: '1rem', fontWeight: 600, color: '#16a34a' }}>{batch.validRows}</td>
+                  <td style={{ padding: '1rem', fontWeight: 600, color: 'var(--color-success, #15803d)' }}>{batch.validRows}</td>
                   <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{new Date(batch.createdAt).toLocaleDateString()}</td>
                   <td style={{ padding: '1rem', textAlign: 'right' }}>
-                    {batch.status === 'completed' && batch.type === 'leave_balances' && (
+                    {batch.status === 'completed' && (
                       <button
                         onClick={() => handleRevert(batch.id)}
                         style={{
@@ -406,7 +406,7 @@ export default function MigrationPage() {
                           gap: '0.25rem',
                           padding: '0.3rem 0.6rem',
                           backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                          color: '#dc2626',
+                          color: 'var(--color-destructive, #b91c1c)',
                           border: 'none',
                           borderRadius: 'var(--border-radius-sm)',
                           fontSize: '0.75rem',

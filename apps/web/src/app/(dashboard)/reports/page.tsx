@@ -339,7 +339,7 @@ export default function ReportsHubPage() {
             padding: '0.55rem 1.25rem',
             borderRadius: '8px',
             backgroundColor: 'var(--primary)',
-            color: '#fff',
+            color: 'var(--primary-foreground)',
             border: 'none',
             fontWeight: 600,
             fontSize: '0.875rem',
