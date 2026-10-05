@@ -23,6 +23,7 @@ import { LeaveBalanceRepository } from './balance-repository.js';
 import { LeaveLedgerRepository } from './ledger-repository.js';
 import { LeavePolicyResolver } from './policy-resolver.js';
 import { HolidayService } from './holiday-service.js';
+import { getRedisClient } from '../redis/client.js';
 import {
   computeLeaveDays,
   LEAVE_RULE_VERSION,
@@ -1050,9 +1051,23 @@ export class LeaveService {
       throw new ForbiddenError('Permission denied: leave.calendar.read required.');
     }
 
+    const redis = getRedisClient();
+    const cacheKey = `leave:calendar:${ctx.companyId}:${params.scope}:${params.scopeId ?? 'none'}:${params.startDate}:${params.endDate}:${ctx.employeeId ?? 'all'}`;
+
+    if (redis) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      } catch {
+        // Continue to DB
+      }
+    }
+
     const pool = poolOverride ?? getAppPool();
 
-    return withTenant(ctx, async (_tx, client) => {
+    const result = await withTenant(ctx, async (_tx, client) => {
       // 1. Fetch holidays across company/range
       const holRes = await client.query<{ date: string; name: string; type: string }>(
         `SELECT h.date, h.name, h.type
@@ -1135,6 +1150,32 @@ export class LeaveService {
         holidays: holRes.rows,
       };
     }, pool);
+
+    if (redis) {
+      try {
+        await redis.set(cacheKey, JSON.stringify(result), 'EX', 60);
+      } catch {
+        // Ignore cache write error
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Invalidates cached calendar data for a company.
+   */
+  async invalidateCalendarCache(companyId: string): Promise<void> {
+    const redis = getRedisClient();
+    if (!redis) return;
+    try {
+      const keys = await redis.keys(`leave:calendar:${companyId}:*`);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+    } catch {
+      // Ignore cache invalidation error
+    }
   }
 
   /**
