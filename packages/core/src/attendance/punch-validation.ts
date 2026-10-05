@@ -51,6 +51,7 @@ export const recordPunchSchema = z.object({
   deviceId: z.string().max(128).optional(),
   deviceModel: z.string().max(128).optional(),
   isMockLocation: z.boolean().default(false),
+  isOffline: z.boolean().optional(),
   wifiBssid: z.string().optional(),
   qrPayload: z.string().optional(),
   notes: z.string().max(500).optional(),

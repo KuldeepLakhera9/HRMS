@@ -12,7 +12,8 @@ export const POST = createNextRoute({
   schema: biometricIngestBatchSchema,
   handler: async (input, ctx) => {
     // Extract headers for hardware authentication
-    const signature = ctx.requestId ? undefined : undefined; // signature from request if present
+    const signature = ctx.headers?.['x-signature'] || ctx.headers?.['x-hub-signature-256'];
+    const rawBody = ctx.rawBody;
 
     const result = await biometricService.ingestBatch(
       ctx,
@@ -28,6 +29,7 @@ export const POST = createNextRoute({
       {
         clientIp: ctx.ip,
         signature,
+        rawBody,
       },
     );
 

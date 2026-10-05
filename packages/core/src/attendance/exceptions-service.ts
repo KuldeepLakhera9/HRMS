@@ -319,7 +319,19 @@ export class AttendanceExceptionsService {
       poolOverride,
     );
 
-    const hasMapPermission = can(ctx, PERMISSIONS.ATTENDANCE_PUNCH_VIEW_MAP);
+    const hasMapPermission =
+      can(ctx, PERMISSIONS.ATTENDANCE_LOCATION_DATA_VIEW) ||
+      can(ctx, PERMISSIONS.ATTENDANCE_PUNCH_VIEW_MAP);
+
+    if (hasMapPermission && targetEmployeeId !== ctx.employeeId) {
+      await this.auditService.recordEvent(ctx, {
+        action: 'attendance.location_data.view',
+        entity: 'attendance_day',
+        entityId: day?.id ?? targetEmployeeId,
+        meta: { workDate, employeeId: targetEmployeeId },
+        poolOverride,
+      }).catch(() => {});
+    }
 
     const mappedPunches = punches.map((p) => {
       const hasCoords = p.latitude !== null && p.longitude !== null;

@@ -6,6 +6,8 @@ export interface RequestContext extends TenantContext {
   stepUpUntil?: string | Date | null | undefined;
   ip?: string | undefined;
   userAgent?: string | undefined;
+  headers?: Record<string, string> | undefined;
+  rawBody?: string | undefined;
   isAuthenticated: boolean;
 }
 

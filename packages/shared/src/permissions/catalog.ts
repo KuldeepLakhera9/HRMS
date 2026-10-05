@@ -86,6 +86,7 @@ export const PERMISSIONS = {
   ATTENDANCE_EXCEPTION_MANAGE: 'attendance.exception.manage',
   ATTENDANCE_BIOMETRIC_MANAGE: 'attendance.biometric.manage',
   ATTENDANCE_PUNCH_VIEW_MAP: 'attendance.punch.view_map',
+  ATTENDANCE_LOCATION_DATA_VIEW: 'attendance.location_data.view',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

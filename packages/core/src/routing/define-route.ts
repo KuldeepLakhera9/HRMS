@@ -169,6 +169,11 @@ export function createNextRoute<TInput = unknown, TOutput = unknown>(
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
     const userAgent = req.headers.get('user-agent') || undefined;
 
+    const headersMap: Record<string, string> = {};
+    req.headers.forEach((val, key) => {
+      headersMap[key.toLowerCase()] = val;
+    });
+
     // 2. Extract session token
     let token: string | undefined;
     const cookieHeader = req.headers.get('cookie');
@@ -183,7 +188,28 @@ export function createNextRoute<TInput = unknown, TOutput = unknown>(
       }
     }
 
-    // 3. Resolve session & context
+    // 3. Parse input (JSON body for mutating requests, query parameters for GET/DELETE)
+    let rawInput: Record<string, unknown> = {};
+    let rawText: string | undefined;
+    const method = req.method.toUpperCase();
+    if (['POST', 'PUT', 'PATCH'].includes(method)) {
+      try {
+        const text = await req.text();
+        rawText = text;
+        if (text) {
+          rawInput = JSON.parse(text);
+        }
+      } catch {
+        rawInput = {};
+      }
+    } else {
+      const url = new URL(req.url);
+      url.searchParams.forEach((val, key) => {
+        rawInput[key] = val;
+      });
+    }
+
+    // 4. Resolve session & context
     let ctx: RequestContext;
     if (token) {
       const session = await getSessionByToken(token);
@@ -199,32 +225,23 @@ export function createNextRoute<TInput = unknown, TOutput = unknown>(
           requestId,
           ip,
           userAgent,
+          headers: headersMap,
+          rawBody: rawText,
           isAuthenticated: true,
         };
       } else {
-        ctx = createAnonymousContext(requestId, ip, userAgent);
+        ctx = {
+          ...createAnonymousContext(requestId, ip, userAgent),
+          headers: headersMap,
+          rawBody: rawText,
+        };
       }
     } else {
-      ctx = createAnonymousContext(requestId, ip, userAgent);
-    }
-
-    // 4. Parse input (JSON body for mutating requests, query parameters for GET/DELETE)
-    let rawInput: Record<string, unknown> = {};
-    const method = req.method.toUpperCase();
-    if (['POST', 'PUT', 'PATCH'].includes(method)) {
-      try {
-        const text = await req.text();
-        if (text) {
-          rawInput = JSON.parse(text);
-        }
-      } catch {
-        rawInput = {};
-      }
-    } else {
-      const url = new URL(req.url);
-      url.searchParams.forEach((val, key) => {
-        rawInput[key] = val;
-      });
+      ctx = {
+        ...createAnonymousContext(requestId, ip, userAgent),
+        headers: headersMap,
+        rawBody: rawText,
+      };
     }
 
     // Merge route params if provided
