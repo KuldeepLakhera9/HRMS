@@ -1,5 +1,6 @@
-import { pgTable, uuid, text, boolean, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, boolean, timestamp, uniqueIndex, index, foreignKey } from 'drizzle-orm/pg-core';
 import { baseTenantColumns } from '../columns.js';
+import { departments, workLocations } from './org.js';
 
 export const announcements = pgTable(
   'announcements',
@@ -18,6 +19,16 @@ export const announcements = pgTable(
     uniqueIndex('idx_announcements_company_id').on(table.companyId, table.id),
     index('idx_announcements_published').on(table.companyId, table.publishedAt),
     index('idx_announcements_pinned').on(table.companyId, table.isPinned),
+    foreignKey({
+      columns: [table.companyId, table.targetDeptId],
+      foreignColumns: [departments.companyId, departments.id],
+      name: 'fk_announcements_target_dept',
+    }).onDelete('set null'),
+    foreignKey({
+      columns: [table.companyId, table.targetLocId],
+      foreignColumns: [workLocations.companyId, workLocations.id],
+      name: 'fk_announcements_target_loc',
+    }).onDelete('set null'),
   ],
 );
 
