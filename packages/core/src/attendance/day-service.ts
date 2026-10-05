@@ -621,6 +621,18 @@ export class AttendanceDayService {
     expiresOn: string;
     status: string;
   }>> {
+    const isSelf = Boolean(ctx.employeeId && ctx.employeeId === employeeId);
+    const canManage = can(ctx, PERMISSIONS.LEAVE_COMPOFF_MANAGE) || can(ctx, PERMISSIONS.LEAVE_POLICY_MANAGE);
+    const canClaim = can(ctx, PERMISSIONS.LEAVE_COMPOFF_CLAIM);
+
+    if (!isSelf && !canManage) {
+      throw new ForbiddenError('You do not have permission to view comp-off credits for another employee.');
+    }
+
+    if (isSelf && !canClaim && !canManage) {
+      throw new ForbiddenError('Permission denied: leave.compoff.claim required.');
+    }
+
     const pool = poolOverride ?? getAppPool();
     return withTenant(ctx, async (_tx, client) => {
       const res = await client.query<{
