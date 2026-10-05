@@ -160,7 +160,8 @@ export class AnnouncementService {
           AND ar.announcement_id = a.id 
           AND ar.user_id = $2
         WHERE ${whereClause}
-        ORDER BY a.is_pinned DESC, a.published_at DESC`,
+        ORDER BY a.is_pinned DESC, a.published_at DESC
+        LIMIT 100`,
         values,
       );
 

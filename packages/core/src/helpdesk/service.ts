@@ -204,7 +204,8 @@ export class HelpdeskService {
         LEFT JOIN helpdesk_comments cm ON cm.company_id = t.company_id AND cm.ticket_id = t.id AND cm.deleted_at IS NULL
         WHERE ${whereClause}
         GROUP BY t.id, c.name, u.email, au.email
-        ORDER BY t.created_at DESC`,
+        ORDER BY t.created_at DESC
+        LIMIT 100`,
         values,
       );
 

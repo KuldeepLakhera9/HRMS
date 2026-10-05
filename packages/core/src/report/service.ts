@@ -142,16 +142,37 @@ export class ReportService {
     const bucket = env.MINIO_BUCKET_EXPORTS;
 
     return withTenant(ctx, async (_tx, client) => {
-      // 1. Fetch all rows without limit
-      const { rows } = await def.builder(ctx, validatedFilters, client);
+      // 1. Fetch rows in chunks and stream formatted CSV
+      const chunkSize = 5000;
+      let offset = 0;
+      let totalRows = 0;
+      const chunks: Buffer[] = [];
 
-      // 2. Format content as CSV
-      const csvContent = this.formatCsv(def.columns, rows);
-      const fileBuffer = Buffer.from(csvContent, 'utf-8');
+      const headers = def.columns.map(c => `"${c.header.replace(/"/g, '""')}"`).join(',') + '\r\n';
+      chunks.push(Buffer.from(headers, 'utf-8'));
+
+      while (true) {
+        const { rows, totalCount } = await def.builder(ctx, validatedFilters, client, {
+          limit: chunkSize,
+          offset,
+        });
+
+        if (!rows || rows.length === 0) break;
+        totalRows += rows.length;
+
+        const chunkCsv = this.formatCsvRows(def.columns, rows);
+        chunks.push(Buffer.from(chunkCsv + '\r\n', 'utf-8'));
+
+        offset += rows.length;
+        if (totalCount !== undefined && offset >= totalCount) break;
+        if (rows.length < chunkSize) break;
+      }
+
+      const fileBuffer = Buffer.concat(chunks);
       const objectKey = `reports/${ctx.companyId}/${def.key}-${Date.now()}.${format}`;
       const fileName = `${def.key}-${new Date().toISOString().slice(0, 10)}.${format}`;
 
-      // 3. Upload to MinIO
+      // 2. Upload to MinIO
       const s3 = getS3Client();
       await ensureBucketExists(bucket);
 
@@ -169,7 +190,7 @@ export class ReportService {
         })
       );
 
-      // 4. Generate 15-minute presigned download URL
+      // 3. Generate 15-minute presigned download URL
       const downloadUrl = await getSignedUrl(
         s3,
         new GetObjectCommand({
@@ -183,7 +204,7 @@ export class ReportService {
       const durationMs = Date.now() - startTime;
       const paramsHash = createHash('sha256').update(JSON.stringify(validatedFilters)).digest('hex');
 
-      // 5. Insert record into report_runs
+      // 4. Insert record into report_runs
       await client.query(
         `INSERT INTO report_runs (
           id, company_id, report_key, params, params_hash, requested_by,
@@ -197,14 +218,14 @@ export class ReportService {
           paramsHash,
           ctx.userId,
           'done',
-          rows.length,
+          totalRows,
           durationMs,
           ctx.userId,
           ctx.userId,
         ]
       );
 
-      // 6. Audit log entry
+      // 5. Audit log entry
       await this.auditService.recordEvent(
         ctx,
         {
@@ -214,7 +235,7 @@ export class ReportService {
           before: null,
           after: {
             reportKey: def.key,
-            rows: rows.length,
+            rows: totalRows,
             format,
             durationMs,
           },
@@ -223,7 +244,7 @@ export class ReportService {
       );
 
       logger.info(
-        { reportKey: def.key, runId, rows: rows.length, durationMs },
+        { reportKey: def.key, runId, rows: totalRows, durationMs },
         'Report successfully exported and stored in MinIO'
       );
 
@@ -231,7 +252,7 @@ export class ReportService {
         runId,
         reportKey: def.key,
         status: 'done',
-        rows: rows.length,
+        rows: totalRows,
         downloadUrl,
         expiresIn: 900,
         fileName,
@@ -272,11 +293,10 @@ export class ReportService {
   }
 
   /**
-   * Helper to format data into RFC 4180 compliant CSV.
+   * Helper to format rows into CSV chunk lines without header.
    */
-  private formatCsv(columns: Array<{ key: string; header: string }>, rows: Record<string, unknown>[]): string {
-    const headers = columns.map(c => `"${c.header.replace(/"/g, '""')}"`).join(',');
-    const bodyLines = rows.map(row => {
+  private formatCsvRows(columns: Array<{ key: string; header: string }>, rows: Record<string, unknown>[]): string {
+    return rows.map(row => {
       return columns
         .map(c => {
           const val = row[c.key];
@@ -287,8 +307,6 @@ export class ReportService {
           return `"${str.replace(/"/g, '""')}"`;
         })
         .join(',');
-    });
-
-    return [headers, ...bodyLines].join('\r\n');
+    }).join('\r\n');
   }
 }
