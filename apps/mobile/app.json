@@ -16,7 +16,11 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hrms.mobile"
+      "bundleIdentifier": "com.hrms.mobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Your location is used to verify geofence boundaries when you record attendance punches.",
+        "NSCameraUsageDescription": "Your camera is used to capture selfies when recording attendance punches if required by company policy."
+      }
     },
     "android": {
       "adaptiveIcon": {

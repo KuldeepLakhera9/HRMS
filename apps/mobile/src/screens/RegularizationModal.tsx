@@ -65,18 +65,21 @@ export function RegularizationModal({
     setIsSubmitting(true);
 
     try {
-      // Build ISO strings for requested times
-      const requestedIn = inTime.trim() ? `${date}T${inTime.trim()}:00.000Z` : undefined;
-      const requestedOut = outTime.trim() ? `${date}T${outTime.trim()}:00.000Z` : undefined;
+      // Map category to backend RegularizationRequestTypeEnum
+      let requestType: 'punch_missing' | 'in_time_change' | 'out_time_change' | 'on_duty' | 'work_from_home' = 'punch_missing';
+      if (category === 'on_duty') requestType = 'on_duty';
+      else if (category === 'work_from_home') requestType = 'work_from_home';
+      else if (category === 'incorrect_time') requestType = 'in_time_change';
+      else requestType = 'punch_missing';
 
       await apiClient('/api/v1/attendance/regularizations', {
         method: 'POST',
         body: JSON.stringify({
           date: date.trim(),
-          reasonCategory: category,
+          requestType,
           reason: reason.trim(),
-          requestedInTime: requestedIn,
-          requestedOutTime: requestedOut,
+          inTime: inTime.trim() || undefined,
+          outTime: outTime.trim() || undefined,
         }),
       });
 
