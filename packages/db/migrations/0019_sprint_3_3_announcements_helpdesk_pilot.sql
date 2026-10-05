@@ -160,6 +160,7 @@ CREATE TABLE IF NOT EXISTS data_migration_batches (
   idempotency_key text NOT NULL,
   created_by uuid NOT NULL,
   confirmed_by uuid,
+  updated_by uuid,
   reverted_at timestamptz,
   created_at timestamptz DEFAULT now() NOT NULL,
   updated_at timestamptz DEFAULT now() NOT NULL,

@@ -28,3 +28,4 @@ export * from './leave/index.js';
 export * from './report/index.js';
 export * from './announcement/index.js';
 export * from './helpdesk/index.js';
+export * from './migration/index.js';
