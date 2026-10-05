@@ -6,7 +6,6 @@ import { generateUuidV7 } from './id.js';
 export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
   daysCount: number;
   punchesCount: number;
-  exceptionsCount: number;
   regularizationsCount: number;
   elapsedMs: number;
 }> {
@@ -26,54 +25,52 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
     const companyId = compRes.rows[0].id;
     await client.query("SELECT set_config('app.company_id', $1, true)", [companyId]);
 
-    // 2. Resolve or create Default Shifts
+    // Admin user id for audit tracking
+    const adminRes = await client.query<{ id: string }>('SELECT id FROM users WHERE company_id = $1 LIMIT 1', [companyId]);
+    const adminUserId = adminRes.rows[0]?.id || generateUuidV7();
+
+    // 2. Resolve default work location or create if not present
+    const locRes = await client.query<{ id: string }>('SELECT id FROM work_locations WHERE company_id = $1 LIMIT 1', [companyId]);
+    let locationId = locRes.rows[0]?.id;
+    if (!locationId) {
+      locationId = generateUuidV7();
+      await client.query(
+        `INSERT INTO work_locations (id, company_id, code, name, timezone, center, radius_meters, created_by, updated_by)
+         VALUES ($1, $2, 'HQ', 'Headquarters', 'Asia/Kolkata', ST_SetSRID(ST_MakePoint(77.594562, 12.971598), 4326)::geography, 100, $3, $3)
+         ON CONFLICT (company_id, code) WHERE deleted_at IS NULL DO NOTHING`,
+        [locationId, companyId, adminUserId],
+      );
+    }
+
+    // 3. Resolve or create Default Shifts
     const shiftRes = await client.query<{ id: string; code: string }>(
       'SELECT id, code FROM shifts WHERE company_id = $1',
       [companyId],
     );
 
     let generalShiftId = shiftRes.rows.find(s => s.code === 'GEN')?.id;
-    let morningShiftId = shiftRes.rows.find(s => s.code === 'MRN')?.id;
-    let nightShiftId = shiftRes.rows.find(s => s.code === 'NGT')?.id;
 
     if (!generalShiftId) {
       generalShiftId = generateUuidV7();
       await client.query(
-        `INSERT INTO shifts (id, company_id, code, name, start_time, end_time, crosses_midnight, is_night_shift, break_duration_minutes)
-         VALUES ($1, $2, 'GEN', 'General Shift', '09:00:00', '18:00:00', false, false, 60)`,
-        [generalShiftId, companyId],
+        `INSERT INTO shifts (id, company_id, code, name, start_time, end_time, crosses_midnight, grace_minutes, break_minutes, work_hours, created_by, updated_by)
+         VALUES ($1, $2, 'GEN', 'General Shift', '09:00:00', '18:00:00', false, 15, 60, 8.00, $3, $3)
+         ON CONFLICT (company_id, code) DO NOTHING`,
+        [generalShiftId, companyId, adminUserId],
       );
     }
 
-    if (!morningShiftId) {
-      morningShiftId = generateUuidV7();
-      await client.query(
-        `INSERT INTO shifts (id, company_id, code, name, start_time, end_time, crosses_midnight, is_night_shift, break_duration_minutes)
-         VALUES ($1, $2, 'MRN', 'Morning Shift', '06:00:00', '14:30:00', false, false, 30)`,
-        [morningShiftId, companyId],
-      );
-    }
-
-    if (!nightShiftId) {
-      nightShiftId = generateUuidV7();
-      await client.query(
-        `INSERT INTO shifts (id, company_id, code, name, start_time, end_time, crosses_midnight, is_night_shift, break_duration_minutes)
-         VALUES ($1, $2, 'NGT', 'Night Shift', '22:00:00', '06:30:00', true, true, 45)`,
-        [nightShiftId, companyId],
-      );
-    }
-
-    // 3. Resolve or create Biometric Devices
+    // 4. Resolve or create Biometric Device
     const bioDevId = generateUuidV7();
     const hmacKey = crypto.randomBytes(32).toString('hex');
     await client.query(
-      `INSERT INTO biometric_devices (id, company_id, device_identifier, name, location, ip_address, hmac_secret_enc, hmac_key_id, is_active)
-       VALUES ($1, $2, 'BIO-GATE-HQ-01', 'HQ Main Turnstile', 'Bangalore HQ Gate 1', '192.168.10.50', $3, 'v1', true)
-       ON CONFLICT (company_id, device_identifier) DO NOTHING`,
-      [bioDevId, companyId, hmacKey],
+      `INSERT INTO biometric_devices (id, company_id, device_id, name, ip_cidr, hmac_secret, location_id, is_active, created_by, updated_by)
+       VALUES ($1, $2, 'BIO-GATE-HQ-01', 'HQ Main Turnstile', '192.168.10.0/24', $3, $4, true, $5, $5)
+       ON CONFLICT (company_id, device_id) DO NOTHING`,
+      [bioDevId, companyId, hmacKey, locationId, adminUserId],
     );
 
-    // 4. Fetch up to 5,000 employees
+    // 5. Fetch up to 5,000 employees
     const empRes = await client.query<{ id: string; emp_code: string }>(
       'SELECT id, emp_code FROM employees WHERE company_id = $1 ORDER BY emp_code ASC LIMIT 5000',
       [companyId],
@@ -85,41 +82,41 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
     }
     console.info(`[Attendance Load Seed] Seeding attendance for ${employees.length} employees...`);
 
-    // 5. Generate Dates (e.g. past 14 days)
+    // 6. Generate Dates (past 14 days)
     const today = new Date();
     const dates: string[] = [];
     for (let d = 14; d >= 1; d--) {
       const dt = new Date(today);
       dt.setDate(dt.getDate() - d);
-      // Skip Sundays
-      if (dt.getDay() !== 0) {
+      if (dt.getDay() !== 0) { // Skip Sundays
         dates.push(dt.toISOString().slice(0, 10));
       }
     }
 
     let totalDaysInserted = 0;
     let totalPunchesInserted = 0;
-    let totalExceptionsInserted = 0;
     let totalRegsInserted = 0;
 
-    // Process employees in chunks of 500
-    const EMP_CHUNK = 500;
+    // Process employees in chunks of 100 to stay well under PostgreSQL 65,535 param limit
+    const EMP_CHUNK = 100;
     for (let c = 0; c < employees.length; c += EMP_CHUNK) {
       const empChunk = employees.slice(c, c + EMP_CHUNK);
       const dayValues: string[] = [];
-      const dayParams: unknown[] = [companyId];
-      let dIdx = 2;
+      const dayParams: unknown[] = [companyId, adminUserId];
+      let dIdx = 3;
 
       for (const emp of empChunk) {
         for (const dateStr of dates) {
           const dayId = generateUuidV7();
           const empNum = parseInt(emp.emp_code.replace(/\D/g, ''), 10) || 1;
-          const isWeekend = (empNum + dateStr.charCodeAt(9)) % 7 === 6; // Saturdays for some
+          const isWeekend = (empNum + dateStr.charCodeAt(9)) % 7 === 6;
 
           let status = 'present';
           let firstInTime: string | null = null;
           let lastOutTime: string | null = null;
           let workMinutes = 480;
+          let lateInMinutes = 0;
+          const earlyOutMinutes = 0;
 
           if (isWeekend) {
             status = 'weekly_off';
@@ -136,7 +133,6 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
             status = 'on_leave';
             workMinutes = 0;
           } else {
-            // Normal present
             const inMin = 8 * 60 + 55 + (empNum % 25);
             const inH = Math.floor(inMin / 60);
             const inM = inMin % 60;
@@ -146,13 +142,18 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
             const outH = Math.floor(outMin / 60);
             const outM = outMin % 60;
             lastOutTime = `${dateStr}T${String(outH).padStart(2, '0')}:${String(outM).padStart(2, '0')}:00.000Z`;
+
+            if (inMin > 9 * 60 + 15) {
+              lateInMinutes = inMin - (9 * 60);
+            }
           }
 
           const isReg = empNum % 41 === 0 && status === 'present';
 
           dayValues.push(`(
             $${dIdx++}, $1, $${dIdx++}, $${dIdx++}, $${dIdx++}, $${dIdx++},
-            $${dIdx++}, $${dIdx++}, $${dIdx++}, $${dIdx++}, $${dIdx++}, $${dIdx++}
+            $${dIdx++}, $${dIdx++}, $${dIdx++}, $${dIdx++}, $${dIdx++},
+            $${dIdx++}, 0, $${dIdx++}, $${dIdx++}, false, 1, 'seed-hash', $2, $2
           )`);
 
           dayParams.push(
@@ -160,12 +161,14 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
             emp.id,
             dateStr,
             generalShiftId,
-            status,
             firstInTime,
             lastOutTime,
+            firstInTime ? 2 : 0, // punch_count
             workMinutes,
-            60, // break minutes
-            0,  // overtime minutes
+            workMinutes, // effective_minutes
+            lateInMinutes,
+            earlyOutMinutes,
+            status,
             isReg,
           );
         }
@@ -174,12 +177,13 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
       if (dayValues.length > 0) {
         const insertDaysSql = `
           INSERT INTO attendance_days (
-            id, company_id, employee_id, date, shift_id, status,
-            first_in_at, last_out_at, total_work_minutes, total_break_minutes,
-            overtime_minutes, is_regularized
+            id, company_id, employee_id, work_date, shift_id,
+            first_in, last_out, punch_count, total_work_minutes, effective_minutes,
+            late_in_minutes, early_out_minutes, overtime_minutes, status, is_regularized,
+            is_locked, rule_version, source_hash, created_by, updated_by
           )
           VALUES ${dayValues.join(',\n')}
-          ON CONFLICT (company_id, employee_id, date) DO NOTHING
+          ON CONFLICT (company_id, employee_id, work_date) DO NOTHING
         `;
         await client.query(insertDaysSql, dayParams);
         totalDaysInserted += dayValues.length;
@@ -190,7 +194,7 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
       );
     }
 
-    // 6. Insert sample realistic Punches for today and yesterday (to power Live Board & Recent punch audits)
+    // 7. Insert live sample punches for today and yesterday
     const punchValues: string[] = [];
     const punchParams: unknown[] = [companyId];
     let pIdx = 2;
@@ -205,8 +209,9 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
       const isBiometric = empNum % 3 === 0;
 
       punchValues.push(`(
-        $${pIdx++}, $1, $${pIdx++}, 'in', $${pIdx++}, $${pIdx++},
-        $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, false, null
+        $${pIdx++}, $1, $${pIdx++}, $${pIdx++}, 'in', $${pIdx++}, $${pIdx++},
+        ST_SetSRID(ST_MakePoint(77.594562, 12.971598), 4326)::geography, 4.5, true, 15,
+        'valid', 'PUNCH_SUCCESS', '{}', false, NOW()
       )`);
 
       punchParams.push(
@@ -214,11 +219,7 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
         emp.id,
         inTime,
         isBiometric ? 'biometric' : 'mobile',
-        12.971598,
-        77.594562,
-        4.5,
-        15, // 15m from center
-        true, // isInsideGeofence
+        punchDate,
       );
 
       // Out punch for some
@@ -227,8 +228,9 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
         const outTime = `${punchDate}T18:${String(empNum % 45).padStart(2, '0')}:22.000Z`;
 
         punchValues.push(`(
-          $${pIdx++}, $1, $${pIdx++}, 'out', $${pIdx++}, $${pIdx++},
-          $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, false, null
+          $${pIdx++}, $1, $${pIdx++}, $${pIdx++}, 'out', $${pIdx++}, $${pIdx++},
+          ST_SetSRID(ST_MakePoint(77.594562, 12.971598), 4326)::geography, 5.0, true, 18,
+          'valid', 'PUNCH_SUCCESS', '{}', false, NOW()
         )`);
 
         punchParams.push(
@@ -236,11 +238,7 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
           emp.id,
           outTime,
           isBiometric ? 'biometric' : 'mobile',
-          12.971598,
-          77.594562,
-          5.0,
-          18,
-          true,
+          punchDate,
         );
       }
     }
@@ -248,63 +246,21 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
     if (punchValues.length > 0) {
       const insertPunchesSql = `
         INSERT INTO attendance_punches (
-          id, company_id, employee_id, punch_type, punch_time, source,
-          latitude, longitude, accuracy_meters, distance_meters, is_inside_geofence,
-          is_synthetic, synthetic_reason
+          id, company_id, employee_id, punch_time, punch_type, source, work_date,
+          location_coords, gps_accuracy, is_inside_geofence, distance_meters,
+          status, reason_code, flag_reasons, is_synthetic, created_at
         )
         VALUES ${punchValues.join(',\n')}
-        ON CONFLICT (company_id, id) DO NOTHING
       `;
       await client.query(insertPunchesSql, punchParams);
       totalPunchesInserted = punchValues.length;
     }
 
-    // 7. Seed sample Exceptions
-    const excDate = dates[dates.length - 2] || punchDate;
-    const excEmployees = employees.slice(0, 50);
-    const excValues: string[] = [];
-    const excParams: unknown[] = [companyId];
-    let eIdx = 2;
-
-    for (let i = 0; i < excEmployees.length; i++) {
-      const emp = excEmployees[i]!;
-      const excId = generateUuidV7();
-      const excType = i % 3 === 0 ? 'missing_out_punch' : i % 3 === 1 ? 'geofence_violation' : 'biometric_mismatch';
-      const severity = i % 2 === 0 ? 'medium' : 'high';
-
-      excValues.push(`(
-        $${eIdx++}, $1, $${eIdx++}, $${eIdx++}, $${eIdx++}, $${eIdx++},
-        'pending', $${eIdx++}
-      )`);
-
-      excParams.push(
-        excId,
-        emp.id,
-        excDate,
-        excType,
-        severity,
-        JSON.stringify({ notes: `Automated anomaly detected for ${excType}`, employeeCode: emp.emp_code }),
-      );
-    }
-
-    if (excValues.length > 0) {
-      const insertExcSql = `
-        INSERT INTO attendance_exceptions (
-          id, company_id, employee_id, date, exception_type, severity,
-          resolution_status, details
-        )
-        VALUES ${excValues.join(',\n')}
-        ON CONFLICT (company_id, id) DO NOTHING
-      `;
-      await client.query(insertExcSql, excParams);
-      totalExceptionsInserted = excValues.length;
-    }
-
-    // 8. Seed sample Regularizations
+    // 8. Seed sample Regularization Requests
     const regEmployees = employees.slice(50, 75);
     const regValues: string[] = [];
-    const regParams: unknown[] = [companyId];
-    let rIdx = 2;
+    const regParams: unknown[] = [companyId, adminUserId];
+    let rIdx = 3;
 
     for (let i = 0; i < regEmployees.length; i++) {
       const emp = regEmployees[i]!;
@@ -312,26 +268,24 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
       const status = i % 3 === 0 ? 'pending' : i % 3 === 1 ? 'approved' : 'rejected';
 
       regValues.push(`(
-        $${rIdx++}, $1, $${rIdx++}, $${rIdx++}, 'missing_punch',
+        $${rIdx++}, $1, $${rIdx++}, $${rIdx++}, 'punch_missing',
         'Official client site meeting during morning shift',
-        $${rIdx++}, $${rIdx++}, $${rIdx++}
+        '09:00', '18:00', $${rIdx++}, $2, $2
       )`);
 
       regParams.push(
         regId,
         emp.id,
-        excDate,
-        `${excDate}T09:00:00.000Z`,
-        `${excDate}T18:00:00.000Z`,
+        punchDate,
         status,
       );
     }
 
     if (regValues.length > 0) {
       const insertRegSql = `
-        INSERT INTO attendance_regularizations (
-          id, company_id, employee_id, date, reason_category, reason,
-          requested_in_time, requested_out_time, status
+        INSERT INTO attendance_regularization_requests (
+          id, company_id, employee_id, date, request_type, reason,
+          in_time, out_time, status, created_by, updated_by
         )
         VALUES ${regValues.join(',\n')}
         ON CONFLICT (company_id, id) DO NOTHING
@@ -343,13 +297,12 @@ export async function seedAttendanceLoadData(poolOverride?: pg.Pool): Promise<{
     await client.query('COMMIT');
     const elapsedMs = Date.now() - startTime;
     console.info(
-      `[Attendance Load Seed] Complete! Inserted ${totalDaysInserted} attendance days, ${totalPunchesInserted} punches, ${totalExceptionsInserted} exceptions, ${totalRegsInserted} regularizations in ${elapsedMs}ms.`,
+      `[Attendance Load Seed] Complete! Inserted ${totalDaysInserted} attendance days, ${totalPunchesInserted} punches, ${totalRegsInserted} regularizations in ${elapsedMs}ms.`,
     );
 
     return {
       daysCount: totalDaysInserted,
       punchesCount: totalPunchesInserted,
-      exceptionsCount: totalExceptionsInserted,
       regularizationsCount: totalRegsInserted,
       elapsedMs,
     };
