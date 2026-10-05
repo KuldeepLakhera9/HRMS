@@ -196,53 +196,53 @@ export class HolidayService {
     endDate: string,   // 'YYYY-MM-DD'
     client: pg.PoolClient,
   ): Promise<Holiday[]> {
-    // 1. Check for location-specific holiday list if employee has location
-    if (locationId) {
-      const locListRes = await client.query<HolidayList>(
-        `SELECT hl.*
-         FROM holiday_lists hl
-         WHERE hl.company_id = $1
-           AND hl.location_id = $2
-         LIMIT 1`,
-        [companyId, locationId],
-      );
-
-      if (locListRes.rows.length > 0 && locListRes.rows[0]) {
-        const holidaysRes = await client.query<Holiday>(
-          `SELECT * FROM holidays
-           WHERE company_id = $1
-             AND list_id = $2
-             AND date >= $3
-             AND date <= $4
-           ORDER BY date ASC`,
-          [companyId, locListRes.rows[0].id, startDate, endDate],
-        );
-        return holidaysRes.rows;
-      }
-    }
-
-    // 2. Fall back to default holiday list
-    const defaultListRes = await client.query<HolidayList>(
-      `SELECT * FROM holiday_lists
-       WHERE company_id = $1
-         AND is_default = true
-       LIMIT 1`,
-      [companyId],
+    const res = await client.query<Holiday>(
+      `SELECT h.*
+       FROM holidays h
+       JOIN holiday_lists hl ON hl.company_id = h.company_id AND hl.id = h.list_id
+       WHERE h.company_id = $1
+         AND (
+           ($2::uuid IS NOT NULL AND hl.location_id = $2::uuid)
+           OR ($2::uuid IS NULL AND hl.is_default = true)
+           OR (hl.is_default = true AND NOT EXISTS (
+             SELECT 1 FROM holiday_lists loc_hl
+             WHERE loc_hl.company_id = $1 AND loc_hl.location_id = $2::uuid
+           ))
+         )
+         AND h.date >= $3
+         AND h.date <= $4
+       ORDER BY h.date ASC`,
+      [companyId, locationId ?? null, startDate, endDate],
     );
 
-    if (defaultListRes.rows.length > 0 && defaultListRes.rows[0]) {
-      const holidaysRes = await client.query<Holiday>(
-        `SELECT * FROM holidays
-         WHERE company_id = $1
-           AND list_id = $2
-           AND date >= $3
-           AND date <= $4
-         ORDER BY date ASC`,
-        [companyId, defaultListRes.rows[0].id, startDate, endDate],
-      );
-      return holidaysRes.rows;
-    }
+    return res.rows;
+  }
 
-    return [];
+  /**
+   * Lists holidays for a tenant by year and optional location.
+   */
+  async listAllHolidays(
+    ctx: RequestContext,
+    options?: { year?: number; locationId?: string },
+    poolOverride?: pg.Pool,
+  ): Promise<Holiday[]> {
+    if (!ctx.isAuthenticated) {
+      throw new ForbiddenError('Authentication required.');
+    }
+    const pool = poolOverride ?? getAppPool();
+    const year = options?.year ?? new Date().getFullYear();
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+
+    return withTenant(ctx, async (_tx, client) => {
+      return this.resolveHolidaysForEmployee(
+        ctx.companyId,
+        options?.locationId,
+        startDate,
+        endDate,
+        client,
+      );
+    }, pool);
   }
 }
+

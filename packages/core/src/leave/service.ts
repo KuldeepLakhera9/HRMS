@@ -134,6 +134,15 @@ export class LeaveService {
     const pool = poolOverride ?? getAppPool();
     const periodKey = DateTime.fromISO(input.fromDate).toFormat('yyyy');
 
+    // Resolve policy (Redis-cached) outside transaction
+    const policyRes = await this.policyResolver.resolvePolicy(
+      ctx.companyId,
+      targetEmployeeId,
+      input.leaveTypeId,
+      pool,
+    );
+    const policy = policyRes?.policy;
+
     return withTenant(ctx, async (_tx, client) => {
       // 1. Fetch employee details
       const empRes = await client.query<{
@@ -147,9 +156,11 @@ export class LeaveService {
         first_name: string;
         last_name: string;
       }>(
-        `SELECT id, doj, gender, employment_type, location_id, department_id, timezone, first_name, last_name
-         FROM employees
-         WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL
+        `SELECT e.id, e.doj, e.gender, e.employment_type, e.location_id, e.department_id,
+                COALESCE(loc.timezone, 'Asia/Kolkata') as timezone, e.first_name, e.last_name
+         FROM employees e
+         LEFT JOIN work_locations loc ON loc.company_id = e.company_id AND loc.id = e.location_id
+         WHERE e.company_id = $1 AND e.id = $2 AND e.deleted_at IS NULL
          LIMIT 1`,
         [ctx.companyId, targetEmployeeId],
       );
@@ -159,7 +170,7 @@ export class LeaveService {
         throw new NotFoundError(`Employee ${targetEmployeeId} not found.`);
       }
 
-      // 2. Resolve leave type & policy
+      // 2. Resolve leave type
       const ltRes = await client.query<LeaveType>(
         `SELECT * FROM leave_types WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL LIMIT 1`,
         [ctx.companyId, input.leaveTypeId],
@@ -168,14 +179,6 @@ export class LeaveService {
       if (!leaveType) {
         throw new NotFoundError(`Leave type ${input.leaveTypeId} not found.`);
       }
-
-      const policyRes = await this.policyResolver.resolvePolicy(
-        ctx.companyId,
-        targetEmployeeId,
-        input.leaveTypeId,
-        pool,
-      );
-      const policy = policyRes?.policy;
 
       // 3. Fetch current balance
       const balance = await this.balanceRepo.getOrCreateBalance(
@@ -267,20 +270,22 @@ export class LeaveService {
         timezone: emp.timezone ?? 'Asia/Kolkata',
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rawLt = leaveType as any;
       const leaveTypePolicyInput: LeaveTypePolicyInput = {
         code: leaveType.code,
         name: leaveType.name,
-        isPaid: leaveType.isPaid,
-        unit: leaveType.unit,
-        allowHalfDay: leaveType.allowHalfDay,
-        allowHourly: leaveType.allowHourly,
-        minNoticeDays: leaveType.minNoticeDays,
-        maxConsecutiveDays: leaveType.maxConsecutiveDays,
-        requiresDocumentAfterDays: leaveType.requiresDocumentAfterDays,
-        sandwichRule: leaveType.sandwichRule,
-        allowNegativeBalance: leaveType.allowNegativeBalance,
-        negativeLimit: parseFloat(leaveType.negativeLimit),
-        applicableTo: leaveType.applicableTo,
+        isPaid: rawLt.is_paid !== undefined ? Boolean(rawLt.is_paid) : (leaveType.isPaid ?? true),
+        unit: rawLt.unit ?? leaveType.unit ?? 'day',
+        allowHalfDay: rawLt.allow_half_day !== undefined ? Boolean(rawLt.allow_half_day) : (leaveType.allowHalfDay ?? true),
+        allowHourly: rawLt.allow_hourly !== undefined ? Boolean(rawLt.allow_hourly) : (leaveType.allowHourly ?? false),
+        minNoticeDays: rawLt.min_notice_days != null ? Number(rawLt.min_notice_days) : (leaveType.minNoticeDays ?? 0),
+        maxConsecutiveDays: rawLt.max_consecutive_days != null ? Number(rawLt.max_consecutive_days) : (leaveType.maxConsecutiveDays ?? null),
+        requiresDocumentAfterDays: rawLt.requires_document_after_days != null ? Number(rawLt.requires_document_after_days) : (leaveType.requiresDocumentAfterDays ?? null),
+        sandwichRule: rawLt.sandwich_rule ?? leaveType.sandwichRule ?? 'none',
+        allowNegativeBalance: rawLt.allow_negative_balance !== undefined ? Boolean(rawLt.allow_negative_balance) : (leaveType.allowNegativeBalance ?? false),
+        negativeLimit: rawLt.negative_limit !== undefined ? parseFloat(rawLt.negative_limit) : (leaveType.negativeLimit ? parseFloat(leaveType.negativeLimit) : 0),
+        applicableTo: rawLt.applicable_to ?? leaveType.applicableTo,
         maxBalance: policy?.maxBalance ? parseFloat(policy.maxBalance) : undefined,
         probationRule: policy?.probationRule,
       };
@@ -370,8 +375,16 @@ export class LeaveService {
     const periodKey = DateTime.fromISO(input.fromDate).toFormat('yyyy');
     const requestId = generateUuidV7();
 
-    return withTenant(ctx, async (_tx, client) => {
-      // 1. Fetch employee
+    // 1. Resolve policy (Redis-cached) outside transaction to avoid nested connection starvation
+    const policyRes = await this.policyResolver.resolvePolicy(
+      ctx.companyId,
+      targetEmployeeId,
+      input.leaveTypeId,
+      pool,
+    );
+
+    const writeResult = await withTenant(ctx, async (_tx, client) => {
+      // 2. Fetch employee
       const empRes = await client.query<{
         id: string;
         doj: string;
@@ -381,9 +394,11 @@ export class LeaveService {
         department_id: string | null;
         timezone: string | null;
       }>(
-        `SELECT id, doj, gender, employment_type, location_id, department_id, timezone
-         FROM employees
-         WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL
+        `SELECT e.id, e.doj, e.gender, e.employment_type, e.location_id, e.department_id,
+                COALESCE(loc.timezone, 'Asia/Kolkata') as timezone
+         FROM employees e
+         LEFT JOIN work_locations loc ON loc.company_id = e.company_id AND loc.id = e.location_id
+         WHERE e.company_id = $1 AND e.id = $2 AND e.deleted_at IS NULL
          LIMIT 1`,
         [ctx.companyId, targetEmployeeId],
       );
@@ -393,7 +408,7 @@ export class LeaveService {
         throw new NotFoundError(`Employee ${targetEmployeeId} not found.`);
       }
 
-      // 2. Fetch leave type & policy
+      // 3. Fetch leave type
       const ltRes = await client.query<LeaveType>(
         `SELECT * FROM leave_types WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL LIMIT 1`,
         [ctx.companyId, input.leaveTypeId],
@@ -403,14 +418,7 @@ export class LeaveService {
         throw new NotFoundError(`Leave type ${input.leaveTypeId} not found.`);
       }
 
-      const policyRes = await this.policyResolver.resolvePolicy(
-        ctx.companyId,
-        targetEmployeeId,
-        input.leaveTypeId,
-        pool,
-      );
-
-      // 3. Acquire ROW-LEVEL LOCK on leave balance
+      // 4. Acquire ROW-LEVEL LOCK on leave balance
       const balance = await this.balanceRepo.lockBalanceForUpdate(
         ctx.companyId,
         targetEmployeeId,
@@ -469,20 +477,22 @@ export class LeaveService {
       };
 
       const policy = policyRes?.policy;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rawLt = leaveType as any;
       const leaveTypePolicyInput: LeaveTypePolicyInput = {
         code: leaveType.code,
         name: leaveType.name,
-        isPaid: leaveType.isPaid,
-        unit: leaveType.unit,
-        allowHalfDay: leaveType.allowHalfDay,
-        allowHourly: leaveType.allowHourly,
-        minNoticeDays: leaveType.minNoticeDays,
-        maxConsecutiveDays: leaveType.maxConsecutiveDays,
-        requiresDocumentAfterDays: leaveType.requiresDocumentAfterDays,
-        sandwichRule: leaveType.sandwichRule,
-        allowNegativeBalance: leaveType.allowNegativeBalance,
-        negativeLimit: parseFloat(leaveType.negativeLimit),
-        applicableTo: leaveType.applicableTo,
+        isPaid: rawLt.is_paid !== undefined ? Boolean(rawLt.is_paid) : (leaveType.isPaid ?? true),
+        unit: rawLt.unit ?? leaveType.unit ?? 'day',
+        allowHalfDay: rawLt.allow_half_day !== undefined ? Boolean(rawLt.allow_half_day) : (leaveType.allowHalfDay ?? true),
+        allowHourly: rawLt.allow_hourly !== undefined ? Boolean(rawLt.allow_hourly) : (leaveType.allowHourly ?? false),
+        minNoticeDays: rawLt.min_notice_days != null ? Number(rawLt.min_notice_days) : (leaveType.minNoticeDays ?? 0),
+        maxConsecutiveDays: rawLt.max_consecutive_days != null ? Number(rawLt.max_consecutive_days) : (leaveType.maxConsecutiveDays ?? null),
+        requiresDocumentAfterDays: rawLt.requires_document_after_days != null ? Number(rawLt.requires_document_after_days) : (leaveType.requiresDocumentAfterDays ?? null),
+        sandwichRule: rawLt.sandwich_rule ?? leaveType.sandwichRule ?? 'none',
+        allowNegativeBalance: rawLt.allow_negative_balance !== undefined ? Boolean(rawLt.allow_negative_balance) : (leaveType.allowNegativeBalance ?? false),
+        negativeLimit: rawLt.negative_limit !== undefined ? parseFloat(rawLt.negative_limit) : (leaveType.negativeLimit ? parseFloat(leaveType.negativeLimit) : 0),
+        applicableTo: rawLt.applicable_to ?? leaveType.applicableTo,
         maxBalance: policy?.maxBalance ? parseFloat(policy.maxBalance) : undefined,
         probationRule: policy?.probationRule,
       };
@@ -563,11 +573,12 @@ export class LeaveService {
           await client.query<LeaveRequestDay>(
             `INSERT INTO leave_request_days (
               id, company_id, request_id, employee_id, leave_date,
-              period_start, period_end, part, days, status, is_paid,
+              period, part, days, status, is_paid,
               created_at, updated_at
             ) VALUES (
               $1, $2, $3, $4, $5,
-              $6, $7, $8, $9, 'pending', $10,
+              tstzrange($6::timestamptz, $7::timestamptz, '[)'),
+              $8, $9, 'pending', $10,
               now(), now()
             )`,
             [
@@ -580,12 +591,17 @@ export class LeaveService {
               day.periodEnd,
               day.part,
               day.days,
-              day.isPaid,
+              day.isPaid ?? leaveTypePolicyInput.isPaid ?? true,
             ],
           );
         } catch (err) {
           const msg = (err as Error).message;
-          if (msg.includes('leave_request_days_no_overlap') || msg.includes('conflict') || msg.includes('duplicate')) {
+          if (
+            msg.includes('ex_leave_request_days_overlap') ||
+            msg.includes('conflict') ||
+            msg.includes('overlap') ||
+            msg.includes('exclusion')
+          ) {
             throw new ConflictError(`Leave dates overlap with another pending or approved request on ${day.date}.`);
           }
           throw err;
@@ -601,45 +617,6 @@ export class LeaveService {
         client,
       );
 
-      // 9. Submit workflow request
-      try {
-        const wfRes = await this.workflowService.submitRequest(ctx, {
-          definitionCode: 'leave',
-          entityType: 'leave_requests',
-          entityId: requestId,
-          requesterId: targetEmployeeId,
-          payload: {
-            days: computeRes.totalDays,
-            leaveTypeCode: leaveType.code,
-            employeeId: targetEmployeeId,
-            reason: input.reason,
-          },
-        }, pool);
-
-        await client.query(
-          `UPDATE leave_requests SET workflow_request_id = $1 WHERE company_id = $2 AND id = $3`,
-          [wfRes.requestId, ctx.companyId, requestId],
-        );
-      } catch {
-        // If workflow definition not yet configured, leave workflow_request_id null
-      }
-
-      // 10. Emit transactional outbox event
-      await this.auditService.recordOutboxEvent(
-        ctx,
-        'leave_request',
-        'leave.requested',
-        {
-          requestId,
-          employeeId: targetEmployeeId,
-          leaveTypeId: input.leaveTypeId,
-          fromDate: input.fromDate,
-          toDate: input.toDate,
-          days: computeRes.totalDays,
-        },
-        client,
-      );
-
       await this.auditService.recordEvent(ctx, {
         action: 'leave.request.submit',
         entity: 'leave_requests',
@@ -652,8 +629,33 @@ export class LeaveService {
         },
       });
 
-      return { request, breakdown: computeRes.days };
+      return { request, breakdown: computeRes.days, totalDays: computeRes.totalDays, leaveTypeCode: leaveType.code };
     }, pool);
+
+    // 9. Submit workflow request outside write transaction to avoid nested connection starvation
+    try {
+      const wfRes = await this.workflowService.submitRequest(ctx, {
+        definitionCode: 'leave',
+        entityType: 'leave_requests',
+        entityId: requestId,
+        requesterId: targetEmployeeId,
+        payload: {
+          days: writeResult.totalDays,
+          leaveTypeCode: writeResult.leaveTypeCode,
+          employeeId: targetEmployeeId,
+          reason: input.reason,
+        },
+      }, pool);
+
+      await pool.query(
+        `UPDATE leave_requests SET workflow_request_id = $1 WHERE company_id = $2 AND id = $3`,
+        [wfRes.requestId, ctx.companyId, requestId],
+      );
+    } catch {
+      // If workflow definition not yet configured, leave workflow_request_id null
+    }
+
+    return { request: writeResult.request, breakdown: writeResult.breakdown };
   }
 
   /**
@@ -1294,4 +1296,213 @@ export class LeaveService {
       }));
     }, pool);
   }
+
+  /**
+   * Retrieves a single leave request by ID including its day breakdown.
+   */
+  async getRequestById(
+    ctx: RequestContext,
+    requestId: string,
+    poolOverride?: pg.Pool,
+  ) {
+    if (!ctx.isAuthenticated) {
+      throw new ForbiddenError('Authentication required.');
+    }
+
+    const pool = poolOverride ?? getAppPool();
+
+    return withTenant(ctx, async (_tx, client) => {
+      const res = await client.query<{
+        id: string;
+        employee_id: string;
+        leave_type_id: string;
+        from_date: string;
+        to_date: string;
+        from_part: string;
+        to_part: string;
+        days: string;
+        reason: string;
+        status: string;
+        workflow_request_id: string | null;
+        created_at: string;
+        code: string;
+        name: string;
+        first_name: string;
+        last_name: string;
+      }>(
+        `SELECT
+           r.*,
+           lt.code,
+           lt.name,
+           e.first_name,
+           e.last_name
+         FROM leave_requests r
+         JOIN leave_types lt ON lt.company_id = r.company_id AND lt.id = r.leave_type_id
+         JOIN employees e ON e.company_id = r.company_id AND e.id = r.employee_id
+         WHERE r.company_id = $1 AND r.id = $2`,
+        [ctx.companyId, requestId],
+      );
+
+      const r = res.rows[0];
+      if (!r) {
+        throw new NotFoundError('Leave request not found.');
+      }
+
+      // IDOR check: caller must own or have permission
+      if (r.employee_id !== ctx.employeeId) {
+        can(ctx, PERMISSIONS.LEAVE_REQUEST_READ);
+      }
+
+      const daysRes = await client.query<{
+        date: string;
+        part: string;
+        days: string;
+        is_paid: boolean;
+        is_sandwich: boolean;
+        status: string;
+      }>(
+        `SELECT date, part, days, is_paid, is_sandwich, status
+         FROM leave_request_days
+         WHERE company_id = $1 AND request_id = $2
+         ORDER BY date ASC`,
+        [ctx.companyId, requestId],
+      );
+
+      return {
+        id: r.id,
+        employeeId: r.employee_id,
+        employeeName: `${r.first_name} ${r.last_name}`.trim(),
+        leaveTypeId: r.leave_type_id,
+        leaveTypeCode: r.code,
+        leaveTypeName: r.name,
+        fromDate: r.from_date,
+        toDate: r.to_date,
+        fromPart: r.from_part,
+        toPart: r.to_part,
+        days: parseFloat(r.days),
+        reason: r.reason,
+        status: r.status,
+        workflowRequestId: r.workflow_request_id,
+        createdAt: r.created_at,
+        daysBreakdown: daysRes.rows.map(d => ({
+          date: d.date,
+          part: d.part,
+          days: parseFloat(d.days),
+          isPaid: d.is_paid,
+          isSandwich: d.is_sandwich,
+          status: d.status,
+        })),
+      };
+    }, pool);
+  }
+
+  /**
+   * Adjusts an employee's leave balance manually (admin/HR action).
+   * Appends an immutable ledger entry and updates the balance row under FOR UPDATE lock.
+   */
+  async adjustBalance(
+    ctx: RequestContext,
+    input: {
+      employeeId: string;
+      leaveTypeId: string;
+      amount: number;
+      reason: string;
+      year?: number | undefined;
+    },
+    poolOverride?: pg.Pool,
+  ) {
+    if (!ctx.isAuthenticated) {
+      throw new ForbiddenError('Authentication required.');
+    }
+    can(ctx, PERMISSIONS.LEAVE_BALANCE_ADJUST);
+
+    if (input.amount === 0) {
+      throw new ValidationError('Adjustment amount must be non-zero.');
+    }
+    if (!input.reason || input.reason.trim().length === 0) {
+      throw new ValidationError('Reason is required for manual balance adjustment.');
+    }
+
+    const year = input.year ?? DateTime.now().year;
+    const periodKey = `${year}`;
+    const pool = poolOverride ?? getAppPool();
+
+    return withTenant(ctx, async (_tx, client) => {
+      // 1. Lock the balance row
+      const balance = await this.balanceRepo.lockBalanceForUpdate(
+        ctx.companyId,
+        input.employeeId,
+        input.leaveTypeId,
+        periodKey,
+        client,
+      );
+
+      const currentAdjusted = parseFloat(balance.adjusted);
+      const newAdjusted = Math.round((currentAdjusted + input.amount) * 1000) / 1000;
+
+      // 2. Update balance record
+      const updatedBalance = await this.balanceRepo.updateBalance(
+        ctx.companyId,
+        balance.id,
+        { adjusted: newAdjusted },
+        client,
+      );
+
+      // 3. Append to immutable ledger
+      const todayStr = DateTime.now().toISODate()!;
+      await this.ledgerRepo.recordEntry(
+        ctx.companyId,
+        {
+          employeeId: input.employeeId,
+          leaveTypeId: input.leaveTypeId,
+          periodKey,
+          entryType: 'adjustment',
+          deltaDays: input.amount,
+          effectiveDate: todayStr,
+          refType: 'manual_adjustment',
+          reason: input.reason,
+          createdBy: ctx.userId ?? 'system',
+        },
+        client,
+      );
+
+      // 4. Audit log
+      await this.auditService.recordEvent(ctx, {
+        action: 'leave.balance.adjust',
+        entity: 'leave_balances',
+        entityId: balance.id,
+        after: {
+          employeeId: input.employeeId,
+          leaveTypeId: input.leaveTypeId,
+          amount: input.amount,
+          newClosing: updatedBalance.closing,
+          reason: input.reason,
+        },
+      });
+
+      return updatedBalance;
+    }, pool);
+  }
+
+  /**
+   * Retrieves active leave types for tenant.
+   */
+  async listLeaveTypes(ctx: RequestContext, poolOverride?: pg.Pool) {
+    if (!ctx.isAuthenticated) {
+      throw new ForbiddenError('Authentication required.');
+    }
+    const pool = poolOverride ?? getAppPool();
+    return withTenant(ctx, async (_tx, client) => {
+      const res = await client.query<LeaveType>(
+        `SELECT * FROM leave_types
+         WHERE company_id = $1 AND active = true AND deleted_at IS NULL
+         ORDER BY name ASC`,
+        [ctx.companyId],
+      );
+      return res.rows;
+    }, pool);
+  }
 }
+
+
+

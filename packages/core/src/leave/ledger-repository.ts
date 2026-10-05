@@ -142,7 +142,40 @@ export class LeaveLedgerRepository {
       LIMIT ${limit}
     `;
 
-    const res = await client.query<LeaveLedgerEntry>(query, values);
-    return res.rows;
+    const res = await client.query<{
+      id: string;
+      company_id: string;
+      employee_id: string;
+      leave_type_id: string;
+      period_key: string;
+      entry_type: string;
+      delta_days: string;
+      effective_date: string;
+      ref_type: string | null;
+      ref_id: string | null;
+      reason: string | null;
+      meta: Record<string, unknown>;
+      dedupe_key: string | null;
+      created_by: string;
+      created_at: Date;
+    }>(query, values);
+
+    return res.rows.map(r => ({
+      id: r.id,
+      companyId: r.company_id,
+      employeeId: r.employee_id,
+      leaveTypeId: r.leave_type_id,
+      periodKey: r.period_key,
+      entryType: r.entry_type as LeaveLedgerEntry['entryType'],
+      deltaDays: r.delta_days,
+      effectiveDate: r.effective_date,
+      refType: r.ref_type,
+      refId: r.ref_id,
+      reason: r.reason,
+      meta: r.meta,
+      dedupeKey: r.dedupe_key,
+      createdBy: r.created_by,
+      createdAt: r.created_at,
+    }));
   }
 }

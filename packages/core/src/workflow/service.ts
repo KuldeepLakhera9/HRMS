@@ -9,6 +9,7 @@ import {
 import type { RequestContext } from '../routing/context.js';
 import { can } from '../routing/authorization.js';
 import { AuditService } from '../audit/service.js';
+import { getRedisClient } from '../redis/index.js';
 import { evaluateCondition } from './evaluator.js';
 import {
   WorkflowRepository,
@@ -104,11 +105,30 @@ export class WorkflowService {
 
     let steps = input.steps;
     if (!steps && input.definitionCode) {
-      const def = await this.repository.getDefinitionByCode(ctx.companyId, input.definitionCode, poolOverride);
-      if (!def) {
-        throw new NotFoundError(`Workflow definition '${input.definitionCode}' not found.`);
+      const cacheKey = `hrms:workflow:def:${ctx.companyId}:${input.definitionCode}`;
+      try {
+        const redis = getRedisClient();
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          steps = JSON.parse(cached);
+        }
+      } catch {
+        // Fallback to database
       }
-      steps = def.steps;
+
+      if (!steps) {
+        const def = await this.repository.getDefinitionByCode(ctx.companyId, input.definitionCode, poolOverride);
+        if (!def) {
+          throw new NotFoundError(`Workflow definition '${input.definitionCode}' not found.`);
+        }
+        steps = def.steps;
+        try {
+          const redis = getRedisClient();
+          await redis.set(cacheKey, JSON.stringify(steps), 'EX', 300);
+        } catch {
+          // Ignore Redis error
+        }
+      }
     }
 
     if (!steps || steps.length === 0) {
