@@ -602,4 +602,131 @@ export class AttendanceDayService {
 
     return { totalEmployees, totalUpdated };
   }
+
+  /**
+   * Lists comp-off credits for an employee.
+   */
+  async listCompOffCredits(
+    ctx: RequestContext,
+    employeeId: string,
+    poolOverride?: pg.Pool,
+  ): Promise<Array<{
+    id: string;
+    companyId: string;
+    employeeId: string;
+    sourceDate: string;
+    sourceType: string;
+    minutesWorked: number;
+    daysGranted: string;
+    expiresOn: string;
+    status: string;
+  }>> {
+    const pool = poolOverride ?? getAppPool();
+    return withTenant(ctx, async (_tx, client) => {
+      const res = await client.query<{
+        id: string;
+        companyId: string;
+        employeeId: string;
+        sourceDate: string;
+        sourceType: string;
+        minutesWorked: number;
+        daysGranted: string;
+        expiresOn: string;
+        status: string;
+      }>(
+        `SELECT 
+          id, company_id AS "companyId", employee_id AS "employeeId",
+          TO_CHAR(source_date, 'YYYY-MM-DD') AS "sourceDate",
+          source_type AS "sourceType", minutes_worked AS "minutesWorked",
+          days_granted::text AS "daysGranted",
+          TO_CHAR(expires_on, 'YYYY-MM-DD') AS "expiresOn",
+          status
+        FROM comp_off_credits
+        WHERE company_id = $1 AND employee_id = $2
+        ORDER BY source_date DESC`,
+        [ctx.companyId, employeeId]
+      );
+      return res.rows;
+    }, pool);
+  }
+
+  /**
+   * Claims a granted comp-off credit for leave application.
+   */
+  async claimCompOff(
+    ctx: RequestContext,
+    compOffId: string,
+    poolOverride?: pg.Pool,
+  ): Promise<{
+    id: string;
+    daysGranted: string;
+    status: string;
+  }> {
+    const pool = poolOverride ?? getAppPool();
+    return withTenant(ctx, async (_tx, client) => {
+      const res = await client.query<{
+        id: string;
+        days_granted: string;
+        status: string;
+        expires_on: Date;
+      }>(
+        `SELECT id, days_granted::text, status, expires_on
+         FROM comp_off_credits
+         WHERE company_id = $1 AND id = $2
+         FOR UPDATE`,
+        [ctx.companyId, compOffId]
+      );
+
+      const record = res.rows[0];
+      if (!record) {
+        throw new NotFoundError('Comp-off credit', compOffId);
+      }
+
+      if (record.status !== 'granted') {
+        throw new ValidationError(`Comp-off credit is already ${record.status}`);
+      }
+
+      const today = new Date();
+      if (new Date(record.expires_on) < today) {
+        throw new ValidationError('Comp-off credit has expired');
+      }
+
+      const updateRes = await client.query<{
+        id: string;
+        days_granted: string;
+        status: string;
+      }>(
+        `UPDATE comp_off_credits
+         SET status = 'claimed', updated_at = NOW()
+         WHERE company_id = $1 AND id = $2
+         RETURNING id, days_granted::text, status`,
+        [ctx.companyId, compOffId]
+      );
+
+      return {
+        id: updateRes.rows[0]!.id,
+        daysGranted: updateRes.rows[0]!.days_granted,
+        status: updateRes.rows[0]!.status,
+      };
+    }, pool);
+  }
 }
+
+/**
+ * Calculates late-mark penalties based on threshold rules.
+ * E.g., for every 3 late marks in a month, 0.5 day LOP/leave deduction is assessed.
+ */
+export function calculateLateMarkPenalty(
+  lateCount: number,
+  lateThreshold = 3,
+  penaltyPerThreshold = 0.5,
+): { penaltyDays: number; remainingLateCount: number } {
+  if (lateCount < lateThreshold || lateThreshold <= 0) {
+    return { penaltyDays: 0, remainingLateCount: Math.max(0, lateCount) };
+  }
+  const instances = Math.floor(lateCount / lateThreshold);
+  const penaltyDays = instances * penaltyPerThreshold;
+  const remainingLateCount = lateCount % lateThreshold;
+  return { penaltyDays, remainingLateCount };
+}
+
