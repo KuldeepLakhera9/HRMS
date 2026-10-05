@@ -19,7 +19,7 @@ export interface FeatureFlagItem {
 export interface CreateFeatureFlagInput {
   key: string;
   name: string;
-  description?: string;
+  description?: string | null;
   isEnabled?: boolean;
   rules?: FeatureFlagRules;
 }
@@ -46,7 +46,7 @@ export interface FeedbackSubmissionItem {
 export interface CreateFeedbackInput {
   rating: number;
   category?: string;
-  pageContext?: string;
+  pageContext?: string | null;
   message: string;
 }
 

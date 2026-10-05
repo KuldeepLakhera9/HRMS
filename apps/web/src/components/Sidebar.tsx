@@ -22,6 +22,10 @@ import {
   CheckSquare,
   Calendar,
   FileSpreadsheet,
+  Megaphone,
+  LifeBuoy,
+  UploadCloud,
+  Activity,
 } from 'lucide-react';
 
 interface NavItem {
@@ -45,6 +49,8 @@ const NAVIGATION: NavSection[] = [
       { title: 'Approvals Inbox', href: '/workflow/inbox', icon: CheckSquare },
       { title: 'Leave & Time Off', href: '/leave', icon: Calendar },
       { title: 'Reports & Analytics', href: '/reports', icon: FileSpreadsheet },
+      { title: 'Announcements', href: '/announcements', icon: Megaphone },
+      { title: 'Helpdesk', href: '/helpdesk', icon: LifeBuoy },
     ],
   },
   {
@@ -69,6 +75,8 @@ const NAVIGATION: NavSection[] = [
       { title: 'Security & Sessions', href: '/security', icon: ShieldCheck },
       { title: 'Notification Settings', href: '/settings/notifications', icon: Bell },
       { title: 'Audit Trail', href: '/audit-logs', icon: ScrollText },
+      { title: 'Data Migration', href: '/migration', icon: UploadCloud },
+      { title: 'Pilot Telemetry', href: '/pilot/metrics', icon: Activity },
     ],
   },
   {

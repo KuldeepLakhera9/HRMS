@@ -97,6 +97,10 @@ export default function ReportsHubPage() {
     const filters: Record<string, unknown> = {};
     if (selectedReportKey === 'attendance_summary') {
       filters.period = period;
+    } else if (selectedReportKey === 'leave_balances') {
+      filters.periodKey = period.slice(0, 4) || '2026';
+    } else if (selectedReportKey === 'headcount') {
+      filters.status = 'all';
     } else {
       filters.startDate = startDate;
       filters.endDate = endDate;
@@ -139,6 +143,10 @@ export default function ReportsHubPage() {
       const filters: Record<string, unknown> = {};
       if (selectedReportKey === 'attendance_summary') {
         filters.period = period;
+      } else if (selectedReportKey === 'leave_balances') {
+        filters.periodKey = period.slice(0, 4) || '2026';
+      } else if (selectedReportKey === 'headcount') {
+        filters.status = 'all';
       } else {
         filters.startDate = startDate;
         filters.endDate = endDate;
