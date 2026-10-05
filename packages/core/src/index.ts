@@ -25,3 +25,4 @@ export * from './attendance/index.js';
 export * from './metrics/index.js';
 export * from './modules/sample/index.js';
 export * from './leave/index.js';
+export * from './report/index.js';
