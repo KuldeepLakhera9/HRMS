@@ -47,25 +47,26 @@ export class DayContextProvider {
         isWeeklyOff = Boolean(rosterRes.rows[0].isWeeklyOff);
         isHoliday = Boolean(rosterRes.rows[0].isHoliday);
       } else {
-        // Fallback to employee shift weekly off rules and holiday lists
+        // Fallback to shift weekly off rules and employee holiday lists
         const empRes = await client.query<{
           location_id: string | null;
-          weekly_off_rules: Array<{ day: number; weeks?: number[] }> | null;
         }>(
-          `SELECT
-             e.location_id,
-             s.weekly_off_rules
-           FROM employees e
-           LEFT JOIN shifts s ON s.company_id = e.company_id AND s.id = e.shift_id
-           WHERE e.company_id = $1 AND e.id = $2 AND e.deleted_at IS NULL
-           LIMIT 1`,
+          `SELECT location_id FROM employees WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL LIMIT 1`,
           [companyId, employeeId],
         );
 
+        const shiftRes = await client.query<{
+          weekly_off_rules: Array<{ day: number; weeks?: number[] }> | null;
+        }>(
+          `SELECT weekly_off_rules FROM shifts WHERE company_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1`,
+          [companyId],
+        );
+
         const emp = empRes.rows[0];
+        const weeklyOffRules = shiftRes.rows[0]?.weekly_off_rules;
         const dt = DateTime.fromISO(workDate);
-        if (emp && dt.isValid) {
-          isWeeklyOff = isWeeklyOffDate(dt, emp.weekly_off_rules ?? undefined);
+        if (dt.isValid && weeklyOffRules) {
+          isWeeklyOff = isWeeklyOffDate(dt, weeklyOffRules);
         }
 
         // Check real holidays

@@ -14,10 +14,12 @@ import { AuditService } from '../audit/service.js';
 import { AttendanceDayRepository } from './day-repository.js';
 import { AttendanceLockService } from './lock-service.js';
 import { DayContextProvider } from './day-context-provider.js';
-import { AttendancePunchRepository } from './punch-repository.js';
+import { AttendancePunchRepository, type EffectivePunchRecord } from './punch-repository.js';
 import { ShiftService } from './shift-service.js';
 import { AttendancePolicyRepository } from './repository.js';
-import { computeDay, type DayCalculationResult } from './day-engine.js';
+import { computeDay, type DayCalculationResult, type DayContext } from './day-engine.js';
+import { HolidayService } from '../leave/holiday-service.js';
+import { isWeeklyOffDate } from '../leave/compute-leave-days.js';
 
 export interface RecomputeDayResult {
   day: AttendanceDay;
@@ -232,6 +234,50 @@ export class AttendanceDayService {
         return res.rows[0]?.id;
       }, pool)) ?? '00000000-0000-0000-0000-000000000001';
 
+    // Resolve default shift once for fallback
+    const defaultShiftRecord = await withTenant({ companyId }, async (_tx, client) => {
+      const sRes = await client.query<{
+        id: string;
+        company_id: string;
+        code: string;
+        name: string;
+        start_time: string;
+        end_time: string;
+        crosses_midnight: boolean;
+        grace_minutes: number;
+        break_minutes: number;
+        work_hours: string;
+        weekly_off_rules: Array<{ day: number; weeks?: number[] }>;
+      }>(
+        `SELECT id, company_id, code, name, start_time, end_time, crosses_midnight, grace_minutes, break_minutes, work_hours, weekly_off_rules
+         FROM shifts
+         WHERE company_id = $1 AND deleted_at IS NULL
+         ORDER BY created_at ASC LIMIT 1`,
+        [companyId]
+      );
+      if (sRes.rows[0]) {
+        const r = sRes.rows[0];
+        return {
+          id: r.id,
+          companyId: r.company_id,
+          code: r.code,
+          name: r.name,
+          startTime: r.start_time,
+          endTime: r.end_time,
+          crossesMidnight: r.crosses_midnight,
+          graceMinutes: r.grace_minutes,
+          breakMinutes: r.break_minutes,
+          workHours: r.work_hours,
+          weeklyOffRules: r.weekly_off_rules ?? [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      }
+      return null;
+    }, pool);
+
+    const holidayService = new HolidayService();
+
     while (true) {
       // Keyset pagination of active employees
       const employees = await withTenant({ companyId }, async (_tx, client) => {
@@ -256,49 +302,180 @@ export class AttendanceDayService {
       totalEmployees += employees.length;
       cursorId = employees[employees.length - 1]!.id;
 
-      // Compute days for this chunk
+      const empIds = employees.map(e => e.id);
+
+      // 1. Batch fetch punches for this chunk
+      const punchesRes = await withTenant({ companyId }, async (_tx, client) => {
+        return client.query<{
+          employee_id: string;
+          id: string;
+          punch_time: Date;
+          punch_type: 'in' | 'out' | 'auto_out';
+          source: 'mobile' | 'web' | 'biometric' | 'qr';
+          work_date: string;
+        }>(
+          `SELECT employee_id, id, punch_time, punch_type, source, work_date
+           FROM attendance_punches
+           WHERE company_id = $1 AND employee_id = ANY($2::uuid[]) AND work_date = $3::date
+           ORDER BY punch_time ASC`,
+          [companyId, empIds, workDate]
+        );
+      }, pool);
+
+      const punchesByEmp = new Map<string, EffectivePunchRecord[]>();
+      for (const p of punchesRes.rows) {
+        let list = punchesByEmp.get(p.employee_id);
+        if (!list) {
+          list = [];
+          punchesByEmp.set(p.employee_id, list);
+        }
+        list.push({
+          id: p.id,
+          companyId,
+          employeeId: p.employee_id,
+          punchTime: p.punch_time,
+          punchType: p.punch_type,
+          source: p.source,
+          workDate: p.work_date,
+          shiftId: null,
+          locationId: null,
+          latitude: null,
+          longitude: null,
+          gpsAccuracy: null,
+          isInsideGeofence: true,
+          distanceMeters: null,
+          selfieFileId: null,
+          deviceId: null,
+          deviceModel: null,
+          isMockLocation: false,
+          status: 'valid',
+          reasonCode: 'PUNCH_SUCCESS',
+          flagReasons: [],
+          idempotencyKey: null,
+          createdAt: p.punch_time,
+          effectiveStatus: 'valid',
+          reviewId: null,
+          workflowRequestId: null,
+          reviewerId: null,
+          reviewComments: null,
+          reviewedAt: null,
+        });
+      }
+
+      // 2. Batch fetch rosters for this chunk
+      const rostersRes = await withTenant({ companyId }, async (_tx, client) => {
+        return client.query<{
+          employee_id: string;
+          shift_id: string;
+          is_weekly_off: boolean;
+          is_holiday: boolean;
+          code: string;
+          name: string;
+          start_time: string;
+          end_time: string;
+          crosses_midnight: boolean;
+          grace_minutes: number;
+          break_minutes: number;
+          work_hours: string;
+        }>(
+          `SELECT r.employee_id, r.shift_id, r.is_weekly_off, r.is_holiday,
+                  s.code, s.name, s.start_time, s.end_time, s.crosses_midnight,
+                  s.grace_minutes, s.break_minutes, s.work_hours
+           FROM rosters r
+           JOIN shifts s ON s.company_id = r.company_id AND s.id = r.shift_id
+           WHERE r.company_id = $1 AND r.employee_id = ANY($2::uuid[]) AND r.work_date = $3::date AND r.deleted_at IS NULL`,
+          [companyId, empIds, workDate]
+        );
+      }, pool);
+      const rostersByEmp = new Map(rostersRes.rows.map(r => [r.employee_id, r]));
+
+      // 3. Batch fetch approved leaves for this chunk
+      const leavesRes = await withTenant({ companyId }, async (_tx, client) => {
+        return client.query<{
+          employee_id: string;
+          days: string;
+          is_paid: boolean;
+        }>(
+          `SELECT employee_id, days, is_paid
+           FROM leave_request_days
+           WHERE company_id = $1 AND employee_id = ANY($2::uuid[]) AND leave_date = $3::date AND status = 'approved'`,
+          [companyId, empIds, workDate]
+        );
+      }, pool);
+      const leavesByEmp = new Map(leavesRes.rows.map(l => [l.employee_id, l]));
+
+      // 4. Batch fetch holidays per unique location in chunk
+      const uniqueLocs = Array.from(new Set(employees.map(e => e.locationId)));
+      const holidaysByLoc = new Map<string, Array<{ id: string; name: string }>>();
+      for (const locId of uniqueLocs) {
+        const hList = await holidayService.resolveHolidaysForEmployee(
+          companyId,
+          locId,
+          workDate,
+          workDate,
+          pool
+        );
+        holidaysByLoc.set(locId ?? 'company', hList);
+      }
+
+      const dt = DateTime.fromISO(workDate);
+      const defaultIsWeeklyOff = dt.isValid && defaultShiftRecord?.weeklyOffRules
+        ? isWeeklyOffDate(dt, defaultShiftRecord.weeklyOffRules)
+        : false;
+
+      // Compute days for this chunk in memory
       const dayInputs = [];
+      const compOffCreditsToInsert: Array<{
+        id: string;
+        companyId: string;
+        employeeId: string;
+        sourceDate: string;
+        sourceType: string;
+        minutesWorked: number;
+        daysGranted: string;
+        expiresOn: string;
+      }> = [];
 
       for (const emp of employees) {
-        const effectivePolicyRes = await this.policyRepo.findEffectivePolicy(
-          companyId,
-          workDate,
-          emp.id,
-          emp.departmentId,
-          emp.locationId,
-          poolOverride,
-        );
-        const policy = effectivePolicyRes ? effectivePolicyRes.policy : fallbackPolicy;
+        const punches = punchesByEmp.get(emp.id) ?? [];
+        const roster = rostersByEmp.get(emp.id);
+        const leave = leavesByEmp.get(emp.id);
+        const holidays = holidaysByLoc.get(emp.locationId ?? 'company') ?? [];
 
-        const punches = await this.punchRepo.getEmployeePunchesForDate(
-          companyId,
-          emp.id,
-          workDate,
-          poolOverride,
-        );
+        const shift = roster
+          ? {
+              id: roster.shift_id,
+              companyId,
+              code: roster.code,
+              name: roster.name,
+              startTime: roster.start_time,
+              endTime: roster.end_time,
+              crossesMidnight: roster.crosses_midnight,
+              graceMinutes: roster.grace_minutes,
+              breakMinutes: roster.break_minutes,
+              workHours: roster.work_hours,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }
+          : defaultShiftRecord;
 
-        const shiftRes = await this.shiftService.resolveShiftAndDate(
-          companyId,
-          emp.id,
-          new Date(workDate),
-          'Asia/Kolkata',
-          poolOverride,
-        );
+        const isHoliday = roster ? Boolean(roster.is_holiday) : holidays.length > 0;
+        const isWeeklyOff = roster ? Boolean(roster.is_weekly_off) : defaultIsWeeklyOff;
+        const holidayId = holidays[0]?.id ?? null;
 
-        const context = await this.contextProvider.getDayContext(
-          companyId,
-          emp.id,
-          workDate,
-          poolOverride,
-        );
+        const context: DayContext = {
+          isWeeklyOff,
+          isHoliday,
+          holidayId,
+          isApprovedOD: false,
+          isApprovedWFH: false,
+          leavePortion: leave ? parseFloat(leave.days) : 0,
+          isPaidLeave: leave ? leave.is_paid : true,
+        };
 
-        const calc = computeDay(punches, shiftRes.shift ?? null, policy, context);
+        const calc = computeDay(punches, shift, fallbackPolicy, context);
 
-        const validShiftId =
-          shiftRes.shift?.id &&
-          shiftRes.shift.id !== '00000000-0000-0000-0000-000000000001'
-            ? shiftRes.shift.id
-            : null;
+        const validShiftId = shift?.id && shift.id !== '00000000-0000-0000-0000-000000000001' ? shift.id : null;
 
         dayInputs.push({
           employeeId: emp.id,
@@ -325,13 +502,27 @@ export class AttendanceDayService {
         });
 
         // Comp-off generation (P3-INT-02): If worked on weekly off or holiday
-        if ((context.isWeeklyOff || context.isHoliday) && calc.effectiveMinutes >= policy.halfDayMinutes) {
-          const daysGranted = calc.effectiveMinutes >= policy.fullDayMinutes ? '1.00' : '0.50';
+        if ((context.isWeeklyOff || context.isHoliday) && calc.effectiveMinutes >= fallbackPolicy.halfDayMinutes) {
+          const daysGranted = calc.effectiveMinutes >= fallbackPolicy.fullDayMinutes ? '1.00' : '0.50';
           const sourceType = context.isWeeklyOff ? 'weekly_off' : 'holiday';
           const expiresOn = DateTime.fromISO(workDate).plus({ days: 90 }).toISODate()!;
-          const creditId = generateUuidV7();
+          compOffCreditsToInsert.push({
+            id: generateUuidV7(),
+            companyId,
+            employeeId: emp.id,
+            sourceDate: workDate,
+            sourceType,
+            minutesWorked: calc.effectiveMinutes,
+            daysGranted,
+            expiresOn,
+          });
+        }
+      }
 
-          await withTenant({ companyId }, async (_tx, client) => {
+      // Batch insert comp-off credits if any
+      if (compOffCreditsToInsert.length > 0) {
+        await withTenant({ companyId }, async (_tx, client) => {
+          for (const c of compOffCreditsToInsert) {
             await client.query(
               `INSERT INTO comp_off_credits (
                 id, company_id, employee_id, source_date, source_type,
@@ -340,19 +531,10 @@ export class AttendanceDayService {
               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'granted', now(), now())
               ON CONFLICT (company_id, employee_id, source_date, source_type)
               DO NOTHING`,
-              [
-                creditId,
-                companyId,
-                emp.id,
-                workDate,
-                sourceType,
-                calc.effectiveMinutes,
-                daysGranted,
-                expiresOn,
-              ],
+              [c.id, c.companyId, c.employeeId, c.sourceDate, c.sourceType, c.minutesWorked, c.daysGranted, c.expiresOn]
             );
-          }, pool);
-        }
+          }
+        }, pool);
       }
 
       // Batch upsert chunk
@@ -364,18 +546,17 @@ export class AttendanceDayService {
       const startOfMonth = `${periodKey}-01`;
       const endOfMonth = DateTime.fromISO(startOfMonth).endOf('month').toISODate()!;
 
-      await withTenant({ companyId }, async (_tx, client) => {
-        for (const emp of employees) {
-          const summaryId = generateUuidV7();
+      if (empIds.length > 0) {
+        await withTenant({ companyId }, async (_tx, client) => {
           await client.query(
             `INSERT INTO attendance_period_summary (
               id, company_id, employee_id, period,
-              present_days, absent_days, half_days, late_count, early_exit_count,
+              present, absent, half_days, late_count, early_exit_count,
               weekly_off, holidays, leave_days, od_days, wfh_days,
               worked_minutes, overtime_minutes, lop_days, computed_at
             )
             SELECT
-              $1, $2, $3, $4,
+              gen_random_uuid(), $1, employee_id, $2,
               COALESCE(SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END), 0),
               COALESCE(SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END), 0),
               COALESCE(SUM(CASE WHEN status = 'half_day' THEN 1 ELSE 0 END), 0),
@@ -384,22 +565,23 @@ export class AttendanceDayService {
               COALESCE(SUM(CASE WHEN status = 'weekly_off' THEN 1 ELSE 0 END), 0),
               COALESCE(SUM(CASE WHEN status = 'holiday' THEN 1 ELSE 0 END), 0),
               COALESCE(SUM(leave_portion::numeric), 0),
-              COALESCE(SUM(CASE WHEN flags @> '["APPROVED_OD"]' THEN 1 ELSE 0 END), 0),
-              COALESCE(SUM(CASE WHEN flags @> '["APPROVED_WFH"]' THEN 1 ELSE 0 END), 0),
+              0.00,
+              0.00,
               COALESCE(SUM(total_work_minutes), 0),
               COALESCE(SUM(overtime_minutes), 0),
               COALESCE(SUM(lop_days::numeric), 0),
               NOW()
             FROM attendance_days
-            WHERE company_id = $2
-              AND employee_id = $3
-              AND work_date >= $5::date
-              AND work_date <= $6::date
+            WHERE company_id = $1
+              AND employee_id = ANY($3::uuid[])
+              AND work_date >= $4::date
+              AND work_date <= $5::date
               AND deleted_at IS NULL
+            GROUP BY company_id, employee_id
             ON CONFLICT (company_id, employee_id, period)
             DO UPDATE SET
-              present_days = EXCLUDED.present_days,
-              absent_days = EXCLUDED.absent_days,
+              present = EXCLUDED.present,
+              absent = EXCLUDED.absent,
               half_days = EXCLUDED.half_days,
               late_count = EXCLUDED.late_count,
               early_exit_count = EXCLUDED.early_exit_count,
@@ -412,10 +594,10 @@ export class AttendanceDayService {
               overtime_minutes = EXCLUDED.overtime_minutes,
               lop_days = EXCLUDED.lop_days,
               computed_at = NOW()`,
-            [summaryId, companyId, emp.id, periodKey, startOfMonth, endOfMonth],
+            [companyId, periodKey, empIds, startOfMonth, endOfMonth],
           );
-        }
-      }, pool);
+        }, pool);
+      }
     }
 
     return { totalEmployees, totalUpdated };

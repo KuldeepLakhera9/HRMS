@@ -194,7 +194,7 @@ export class HolidayService {
     locationId: string | null | undefined,
     startDate: string, // 'YYYY-MM-DD'
     endDate: string,   // 'YYYY-MM-DD'
-    client: pg.PoolClient,
+    client: pg.PoolClient | pg.Pool,
   ): Promise<Holiday[]> {
     const res = await client.query<Holiday>(
       `SELECT h.*
