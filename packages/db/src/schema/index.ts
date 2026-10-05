@@ -18,3 +18,5 @@ export * from './workflow.js';
 export * from './attendance.js';
 export * from './devices.js';
 export * from './biometric.js';
+export * from './leave.js';
+export * from './holidays.js';

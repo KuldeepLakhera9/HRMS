@@ -8,6 +8,7 @@ import {
   date,
   time,
   timestamp,
+  jsonb,
   uniqueIndex,
   index,
 } from 'drizzle-orm/pg-core';
@@ -73,6 +74,10 @@ export const shifts = pgTable(
     graceMinutes: integer('grace_minutes').default(15).notNull(),
     breakMinutes: integer('break_minutes').default(60).notNull(),
     workHours: numeric('work_hours', { precision: 4, scale: 2 }).default('8.00').notNull(),
+    weeklyOffRules: jsonb('weekly_off_rules')
+      .$type<Array<{ day: number; weeks?: number[] }>>()
+      .default([])
+      .notNull(),
   },
   table => [
     uniqueIndex('idx_shifts_company_id').on(table.companyId, table.id),
@@ -193,11 +198,15 @@ export const attendanceDays = pgTable(
     isLocked: boolean('is_locked').default(false).notNull(),
     ruleVersion: integer('rule_version').default(1).notNull(),
     sourceHash: text('source_hash'),
+    lopDays: numeric('lop_days', { precision: 4, scale: 2 }).default('0.00').notNull(),
+    leavePortion: numeric('leave_portion', { precision: 3, scale: 2 }).default('0.00').notNull(),
+    holidayId: uuid('holiday_id'),
   },
   table => [
     uniqueIndex('idx_attendance_days_company_id').on(table.companyId, table.id),
     uniqueIndex('idx_attendance_days_emp_date').on(table.companyId, table.employeeId, table.workDate),
     index('idx_attendance_days_company_date').on(table.companyId, table.workDate, table.status),
+    index('idx_attendance_days_holiday').on(table.companyId, table.holidayId),
   ],
 );
 
@@ -248,6 +257,36 @@ export const attendanceRegularizationRequests = pgTable(
   ],
 );
 
+export const attendancePeriodSummary = pgTable(
+  'attendance_period_summary',
+  {
+    ...baseTenantColumns,
+    employeeId: uuid('employee_id').notNull(),
+    period: text('period').notNull(), // 'YYYY-MM'
+    present: numeric('present', { precision: 5, scale: 2 }).default('0.00').notNull(),
+    absent: numeric('absent', { precision: 5, scale: 2 }).default('0.00').notNull(),
+    halfDays: integer('half_days').default(0).notNull(),
+    lateCount: integer('late_count').default(0).notNull(),
+    earlyExitCount: integer('early_exit_count').default(0).notNull(),
+    weeklyOff: numeric('weekly_off', { precision: 5, scale: 2 }).default('0.00').notNull(),
+    holidays: numeric('holidays', { precision: 5, scale: 2 }).default('0.00').notNull(),
+    leaveDays: numeric('leave_days', { precision: 5, scale: 2 }).default('0.00').notNull(),
+    odDays: numeric('od_days', { precision: 5, scale: 2 }).default('0.00').notNull(),
+    wfhDays: numeric('wfh_days', { precision: 5, scale: 2 }).default('0.00').notNull(),
+    workedMinutes: integer('worked_minutes').default(0).notNull(),
+    overtimeMinutes: integer('overtime_minutes').default(0).notNull(),
+    lopDays: numeric('lop_days', { precision: 5, scale: 2 }).default('0.00').notNull(),
+    computedAt: timestamp('computed_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+  },
+  table => [
+    uniqueIndex('idx_att_period_summary_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_att_period_summary_emp_period').on(table.companyId, table.employeeId, table.period),
+    index('idx_att_period_summary_period').on(table.companyId, table.period),
+  ],
+);
+
 export type AttendancePolicy = typeof attendancePolicies.$inferSelect;
 export type NewAttendancePolicy = typeof attendancePolicies.$inferInsert;
 export type AttendancePolicyAssignment = typeof attendancePolicyAssignments.$inferSelect;
@@ -268,3 +307,5 @@ export type AttendancePeriodLock = typeof attendancePeriodLocks.$inferSelect;
 export type NewAttendancePeriodLock = typeof attendancePeriodLocks.$inferInsert;
 export type AttendanceRegularizationRequest = typeof attendanceRegularizationRequests.$inferSelect;
 export type NewAttendanceRegularizationRequest = typeof attendanceRegularizationRequests.$inferInsert;
+export type AttendancePeriodSummary = typeof attendancePeriodSummary.$inferSelect;
+export type NewAttendancePeriodSummary = typeof attendancePeriodSummary.$inferInsert;

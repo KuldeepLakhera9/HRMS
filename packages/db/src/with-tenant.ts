@@ -41,11 +41,17 @@ export async function withTenant<T>(
       await client.query("SELECT set_config('app.user_id', $1, true)", [ctx.userId]);
     }
 
-    const originalQuery = client.query.bind(client);
-    const isMock = (client.query as unknown as { _isMockFunction?: boolean })._isMockFunction;
+    const clientWithTracking = client as unknown as {
+      query: unknown;
+      __originalQuery?: typeof client.query;
+      _isMockFunction?: boolean;
+    };
+    const originalQuery = clientWithTracking.__originalQuery ?? client.query.bind(client);
+    const isMock = !!clientWithTracking._isMockFunction;
 
-    if (!isMock) {
-      (client as unknown as { query: unknown }).query = async (...args: unknown[]) => {
+    if (!isMock && !clientWithTracking.__originalQuery) {
+      clientWithTracking.__originalQuery = originalQuery;
+      clientWithTracking.query = async (...args: unknown[]) => {
         const start = Date.now();
         try {
           // @ts-expect-error forwarding arguments
@@ -77,6 +83,14 @@ export async function withTenant<T>(
     }
     throw error;
   } finally {
+    const clientWithTracking = client as unknown as {
+      query?: unknown;
+      __originalQuery?: typeof client.query;
+    };
+    if (clientWithTracking.__originalQuery) {
+      clientWithTracking.query = clientWithTracking.__originalQuery;
+      delete clientWithTracking.__originalQuery;
+    }
     client.release();
   }
 }

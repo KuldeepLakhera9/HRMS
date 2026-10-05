@@ -87,6 +87,38 @@ export const PERMISSIONS = {
   ATTENDANCE_BIOMETRIC_MANAGE: 'attendance.biometric.manage',
   ATTENDANCE_PUNCH_VIEW_MAP: 'attendance.punch.view_map',
   ATTENDANCE_LOCATION_DATA_VIEW: 'attendance.location_data.view',
+
+  // Leave & Holidays (Phase 3)
+  LEAVE_TYPE_READ: 'leave.type.read',
+  LEAVE_TYPE_MANAGE: 'leave.type.manage',
+  LEAVE_POLICY_READ: 'leave.policy.read',
+  LEAVE_POLICY_MANAGE: 'leave.policy.manage',
+  LEAVE_BALANCE_READ: 'leave.balance.read',
+  LEAVE_BALANCE_ADJUST: 'leave.balance.adjust',
+  LEAVE_REQUEST_CREATE: 'leave.request.create',
+  LEAVE_REQUEST_READ: 'leave.request.read',
+  LEAVE_REQUEST_CANCEL: 'leave.request.cancel',
+  LEAVE_CALENDAR_READ: 'leave.calendar.read',
+  LEAVE_COMPOFF_CLAIM: 'leave.compoff.claim',
+  LEAVE_COMPOFF_MANAGE: 'leave.compoff.manage',
+  HOLIDAY_READ: 'holiday.read',
+  HOLIDAY_MANAGE: 'holiday.manage',
+
+  // Reports, Notifications & Helpdesk (Phase 3)
+  REPORT_RUN: 'report.run',
+  REPORT_SCHEDULE_MANAGE: 'report.schedule.manage',
+  REPORT_EXPORT: 'report.export',
+  ANNOUNCEMENT_READ: 'announcement.read',
+  ANNOUNCEMENT_MANAGE: 'announcement.manage',
+  HELPDESK_TICKET_CREATE: 'helpdesk.ticket.create',
+  HELPDESK_TICKET_READ: 'helpdesk.ticket.read',
+  HELPDESK_TICKET_MANAGE: 'helpdesk.ticket.manage',
+  IMPORT_LEAVE_BALANCES: 'import.leave_balances',
+  IMPORT_ATTENDANCE: 'import.attendance',
+  FEATUREFLAG_MANAGE: 'featureflag.manage',
+  FEEDBACK_CREATE: 'feedback.create',
+  FEEDBACK_READ: 'feedback.read',
+  PILOT_METRICS_READ: 'pilot.metrics.read',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

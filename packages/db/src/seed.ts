@@ -122,6 +122,20 @@ export async function seedDatabase(poolOverride?: pg.Pool): Promise<SeedResult> 
           { key: PERMISSIONS.WORKFLOW_DEFINITION_MANAGE, scope: 'company' as const },
           { key: PERMISSIONS.WORKFLOW_REQUEST_READ, scope: 'company' as const },
           { key: PERMISSIONS.WORKFLOW_ACTION_EXECUTE, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_TYPE_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_TYPE_MANAGE, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_POLICY_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_POLICY_MANAGE, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_BALANCE_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_BALANCE_ADJUST, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_REQUEST_CREATE, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_REQUEST_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_REQUEST_CANCEL, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_CALENDAR_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_COMPOFF_CLAIM, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_COMPOFF_MANAGE, scope: 'company' as const },
+          { key: PERMISSIONS.HOLIDAY_READ, scope: 'company' as const },
+          { key: PERMISSIONS.HOLIDAY_MANAGE, scope: 'company' as const },
         ],
       },
       {
@@ -162,6 +176,20 @@ export async function seedDatabase(poolOverride?: pg.Pool): Promise<SeedResult> 
           { key: PERMISSIONS.ATTENDANCE_PUNCH_CREATE, scope: 'company' as const },
           { key: PERMISSIONS.WORKFLOW_REQUEST_READ, scope: 'company' as const },
           { key: PERMISSIONS.WORKFLOW_ACTION_EXECUTE, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_TYPE_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_TYPE_MANAGE, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_POLICY_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_POLICY_MANAGE, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_BALANCE_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_BALANCE_ADJUST, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_REQUEST_CREATE, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_REQUEST_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_REQUEST_CANCEL, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_CALENDAR_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_COMPOFF_CLAIM, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_COMPOFF_MANAGE, scope: 'company' as const },
+          { key: PERMISSIONS.HOLIDAY_READ, scope: 'company' as const },
+          { key: PERMISSIONS.HOLIDAY_MANAGE, scope: 'company' as const },
         ],
       },
       {
@@ -175,6 +203,7 @@ export async function seedDatabase(poolOverride?: pg.Pool): Promise<SeedResult> 
           { key: PERMISSIONS.EMPLOYEE_PROFILE_READ, scope: 'company' as const },
           { key: PERMISSIONS.EMPLOYEE_PROFILE_VIEW_SENSITIVE, scope: 'company' as const },
           { key: PERMISSIONS.NOTIFICATION_PREFERENCE_MANAGE, scope: 'self' as const },
+          { key: PERMISSIONS.LEAVE_BALANCE_READ, scope: 'company' as const },
         ],
       },
       {
@@ -197,6 +226,13 @@ export async function seedDatabase(poolOverride?: pg.Pool): Promise<SeedResult> 
           { key: PERMISSIONS.ATTENDANCE_PUNCH_READ, scope: 'self' as const },
           { key: PERMISSIONS.ATTENDANCE_PUNCH_CREATE, scope: 'self' as const },
           { key: PERMISSIONS.WORKFLOW_REQUEST_READ, scope: 'self' as const },
+          { key: PERMISSIONS.LEAVE_REQUEST_CREATE, scope: 'self' as const },
+          { key: PERMISSIONS.LEAVE_REQUEST_READ, scope: 'self' as const },
+          { key: PERMISSIONS.LEAVE_REQUEST_CANCEL, scope: 'self' as const },
+          { key: PERMISSIONS.LEAVE_BALANCE_READ, scope: 'self' as const },
+          { key: PERMISSIONS.LEAVE_CALENDAR_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_COMPOFF_CLAIM, scope: 'self' as const },
+          { key: PERMISSIONS.HOLIDAY_READ, scope: 'company' as const },
         ],
       },
       {
@@ -208,6 +244,7 @@ export async function seedDatabase(poolOverride?: pg.Pool): Promise<SeedResult> 
           { key: PERMISSIONS.ORG_DEPARTMENT_READ, scope: 'company' as const },
           { key: PERMISSIONS.EMPLOYEE_PROFILE_READ, scope: 'self' as const },
           { key: PERMISSIONS.NOTIFICATION_PREFERENCE_MANAGE, scope: 'self' as const },
+          { key: PERMISSIONS.HOLIDAY_READ, scope: 'company' as const },
         ],
       },
       {
@@ -221,6 +258,11 @@ export async function seedDatabase(poolOverride?: pg.Pool): Promise<SeedResult> 
           { key: PERMISSIONS.EMPLOYEE_PROFILE_READ, scope: 'company' as const },
           { key: PERMISSIONS.AUDIT_LOG_READ, scope: 'company' as const },
           { key: PERMISSIONS.NOTIFICATION_PREFERENCE_MANAGE, scope: 'self' as const },
+          { key: PERMISSIONS.LEAVE_TYPE_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_POLICY_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_BALANCE_READ, scope: 'company' as const },
+          { key: PERMISSIONS.LEAVE_REQUEST_READ, scope: 'company' as const },
+          { key: PERMISSIONS.HOLIDAY_READ, scope: 'company' as const },
         ],
       },
     ];
@@ -393,6 +435,156 @@ export async function seedDatabase(poolOverride?: pg.Pool): Promise<SeedResult> 
         [generateUuidV7(), companyId, cc.name, cc.code],
       );
     }
+
+    // 8. Seed Default Leave Types & Policies
+    const defaultLeaveTypes = [
+      {
+        code: 'AL',
+        name: 'Annual Leave',
+        isPaid: true,
+        sandwichRule: 'both',
+        minNoticeDays: 2,
+        maxConsecutiveDays: 15,
+        allowHalfDay: true,
+      },
+      {
+        code: 'SL',
+        name: 'Sick Leave',
+        isPaid: true,
+        sandwichRule: 'none',
+        minNoticeDays: 0,
+        requiresDocumentAfterDays: 2,
+        allowHalfDay: true,
+      },
+      {
+        code: 'CL',
+        name: 'Casual Leave',
+        isPaid: true,
+        sandwichRule: 'none',
+        minNoticeDays: 1,
+        maxConsecutiveDays: 3,
+        allowHalfDay: true,
+      },
+    ];
+
+    for (const lt of defaultLeaveTypes) {
+      const ltId = generateUuidV7();
+      const ltRes = await client.query<{ id: string }>(
+        `INSERT INTO leave_types (
+          id, company_id, code, name, is_paid, unit, allow_half_day, allow_hourly,
+          min_notice_days, max_consecutive_days, requires_document_after_days,
+          sandwich_rule, allow_negative_balance, negative_limit, applicable_to, active,
+          created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, 'day', $6, false,
+          $7, $8, $9,
+          $10, false, 0.000, '{}'::jsonb, true,
+          now(), now()
+        )
+        ON CONFLICT (company_id, code)
+        DO UPDATE SET name = EXCLUDED.name, is_paid = EXCLUDED.is_paid, updated_at = now()
+        RETURNING id`,
+        [
+          ltId,
+          companyId,
+          lt.code,
+          lt.name,
+          lt.isPaid,
+          lt.allowHalfDay,
+          lt.minNoticeDays,
+          lt.maxConsecutiveDays ?? null,
+          lt.requiresDocumentAfterDays ?? null,
+          lt.sandwichRule,
+        ],
+      );
+
+      const resolvedLtId = ltRes.rows[0]?.id || ltId;
+
+      // Seed Default Policy for this Leave Type
+      const polId = generateUuidV7();
+      const polRes = await client.query<{ id: string }>(
+        `INSERT INTO leave_policies (
+          id, company_id, leave_type_id, version, effective_from, period_basis,
+          accrual, carry_forward, max_balance, probation_rule, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, 1, '2026-01-01', 'calendar',
+          '{"frequency": "monthly", "amount": 1.5, "proRata": true, "rounding": 0.5}'::jsonb,
+          '{"enabled": true, "maxDays": 10, "expiryDays": 90}'::jsonb,
+          30.000,
+          '{"allowDuringProbation": true, "accrueDuringProbation": true}'::jsonb,
+          now(), now()
+        )
+        ON CONFLICT (company_id, leave_type_id, version)
+        DO UPDATE SET effective_from = EXCLUDED.effective_from, updated_at = now()
+        RETURNING id`,
+        [polId, companyId, resolvedLtId],
+      );
+
+      const resolvedPolId = polRes.rows[0]?.id || polId;
+
+      // Assign Company-wide default policy
+      await client.query(
+        `INSERT INTO leave_policy_assignments (
+          id, company_id, scope_type, scope_id, leave_type_id, policy_id, created_at, updated_at
+        ) VALUES ($1, $2, 'company', null, $3, $4, now(), now())
+        ON CONFLICT (company_id, id) DO NOTHING`,
+        [generateUuidV7(), companyId, resolvedLtId, resolvedPolId],
+      );
+    }
+
+    // 9. Seed Default Holiday List for 2026
+    const hlId = generateUuidV7();
+    const hlRes = await client.query<{ id: string }>(
+      `INSERT INTO holiday_lists (id, company_id, name, year, is_default, created_at, updated_at)
+       VALUES ($1, $2, 'National Holidays 2026', 2026, true, now(), now())
+       ON CONFLICT (company_id, id) DO NOTHING
+       RETURNING id`,
+      [hlId, companyId],
+    );
+    const resolvedHlId = hlRes.rows[0]?.id || hlId;
+
+    const defaultHolidays = [
+      { date: '2026-01-26', name: 'Republic Day', type: 'public' },
+      { date: '2026-08-15', name: 'Independence Day', type: 'public' },
+      { date: '2026-10-02', name: 'Gandhi Jayanti', type: 'public' },
+      { date: '2026-12-25', name: 'Christmas Day', type: 'public' },
+    ];
+
+    for (const h of defaultHolidays) {
+      await client.query(
+        `INSERT INTO holidays (id, company_id, list_id, date, name, type, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, now(), now())
+         ON CONFLICT (company_id, list_id, date)
+         DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, updated_at = now()`,
+        [generateUuidV7(), companyId, resolvedHlId, h.date, h.name, h.type],
+      );
+    }
+
+    // Company Holiday Assignment
+    await client.query(
+      `INSERT INTO holiday_assignments (id, company_id, scope, location_id, list_id, created_at, updated_at)
+       VALUES ($1, $2, 'company', null, $3, now(), now())
+       ON CONFLICT (company_id, id) DO NOTHING`,
+      [generateUuidV7(), companyId, resolvedHlId],
+    );
+
+    // 10. Seed Leave Workflow Definition
+    await client.query(
+      `INSERT INTO workflow_definitions (
+        id, company_id, code, name, entity_type,
+        steps, is_active, version, created_by, updated_by, created_at, updated_at
+      ) VALUES (
+        $1, $2, 'leave', 'Leave Request Approval Workflow', 'leave',
+        '[
+          {"stepIndex": 1, "name": "Manager Approval", "mode": "any", "resolver": {"type": "role", "roleName": "manager"}},
+          {"stepIndex": 2, "name": "HR Approval", "mode": "any", "resolver": {"type": "role", "roleName": "hr_manager"}, "condition": {"operator": ">", "field": "days", "value": 3}}
+        ]'::jsonb,
+        true, 1, $3, $3, now(), now()
+      )
+      ON CONFLICT (company_id, code, version)
+      DO UPDATE SET steps = EXCLUDED.steps, is_active = true, updated_at = now()`,
+      [generateUuidV7(), companyId, adminUserId],
+    );
 
     await client.query('COMMIT');
     console.info('[Seeding Engine] Database seeding completed successfully.');

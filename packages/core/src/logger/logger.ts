@@ -33,6 +33,7 @@ export function getLogger(): pino.Logger {
   if (!rootLogger) {
     const env = getEnv();
     const isDev = env.NODE_ENV === 'development';
+    const isNext = typeof process !== 'undefined' && (Boolean(process.env.NEXT_RUNTIME) || Boolean(process.env.__NEXT_PROCESSED_ENV));
 
     const pinoOptions: pino.LoggerOptions = {
       level: env.LOG_LEVEL,
@@ -43,7 +44,7 @@ export function getLogger(): pino.Logger {
       base: {
         env: env.NODE_ENV,
       },
-      ...(isDev
+      ...(isDev && !isNext
         ? {
             transport: {
               target: 'pino-pretty',
