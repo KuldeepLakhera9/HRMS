@@ -173,6 +173,198 @@
         "description": "Keyset-paginated query of append-only monthly partitioned audit logs.",
         "responses": { "200": { "description": "Audit log entries." } }
       }
+    },
+    "/api/v1/leave/preview": {
+      "post": {
+        "summary": "Preview Leave Request Impact",
+        "description": "Runs pure computeLeaveDays engine: calculates total days, sandwich deductions, net balance after request, clash warnings, and approval route.",
+        "responses": { "200": { "description": "Leave preview calculation result." } }
+      }
+    },
+    "/api/v1/leave/requests": {
+      "get": {
+        "summary": "List My Leave Requests",
+        "description": "Returns leave requests with timeline history and workflow approval status.",
+        "responses": { "200": { "description": "Leave request items." } }
+      },
+      "post": {
+        "summary": "Submit Leave Request",
+        "description": "Locks balance row FOR UPDATE, recomputes days server-side, validates EXCLUDE overlap constraint, and initiates workflow.",
+        "responses": { "201": { "description": "Created leave request." } }
+      }
+    },
+    "/api/v1/leave/calendar": {
+      "get": {
+        "summary": "Query Leave & Holiday Calendar",
+        "description": "Returns day status chips with query budget <= 3, Redis 60s cache, and team/department/company scoping.",
+        "parameters": [
+          { "name": "startDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "endDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "scope", "in": "query", "schema": { "type": "string", "enum": ["team", "department", "company"] } }
+        ],
+        "responses": { "200": { "description": "Calendar matrix of leaves and holidays." } }
+      }
+    },
+    "/api/v1/leave/balances": {
+      "get": {
+        "summary": "Get Leave Balances",
+        "description": "Retrieves transactional leave balance snapshots (opening, accrued, used, adjusted, closing, available) per leave type.",
+        "responses": { "200": { "description": "Leave balance cards data." } }
+      }
+    },
+    "/api/v1/leave/types": {
+      "get": {
+        "summary": "List Leave Types",
+        "description": "Lists configured company leave types with units, half-day, and sandwich rule configurations.",
+        "responses": { "200": { "description": "List of leave types." } }
+      }
+    },
+    "/api/v1/leave/admin/adjust": {
+      "post": {
+        "summary": "Manual Leave Balance Adjustment",
+        "description": "Audited HR action writing an append-only 'adjustment' entry to leave_ledger and updating leave_balances atomically.",
+        "responses": { "200": { "description": "Adjustment result." } }
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "summary": "List Reports Catalog",
+        "description": "Lists all 8 enterprise standard reports available to the caller's role based on permission scoping.",
+        "responses": { "200": { "description": "Report definitions." } }
+      }
+    },
+    "/api/v1/reports/{key}/preview": {
+      "get": {
+        "summary": "Synchronous Report Preview",
+        "description": "Returns synchronous paged preview (top 50 records) in <= 200 ms.",
+        "parameters": [{ "name": "key", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Report columns and preview rows." } }
+      }
+    },
+    "/api/v1/reports/[key]/export": {
+      "post": {
+        "summary": "Async Streaming Report Export",
+        "description": "Streams up to 100,000 rows as CSV or XLSX directly to private MinIO storage with signed URL generation.",
+        "parameters": [{ "name": "key", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Export job queued or completed with signed download URL." } }
+      }
+    },
+    "/api/v1/reports/runs": {
+      "get": {
+        "summary": "List Historical Report Runs",
+        "description": "Returns status, duration, row count, and download links for historical export runs.",
+        "responses": { "200": { "description": "Report run history." } }
+      }
+    },
+    "/api/v1/announcements": {
+      "get": {
+        "summary": "List Company Announcements",
+        "description": "Fetches active, non-expired announcements targeted to the caller's company, department, or role.",
+        "responses": { "200": { "description": "List of announcements." } }
+      },
+      "post": {
+        "summary": "Create Announcement",
+        "description": "Publishes sanitized markdown announcement with audience targeting, pinned flag, and expiry.",
+        "responses": { "201": { "description": "Created announcement." } }
+      }
+    },
+    "/api/v1/announcements/{id}/read": {
+      "post": {
+        "summary": "Record Announcement Read Receipt",
+        "description": "Records timestamped read receipt for current user.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Read receipt acknowledged." } }
+      }
+    },
+    "/api/v1/helpdesk": {
+      "get": {
+        "summary": "List Helpdesk Tickets",
+        "description": "Retrieves helpdesk tickets filtered by status, category, or assignee.",
+        "responses": { "200": { "description": "List of tickets." } }
+      },
+      "post": {
+        "summary": "Create Helpdesk Ticket",
+        "description": "Submits a new helpdesk ticket with category, priority, and automated SLA calculation.",
+        "responses": { "201": { "description": "Created ticket." } }
+      }
+    },
+    "/api/v1/helpdesk/categories": {
+      "get": {
+        "summary": "List Helpdesk Categories",
+        "description": "Returns helpdesk categories with assigned SLA hours.",
+        "responses": { "200": { "description": "List of categories." } }
+      }
+    },
+    "/api/v1/helpdesk/{id}": {
+      "get": {
+        "summary": "Get Ticket Details",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Ticket details." } }
+      },
+      "patch": {
+        "summary": "Update Ticket Status / Priority",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Updated ticket." } }
+      }
+    },
+    "/api/v1/helpdesk/{id}/comments": {
+      "get": {
+        "summary": "List Ticket Comments",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Threaded comments." } }
+      },
+      "post": {
+        "summary": "Add Ticket Comment",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "201": { "description": "Added comment." } }
+      }
+    },
+    "/api/v1/migration/leave-balances/preview": {
+      "post": {
+        "summary": "Preview Opening Leave Balance Import",
+        "description": "Parses and validates CSV against employee codes and leave types, returning preview analysis and row errors.",
+        "responses": { "200": { "description": "Validation preview summary." } }
+      }
+    },
+    "/api/v1/migration/leave-balances/confirm": {
+      "post": {
+        "summary": "Confirm Opening Leave Balance Import",
+        "description": "Executes idempotent import creating 'opening' ledger records with dedupe keys and updates balances.",
+        "responses": { "200": { "description": "Batch creation result." } }
+      }
+    },
+    "/api/v1/migration/batches": {
+      "get": {
+        "summary": "List Migration Batches",
+        "description": "Lists all historical migration batches with row counts, status, and error counts.",
+        "responses": { "200": { "description": "Batch records." } }
+      }
+    },
+    "/api/v1/migration/batches/{id}/revert": {
+      "post": {
+        "summary": "Revert Migration Batch",
+        "description": "Rolls back an imported migration batch with 1 click by executing reversing ledger adjustments or removing synthetic punches.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Batch reverted." } }
+      }
+    },
+    "/api/v1/pilot/metrics": {
+      "get": {
+        "summary": "Pilot Adoption & Operational Telemetry",
+        "description": "Aggregates real-time pilot metrics: user adoption rate, punch channel split, regularization rate, approval turnaround, and CSAT scores.",
+        "responses": { "200": { "description": "Telemetry metrics data." } }
+      }
+    },
+    "/api/v1/pilot/feedback": {
+      "get": {
+        "summary": "List User Feedback Submissions",
+        "responses": { "200": { "description": "List of feedback submissions." } }
+      },
+      "post": {
+        "summary": "Submit CSAT Feedback",
+        "description": "Submits 1-5 star user feedback with category and page context.",
+        "responses": { "201": { "description": "Recorded feedback." } }
+      }
     }
   }
 }
