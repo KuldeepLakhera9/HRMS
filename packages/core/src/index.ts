@@ -29,3 +29,4 @@ export * from './report/index.js';
 export * from './announcement/index.js';
 export * from './helpdesk/index.js';
 export * from './migration/index.js';
+export * from './pilot/index.js';
