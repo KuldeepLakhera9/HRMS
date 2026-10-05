@@ -648,10 +648,12 @@ export class LeaveService {
         },
       }, pool);
 
-      await pool.query(
-        `UPDATE leave_requests SET workflow_request_id = $1 WHERE company_id = $2 AND id = $3`,
-        [wfRes.requestId, ctx.companyId, requestId],
-      );
+      await withTenant(ctx, async (_tx, client) => {
+        await client.query(
+          `UPDATE leave_requests SET workflow_request_id = $1 WHERE company_id = $2 AND id = $3`,
+          [wfRes.requestId, ctx.companyId, requestId],
+        );
+      }, pool);
     } catch {
       // If workflow definition not yet configured, leave workflow_request_id null
     }
@@ -1134,16 +1136,27 @@ export class LeaveService {
         lastName: string;
       }>(query, values);
 
-      const leaves: LeaveCalendarDayItem[] = leavesRes.rows.map(r => ({
-        date: r.date,
-        employeeId: r.employeeId,
-        employeeName: `${r.firstName} ${r.lastName}`.trim(),
-        leaveTypeCode: r.leaveTypeCode,
-        leaveTypeName: r.leaveTypeName,
-        dayPortion: parseFloat(r.dayPortion),
-        part: r.part,
-        status: r.status,
-      }));
+      const roles = ctx.roles ?? [];
+      const hasPrivilegedScope =
+        roles.includes('super_admin') ||
+        roles.includes('hr_manager') ||
+        can(ctx, PERMISSIONS.LEAVE_POLICY_MANAGE);
+
+      const leaves: LeaveCalendarDayItem[] = leavesRes.rows.map(r => {
+        const isSelf = Boolean(ctx.employeeId && r.employeeId === ctx.employeeId);
+        const canViewDetails = hasPrivilegedScope || isSelf;
+
+        return {
+          date: r.date,
+          employeeId: r.employeeId,
+          employeeName: `${r.firstName} ${r.lastName}`.trim(),
+          leaveTypeCode: canViewDetails ? r.leaveTypeCode : 'LEAVE',
+          leaveTypeName: canViewDetails ? r.leaveTypeName : 'On Leave',
+          dayPortion: parseFloat(r.dayPortion),
+          part: r.part,
+          status: r.status,
+        };
+      });
 
       return {
         leaves,
