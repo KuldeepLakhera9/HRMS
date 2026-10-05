@@ -111,6 +111,72 @@ export class WorkflowRepository {
   }
 
   /**
+   * Lists all active workflow definitions for the tenant.
+   */
+  async listDefinitions(
+    companyId: string,
+    poolOverride?: pg.Pool,
+  ): Promise<
+    Array<{
+      id: string;
+      code: string;
+      name: string;
+      entityType: string;
+      version: number;
+      isActive: boolean;
+      steps: WorkflowStepDefinition[];
+      createdAt: Date;
+    }>
+  > {
+    return withTenant(
+      { companyId },
+      async (_tx, client) => {
+        const res = await client.query(
+          `SELECT
+             id, code, name, entity_type as "entityType", version,
+             is_active as "isActive", steps, created_at as "createdAt"
+           FROM workflow_definitions
+           WHERE company_id = $1 AND is_active = true AND deleted_at IS NULL
+           ORDER BY name ASC`,
+          [companyId],
+        );
+        return res.rows;
+      },
+      poolOverride,
+    );
+  }
+
+  /**
+   * Fetches an active workflow definition by code.
+   */
+  async getDefinitionByCode(
+    companyId: string,
+    code: string,
+    poolOverride?: pg.Pool,
+  ): Promise<{
+    id: string;
+    code: string;
+    name: string;
+    entityType: string;
+    version: number;
+    steps: WorkflowStepDefinition[];
+  } | null> {
+    return withTenant(
+      { companyId },
+      async (_tx, client) => {
+        const res = await client.query(
+          `SELECT id, code, name, entity_type as "entityType", version, steps
+           FROM workflow_definitions
+           WHERE company_id = $1 AND code = $2 AND is_active = true AND deleted_at IS NULL`,
+          [companyId, code],
+        );
+        return res.rows[0] ?? null;
+      },
+      poolOverride,
+    );
+  }
+
+  /**
    * Initiates a workflow request instance pinned to the current active definition version.
    */
   async createRequest(

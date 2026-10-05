@@ -6,6 +6,7 @@ import type { ChangeRequestRepository, ChangeRequestRow } from './repository.js'
 import type { EmployeeRepository, EmployeeRow } from '../employee/repository.js';
 import type { AuditService } from '../audit/service.js';
 import type { RequestContext } from '../routing/context.js';
+import type { WorkflowService } from '../workflow/service.js';
 
 function createMockPool() {
   const client = {
@@ -306,6 +307,55 @@ describe('ChangeRequestService Unit Tests (P1-EMP-05)', () => {
       'change_request.decided',
       expect.objectContaining({ requestId: reqId, decision: 'rejected' }),
       expect.anything(),
+    );
+  });
+
+  it('submits change request and delegates to WorkflowService (P2-WF-05)', async () => {
+    const mockWfService = {
+      submitRequest: vi.fn().mockResolvedValue({ requestId: 'wf-1', status: 'pending' }),
+    };
+
+    const svc = new ChangeRequestService(
+      mockChangeRepo as ChangeRequestRepository,
+      mockEmployeeRepo as EmployeeRepository,
+      mockAuditService as AuditService,
+      mockWfService as unknown as WorkflowService,
+    );
+
+    vi.mocked(mockEmployeeRepo.findById!).mockResolvedValue({
+      id: employeeId,
+      companyId,
+      firstName: 'John',
+      lastName: 'Doe',
+      email: 'john@example.com',
+    } as unknown as EmployeeRow);
+
+    vi.mocked(mockChangeRepo.createChangeRequest!).mockResolvedValue({
+      id: reqId,
+      companyId,
+      employeeId,
+      changes: { phone: '+1234567890' },
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      decidedBy: null,
+      decidedAt: null,
+      comment: null,
+      deletedAt: null,
+      rowVersion: 1,
+    });
+
+    await svc.submitChangeRequest(selfCtx, employeeId, { phone: '+1234567890' }, mockPool);
+
+    expect(mockWfService.submitRequest).toHaveBeenCalledWith(
+      selfCtx,
+      expect.objectContaining({
+        definitionCode: 'profile_change',
+        entityType: 'change_request',
+        entityId: reqId,
+        requesterId: employeeId,
+      }),
+      mockPool,
     );
   });
 });

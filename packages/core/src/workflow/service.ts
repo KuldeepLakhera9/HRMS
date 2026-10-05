@@ -1,6 +1,7 @@
 import type pg from 'pg';
 import {
   ForbiddenError,
+  NotFoundError,
   PERMISSIONS,
   UnauthorizedError,
   ValidationError,
@@ -8,9 +9,11 @@ import {
 import type { RequestContext } from '../routing/context.js';
 import { can } from '../routing/authorization.js';
 import { AuditService } from '../audit/service.js';
+import { evaluateCondition } from './evaluator.js';
 import {
   WorkflowRepository,
   type WorkflowDefinitionInput,
+  type WorkflowStepDefinition,
   type SubmitWorkflowRequestInput,
   type ExecuteActionInput,
   type WorkflowInboxItem,
@@ -59,6 +62,84 @@ export class WorkflowService {
     });
 
     return result;
+  }
+
+  /**
+   * Lists active workflow definitions for the tenant.
+   */
+  async listDefinitions(ctx: RequestContext, poolOverride?: pg.Pool) {
+    if (!ctx.isAuthenticated) {
+      throw new UnauthorizedError('Authentication required to list workflow definitions.');
+    }
+    return this.repository.listDefinitions(ctx.companyId, poolOverride);
+  }
+
+  /**
+   * Simulates a workflow run against candidate steps or an existing definition (P2-WF-06).
+   */
+  async simulateWorkflow(
+    ctx: RequestContext,
+    input: {
+      definitionCode?: string;
+      steps?: WorkflowStepDefinition[];
+      payload: Record<string, unknown>;
+    },
+    poolOverride?: pg.Pool,
+  ): Promise<{
+    steps: Array<{
+      stepIndex: number;
+      name: string;
+      mode: 'any' | 'all';
+      conditionMet: boolean;
+      approverType: string;
+      approverRole?: string | undefined;
+      slaHours?: number | undefined;
+    }>;
+    autoApproved: boolean;
+    activeStepCount: number;
+  }> {
+    if (!ctx.isAuthenticated) {
+      throw new UnauthorizedError('Authentication required to simulate workflow.');
+    }
+
+    let steps = input.steps;
+    if (!steps && input.definitionCode) {
+      const def = await this.repository.getDefinitionByCode(ctx.companyId, input.definitionCode, poolOverride);
+      if (!def) {
+        throw new NotFoundError(`Workflow definition '${input.definitionCode}' not found.`);
+      }
+      steps = def.steps;
+    }
+
+    if (!steps || steps.length === 0) {
+      return {
+        steps: [],
+        autoApproved: true,
+        activeStepCount: 0,
+      };
+    }
+
+    const evaluatedSteps = steps.map((s, idx) => {
+      const conditionMet = evaluateCondition(s.condition, input.payload);
+      return {
+        stepIndex: s.stepIndex ?? idx,
+        name: s.name,
+        mode: s.mode,
+        conditionMet,
+        approverType: s.resolver?.type ?? 'role',
+        approverRole: s.resolver?.roleName,
+        slaHours: s.slaHours,
+      };
+    });
+
+    const activeStepCount = evaluatedSteps.filter(s => s.conditionMet).length;
+    const autoApproved = activeStepCount === 0;
+
+    return {
+      steps: evaluatedSteps,
+      autoApproved,
+      activeStepCount,
+    };
   }
 
   /**

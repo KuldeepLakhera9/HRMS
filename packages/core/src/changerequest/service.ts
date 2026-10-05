@@ -12,20 +12,24 @@ import { ChangeRequestRepository, type ChangeRequestRow } from './repository.js'
 import type { CreateChangeRequestInput, DecideChangeRequestInput } from './validation.js';
 import { AuditService } from '../audit/service.js';
 import { EmployeeRepository } from '../employee/repository.js';
+import { WorkflowService } from '../workflow/service.js';
 
 export class ChangeRequestService {
   private changeRepo: ChangeRequestRepository;
   private employeeRepo: EmployeeRepository;
   private auditService: AuditService;
+  private workflowService: WorkflowService;
 
   constructor(
     changeRepo?: ChangeRequestRepository,
     employeeRepo?: EmployeeRepository,
     auditService?: AuditService,
+    workflowService?: WorkflowService,
   ) {
     this.changeRepo = changeRepo ?? new ChangeRequestRepository();
     this.employeeRepo = employeeRepo ?? new EmployeeRepository();
     this.auditService = auditService ?? new AuditService();
+    this.workflowService = workflowService ?? new WorkflowService();
   }
 
   /**
@@ -62,6 +66,26 @@ export class ChangeRequestService {
           client,
         );
 
+        // Submit to workflow engine if profile_change definition is registered (P2-WF-05)
+        try {
+          await this.workflowService.submitRequest(
+            ctx,
+            {
+              definitionCode: 'profile_change',
+              entityType: 'change_request',
+              entityId: req.id,
+              requesterId: employeeId,
+              payload: {
+                employeeId,
+                changes: changes as Record<string, unknown>,
+              },
+            },
+            poolOverride,
+          );
+        } catch {
+          // If workflow definition not active yet, leave in standard pending state
+        }
+
         // Record outbox event atomically
         await this.auditService.recordOutboxEvent(
           ctx,
@@ -79,6 +103,36 @@ export class ChangeRequestService {
       },
       poolOverride,
     );
+  }
+
+  /**
+   * Backfills pending legacy change requests onto the workflow engine (P2-WF-05).
+   */
+  async backfillPendingRequests(ctx: RequestContext, poolOverride?: pg.Pool): Promise<number> {
+    const pending = await this.changeRepo.listChangeRequests(ctx.companyId, { status: 'pending', limit: 100 }, poolOverride);
+    let backfilled = 0;
+    for (const req of pending.items) {
+      try {
+        await this.workflowService.submitRequest(
+          ctx,
+          {
+            definitionCode: 'profile_change',
+            entityType: 'change_request',
+            entityId: req.id,
+            requesterId: req.employeeId,
+            payload: {
+              employeeId: req.employeeId,
+              changes: req.changes,
+            },
+          },
+          poolOverride,
+        );
+        backfilled++;
+      } catch {
+        // Already migrated or definition not active
+      }
+    }
+    return backfilled;
   }
 
   /**

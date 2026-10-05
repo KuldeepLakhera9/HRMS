@@ -133,4 +133,52 @@ describe('WorkflowService Unit Tests (P2-WF-01, P2-WF-02, P2-WF-03)', () => {
 
     await expect(service.getInbox(anonCtx, {})).rejects.toThrow(UnauthorizedError);
   });
+
+  it('lists workflow definitions for authenticated user', async () => {
+    mockRepo.listDefinitions = vi.fn().mockResolvedValue([
+      {
+        id: 'def-1',
+        code: 'profile_change',
+        name: 'Profile Change',
+        entityType: 'change_request',
+        version: 1,
+        isActive: true,
+        steps: [],
+        createdAt: new Date(),
+      },
+    ]);
+
+    const defs = await service.listDefinitions(baseCtx);
+    expect(defs).toHaveLength(1);
+    expect(defs[0]?.code).toBe('profile_change');
+  });
+
+  it('simulates workflow evaluation with conditions (P2-WF-06)', async () => {
+    const sim = await service.simulateWorkflow(baseCtx, {
+      steps: [
+        {
+          stepIndex: 0,
+          name: 'Low Value Approval',
+          mode: 'any',
+          resolver: { type: 'reporting_manager' },
+          condition: { field: 'amount', op: '<=', value: 1000 },
+        },
+        {
+          stepIndex: 1,
+          name: 'Executive Review',
+          mode: 'any',
+          resolver: { type: 'role', roleName: 'cfo' },
+          condition: { field: 'amount', op: '>', value: 1000 },
+        },
+      ],
+      payload: { amount: 5000 },
+    });
+
+    expect(sim.activeStepCount).toBe(1);
+    expect(sim.autoApproved).toBe(false);
+    expect(sim.steps[0]?.conditionMet).toBe(false);
+    expect(sim.steps[1]?.conditionMet).toBe(true);
+    expect(sim.steps[1]?.approverRole).toBe('cfo');
+  });
 });
+
