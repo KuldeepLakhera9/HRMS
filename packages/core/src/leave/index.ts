@@ -11,3 +11,6 @@ export {
   type ComputeLeaveDaysResult,
 } from './compute-leave-days.js';
 export * from './policy-resolver.js';
+export * from './ledger-repository.js';
+export * from './balance-repository.js';
+export * from './jobs.js';

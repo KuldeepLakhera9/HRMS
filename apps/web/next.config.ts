@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   // Use standalone output on Linux/CI/Docker; on Windows local dev without Developer Mode symlinks, fallback to standard output
   output:
     process.env.BUILD_STANDALONE === 'true' || process.platform !== 'win32'
