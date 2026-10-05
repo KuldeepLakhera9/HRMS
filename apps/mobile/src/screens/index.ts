@@ -2,3 +2,8 @@ export * from './LoginScreen.js';
 export * from './ClockScreen.js';
 export * from './ConsentScreen.js';
 export * from './DeviceRegistrationScreen.js';
+export * from './RegularizationModal.js';
+export * from './AttendanceDayDetailScreen.js';
+export * from './AttendanceHistoryScreen.js';
+export * from './ManagerApprovalsScreen.js';
+export * from './DiagnosticsScreen.js';
