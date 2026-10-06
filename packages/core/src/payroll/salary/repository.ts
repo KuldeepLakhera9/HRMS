@@ -192,6 +192,18 @@ export class SalaryRepository {
     return row || null;
   }
 
+  /**
+   * Loads a revision batch with SELECT ... FOR UPDATE so concurrent approvals serialise.
+   */
+  async lockRevisionBatchById(db: Database, companyId: string, id: string): Promise<SalaryRevision | null> {
+    const [row] = await db
+      .select()
+      .from(salaryRevisions)
+      .where(and(eq(salaryRevisions.companyId, companyId), eq(salaryRevisions.id, id)))
+      .for('update');
+    return row || null;
+  }
+
   async updateRevisionBatch(
     db: Database,
     companyId: string,

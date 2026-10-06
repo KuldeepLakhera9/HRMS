@@ -64,13 +64,15 @@ describe('Salary Revision & Arrears Engine (P4-SAL-03)', () => {
       updateSalaryAssignment: vi.fn(),
       createSalaryAssignment: vi.fn(),
       createRevisionBatch: vi.fn(),
-      getRevisionBatchById: vi.fn(),
+      lockRevisionBatchById: vi.fn(),
       updateRevisionBatch: vi.fn(),
     } as unknown as SalaryRepository;
 
     const mockDbInsert = vi.fn().mockReturnValue({
       values: vi.fn().mockReturnValue({
-        onConflictDoNothing: vi.fn().mockResolvedValue({}),
+        onConflictDoNothing: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([{ id: 'input-new' }]),
+        }),
       }),
     });
 
@@ -144,7 +146,7 @@ describe('Salary Revision & Arrears Engine (P4-SAL-03)', () => {
     });
 
     it('enforces Segregation of Duties when approving revision batch', async () => {
-      vi.mocked(mockRepo.getRevisionBatchById).mockResolvedValue({
+      vi.mocked(mockRepo.lockRevisionBatchById).mockResolvedValue({
         id: 'batch-db-1',
         companyId: 'comp-1',
         batchId: 'BATCH-2026-Q3',
@@ -167,7 +169,7 @@ describe('Salary Revision & Arrears Engine (P4-SAL-03)', () => {
     });
 
     it('approves revision batch, updates assignments, and creates idempotent arrears inputs', async () => {
-      vi.mocked(mockRepo.getRevisionBatchById).mockResolvedValue({
+      vi.mocked(mockRepo.lockRevisionBatchById).mockResolvedValue({
         id: 'batch-db-1',
         companyId: 'comp-1',
         batchId: 'BATCH-2026-Q3',

@@ -3,13 +3,20 @@ import { getEnv } from '@hrms/config';
 import { UnauthorizedError } from '@hrms/shared';
 import type { RequestContext } from '../../routing/context.js';
 
-// 32-byte default master encryption key for local dev if not supplied in env
-const DEFAULT_KEY_HEX = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+// Non-secret fallback key for local development and tests ONLY. Refused in production.
+const DEV_ONLY_KEY_HEX = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 function getMasterKey(): Buffer {
   const env = getEnv();
-  const hex = (env as unknown as { ENCRYPTION_MASTER_KEY?: string }).ENCRYPTION_MASTER_KEY || DEFAULT_KEY_HEX;
-  return Buffer.from(hex, 'hex');
+  const configured = (env as unknown as { ENCRYPTION_MASTER_KEY?: string }).ENCRYPTION_MASTER_KEY;
+  if (!configured && process.env.NODE_ENV === 'production') {
+    throw new Error('ENCRYPTION_MASTER_KEY must be configured in production');
+  }
+  const key = Buffer.from(configured || DEV_ONLY_KEY_HEX, 'hex');
+  if (key.length !== 32) {
+    throw new Error('ENCRYPTION_MASTER_KEY must be 32 bytes (64 hex characters)');
+  }
+  return key;
 }
 
 /**

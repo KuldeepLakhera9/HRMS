@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import {
   Database,
   payrollRuns,
@@ -14,6 +14,8 @@ import {
 } from '@hrms/shared';
 import type { RequestContext } from '../../routing/context.js';
 import { assertSegregationOfDuties } from '../maker-checker.js';
+import { assertStepUp } from '../crypto/cipher.js';
+import { assertInputsReadyPreconditions, assertSecondApproverCanUnlock } from './guards.js';
 
 export type PayrollRunStatus =
   | 'draft'
@@ -42,9 +44,30 @@ export const ALLOWED_TRANSITIONS: Record<PayrollRunStatus, PayrollRunStatus[]> =
   cancelled: [],
 };
 
+/**
+ * Permissions accepted for each target status (any one suffices). The unlock transition
+ * (locked -> review) and the lock-rollback (locking -> review) are handled separately below.
+ * There is no dedicated "pay" permission in the Phase 4 catalog, so `paid` requires
+ * `payroll.run.publish` until bank-file permissions land (see docs/decisions).
+ */
+const TARGET_PERMISSIONS: Record<PayrollRunStatus, string[]> = {
+  draft: [PERMISSIONS.PAYROLL_RUN_CREATE, PERMISSIONS.PAYROLL_RUN_CALCULATE],
+  inputs_ready: [PERMISSIONS.PAYROLL_RUN_CREATE, PERMISSIONS.PAYROLL_RUN_CALCULATE],
+  calculating: [PERMISSIONS.PAYROLL_RUN_CALCULATE],
+  calculated: [PERMISSIONS.PAYROLL_RUN_CALCULATE],
+  review: [PERMISSIONS.PAYROLL_RUN_REVIEW, PERMISSIONS.PAYROLL_RUN_CALCULATE],
+  approved: [PERMISSIONS.PAYROLL_RUN_APPROVE],
+  locking: [PERMISSIONS.PAYROLL_RUN_LOCK],
+  locked: [PERMISSIONS.PAYROLL_RUN_LOCK],
+  published: [PERMISSIONS.PAYROLL_RUN_PUBLISH],
+  paid: [PERMISSIONS.PAYROLL_RUN_PUBLISH],
+  cancelled: [PERMISSIONS.PAYROLL_RUN_CREATE, PERMISSIONS.PAYROLL_RUN_APPROVE],
+};
+
 export interface TransitionOptions {
   reason?: string;
   secondApproverId?: string;
+  /** Honoured only outside production (test fixtures); production always enforces the attendance lock. */
   skipAttendanceLockCheck?: boolean;
   notes?: string;
   runHash?: string;
@@ -59,9 +82,17 @@ export function isAllowedTransition(from: PayrollRunStatus, to: PayrollRunStatus
   return Boolean(allowed && allowed.includes(to));
 }
 
+function assertHasAnyPermission(ctx: RequestContext, required: string[]): void {
+  if (!required.some(p => ctx.permissions?.includes(p))) {
+    throw new ForbiddenError(`Permission denied: ${required.join(' or ')} required`);
+  }
+}
+
 /**
  * Executes a guarded transition on a payroll run with PostgreSQL row locking (SELECT ... FOR UPDATE),
- * Segregation of Duties validation, precondition verification, and immutable audit event appending.
+ * permission checks per target state, Segregation of Duties, step-up for approve/unlock,
+ * preconditions, and immutable audit event appending. Runs inside the caller's tenant transaction.
+ * Permission: depends on the target state (see TARGET_PERMISSIONS).
  */
 export async function executeRunTransition(
   ctx: RequestContext,
@@ -75,11 +106,11 @@ export async function executeRunTransition(
     throw new ForbiddenError('User authentication required to transition payroll run state');
   }
 
-  // 1. Acquire exclusive row lock using SELECT ... FOR UPDATE
+  // 1. Acquire exclusive row lock using SELECT ... FOR UPDATE (tenant-scoped; RLS enforces it again)
   const [lockedRun] = await db
     .select()
     .from(payrollRuns)
-    .where(eq(payrollRuns.id, runId))
+    .where(and(eq(payrollRuns.companyId, ctx.companyId), eq(payrollRuns.id, runId)))
     .for('update');
 
   if (!lockedRun) {
@@ -95,32 +126,44 @@ export async function executeRunTransition(
     );
   }
 
-  // 3. Precondition & Security Guards per Transition
+  // 3. Permission, SoD and precondition guards per transition
   const updates: Partial<typeof payrollRuns.$inferInsert> = {
     status: toStatus,
     updatedBy: userId,
     updatedAt: new Date(),
   };
 
-  if (toStatus === 'inputs_ready') {
-    if (!ctx.permissions?.includes(PERMISSIONS.PAYROLL_RUN_CREATE) && !ctx.permissions?.includes(PERMISSIONS.PAYROLL_RUN_CALCULATE)) {
-      throw new ForbiddenError('Permission denied: payroll.run.create or calculate required');
-    }
+  const isUnlock = currentStatus === 'locked' && toStatus === 'review';
+  const isLockRollback = currentStatus === 'locking' && toStatus === 'review';
+
+  if (isUnlock) {
+    assertHasAnyPermission(ctx, [PERMISSIONS.PAYROLL_RUN_UNLOCK]);
+  } else if (isLockRollback) {
+    assertHasAnyPermission(ctx, [PERMISSIONS.PAYROLL_RUN_LOCK]);
+  } else {
+    assertHasAnyPermission(ctx, TARGET_PERMISSIONS[toStatus]);
+  }
+
+  if (toStatus === 'inputs_ready' && currentStatus === 'draft') {
+    await assertInputsReadyPreconditions(db, ctx.companyId, lockedRun.periodId, {
+      skipAttendanceLockCheck: options.skipAttendanceLockCheck,
+    });
   }
 
   if (toStatus === 'approved') {
-    if (!ctx.permissions?.includes(PERMISSIONS.PAYROLL_RUN_APPROVE)) {
-      throw new ForbiddenError('Permission denied: payroll.run.approve required');
-    }
+    assertStepUp(ctx, 'approve a payroll run');
     // Segregation of Duties: Creator cannot approve
     assertSegregationOfDuties(lockedRun.createdBy, userId, 'payroll run approval');
+    const counts = lockedRun.counts as { errors?: number } | null;
+    if ((counts?.errors ?? 0) > 0) {
+      throw new ValidationError(
+        'Run has unresolved calculation errors; resolve or hold the affected employees before approval',
+      );
+    }
     updates.approvedBy = userId;
   }
 
   if (toStatus === 'locked') {
-    if (!ctx.permissions?.includes(PERMISSIONS.PAYROLL_RUN_LOCK)) {
-      throw new ForbiddenError('Permission denied: payroll.run.lock required');
-    }
     // Segregation of Duties: Locker cannot be the approver or the creator
     assertSegregationOfDuties(lockedRun.approvedBy, userId, 'payroll run lock');
     if (lockedRun.createdBy && lockedRun.createdBy === userId) {
@@ -130,30 +173,23 @@ export async function executeRunTransition(
     updates.lockedBy = userId;
     updates.lockedAt = new Date();
 
-    // Compute run hash if not passed
+    // Run hash scaffolding: Sprint 4.3 replaces this with a hash over all payslip integrity hashes.
     updates.runHash = options.runHash || crypto
       .createHash('sha256')
       .update(`${lockedRun.id}:${lockedRun.periodId}:${new Date().toISOString()}`)
       .digest('hex');
   }
 
-  if (currentStatus === 'locked' && toStatus === 'review') {
-    // Unlock Guard: requires unlock permission, reason, and second approver
-    if (!ctx.permissions?.includes(PERMISSIONS.PAYROLL_RUN_UNLOCK)) {
-      throw new ForbiddenError('Permission denied: payroll.run.unlock required to unlock payroll run');
-    }
+  if (isUnlock) {
+    // Unlock Guard: step-up, reason, distinct second approver who also holds the unlock permission
+    assertStepUp(ctx, 'unlock a payroll run');
     if (!options.reason || options.reason.trim().length === 0) {
       throw new ValidationError('A non-empty justification reason is strictly required to unlock a locked run');
     }
     if (!options.secondApproverId || options.secondApproverId === userId) {
       throw new ValidationError('A distinct second approver is required to unlock a locked run');
     }
-  }
-
-  if (toStatus === 'published') {
-    if (!ctx.permissions?.includes(PERMISSIONS.PAYROLL_RUN_PUBLISH)) {
-      throw new ForbiddenError('Permission denied: payroll.run.publish required');
-    }
+    await assertSecondApproverCanUnlock(ctx.companyId, options.secondApproverId);
   }
 
   if (options.notes) {
@@ -164,7 +200,7 @@ export async function executeRunTransition(
   const [updatedRun] = await db
     .update(payrollRuns)
     .set(updates)
-    .where(eq(payrollRuns.id, runId))
+    .where(and(eq(payrollRuns.companyId, ctx.companyId), eq(payrollRuns.id, runId)))
     .returning();
 
   if (!updatedRun) {

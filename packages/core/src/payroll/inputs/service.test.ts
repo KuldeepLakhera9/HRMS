@@ -61,14 +61,16 @@ describe('Payroll Input Pipeline & SoD Approvals (P4-RUN-01)', () => {
   it('enforces SoD: creator cannot approve their own payroll input', async () => {
     const mockDbSelect = vi.fn().mockReturnValue({
       from: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([
-          {
-            id: 'input-1',
-            companyId: 'comp-1',
-            createdBy: 'maker-hr-1',
-            status: 'pending',
-          },
-        ]),
+        where: vi.fn().mockReturnValue({
+          for: vi.fn().mockResolvedValue([
+            {
+              id: 'input-1',
+              companyId: 'comp-1',
+              createdBy: 'maker-hr-1',
+              status: 'pending',
+            },
+          ]),
+        }),
       }),
     });
 
@@ -88,14 +90,16 @@ describe('Payroll Input Pipeline & SoD Approvals (P4-RUN-01)', () => {
   it('allows distinct checker to approve the input', async () => {
     const mockDbSelect = vi.fn().mockReturnValue({
       from: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([
-          {
-            id: 'input-1',
-            companyId: 'comp-1',
-            createdBy: 'maker-hr-1',
-            status: 'pending',
-          },
-        ]),
+        where: vi.fn().mockReturnValue({
+          for: vi.fn().mockResolvedValue([
+            {
+              id: 'input-1',
+              companyId: 'comp-1',
+              createdBy: 'maker-hr-1',
+              status: 'pending',
+            },
+          ]),
+        }),
       }),
     });
 

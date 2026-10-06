@@ -1,6 +1,6 @@
 [
   {
-    "id": "CA-PAY-01",
+    "id": "SMOKE-PAY-01",
     "description": "Full Month - 6 LPA CTC - Karnataka - Standard New Regime (Zero TDS via 87A)",
     "input": {
       "employee": { "id": "emp-001", "state": "KA", "gender": "male" },
@@ -86,7 +86,7 @@
     }
   },
   {
-    "id": "CA-PAY-02",
+    "id": "SMOKE-PAY-02",
     "description": "Mid-month joiner (15 paid days out of 30) - 6 LPA CTC",
     "input": {
       "employee": { "id": "emp-002", "state": "KA", "gender": "male" },

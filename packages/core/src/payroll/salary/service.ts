@@ -24,9 +24,14 @@ import {
 import { analyzeFormulaDependencies } from '../formula/dependency-graph.js';
 import { assertSegregationOfDuties } from '../maker-checker.js';
 import { assertStepUp, maskField } from '../crypto/cipher.js';
+import { withDbErrorTranslation } from '../db-errors.js';
+import { AuditService } from '../../audit/service.js';
 
 export class SalaryService {
-  constructor(private repo = new SalaryRepository()) {}
+  constructor(
+    private repo = new SalaryRepository(),
+    private auditService = new AuditService(),
+  ) {}
 
   // --- Components ---
   async createComponent(
@@ -219,7 +224,7 @@ export class SalaryService {
       updatedBy: userId,
     };
 
-    return this.repo.createSalaryAssignment(db, newAssignment);
+    return withDbErrorTranslation(() => this.repo.createSalaryAssignment(db, newAssignment));
   }
 
   async approveSalaryAssignment(
@@ -239,35 +244,52 @@ export class SalaryService {
     if (!assignment) throw new NotFoundError('Salary assignment not found');
 
     assertSegregationOfDuties(assignment.makerId, userId, 'salary assignment');
+    if (assignment.status !== 'draft') {
+      throw new ValidationError(`Only draft salary assignments can be approved (current status: ${assignment.status})`);
+    }
 
-    const updated = await this.repo.updateSalaryAssignment(db, ctx.companyId, assignmentId, {
-      status: 'approved',
-      checkerId: userId,
-      updatedBy: userId,
-    });
+    // The exclusion constraint rejects an approval that would overlap another approved assignment.
+    const updated = await withDbErrorTranslation(() =>
+      this.repo.updateSalaryAssignment(db, ctx.companyId, assignmentId, {
+        status: 'approved',
+        checkerId: userId,
+        updatedBy: userId,
+      }),
+    );
     if (!updated) throw new Error('Failed to approve salary assignment');
     return updated;
   }
 
+  /**
+   * Returns the salary effective on `asOfDate`. Permission: payroll.salary.view.
+   * Always requires an active step-up session and always writes an audit entry (access is audited
+   * even when no assignment exists). Amounts are masked unless `options.unmask` is true.
+   */
   async getEmployeeSalary(
     ctx: RequestContext,
     db: Database,
     employeeId: string,
     asOfDate: string,
-    options?: { requireStepUp?: boolean; mask?: boolean },
+    options?: { unmask?: boolean },
   ): Promise<EmployeeSalary | null> {
     if (!ctx.permissions?.includes(PERMISSIONS.PAYROLL_SALARY_VIEW)) {
       throw new ForbiddenError('Permission denied: payroll.salary.view required');
     }
 
-    if (options?.requireStepUp) {
-      assertStepUp(ctx, 'view employee salary');
-    }
+    assertStepUp(ctx, 'view employee salary');
 
     const assignment = await this.repo.getActiveSalaryAssignment(db, ctx.companyId, employeeId, asOfDate);
+
+    await this.auditService.recordEvent(ctx, {
+      action: 'payroll.salary.view',
+      entity: 'employee_salary',
+      entityId: assignment?.id ?? null,
+      meta: { employeeId, asOfDate, found: Boolean(assignment), unmasked: Boolean(options?.unmask) },
+    });
+
     if (!assignment) return null;
 
-    if (options?.mask) {
+    if (!options?.unmask) {
       return {
         ...assignment,
         ctcAnnual: maskField(assignment.ctcAnnual, 'salary'),

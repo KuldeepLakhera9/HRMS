@@ -20,8 +20,10 @@ interface CaPayslipCase {
   };
 }
 
-describe('CA Golden Test Oracle (Payslip Execution)', () => {
-  const filePath = path.join(__dirname, 'ca_payslip_cases.json');
+// NOTE: these cases were authored by the engineering team to smoke-test wiring and arithmetic.
+// They are NOT CA golden cases (PHASE4_SPEC section 0.3: the oracle must come from the CA).
+describe('Engineer-authored payslip smoke cases (not CA golden cases)', () => {
+  const filePath = path.join(__dirname, 'engineer_payslip_smoke_cases.json');
   const raw = fs.readFileSync(filePath, 'utf-8');
   const cases: CaPayslipCase[] = JSON.parse(raw);
 
@@ -41,4 +43,8 @@ describe('CA Golden Test Oracle (Payslip Execution)', () => {
       }
     });
   });
+});
+
+describe('CA golden payslip cases (docs/CA_VALIDATION_KIT.md section 5)', () => {
+  it.todo('execute CA-supplied golden cases: none supplied yet (50+ required before the parallel run)');
 });

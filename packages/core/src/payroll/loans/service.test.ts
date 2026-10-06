@@ -91,7 +91,9 @@ describe('Employee Loans & EMI Scheduling Service (P4-RUN-01)', () => {
 
     const mockDbInsert = vi.fn().mockReturnValue({
       values: vi.fn().mockReturnValue({
-        onConflictDoNothing: vi.fn().mockResolvedValue({}),
+        onConflictDoNothing: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([{ id: 'input-new' }]),
+        }),
       }),
     });
 

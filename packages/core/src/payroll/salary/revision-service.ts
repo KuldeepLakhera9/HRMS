@@ -17,6 +17,7 @@ import type { RequestContext } from '../../routing/context.js';
 import { SalaryRepository } from './repository.js';
 import { calculateArrears, ArrearsCalculationResult } from './arrears.js';
 import { assertSegregationOfDuties } from '../maker-checker.js';
+import { withDbErrorTranslation } from '../db-errors.js';
 
 export interface BulkRevisionItem {
   employeeId: string;
@@ -176,7 +177,7 @@ export class SalaryRevisionService {
       throw new UnauthorizedError('User authentication required');
     }
 
-    const batch = await this.repo.getRevisionBatchById(db, ctx.companyId, batchDbId);
+    const batch = await this.repo.lockRevisionBatchById(db, ctx.companyId, batchDbId);
     if (!batch) {
       throw new NotFoundError('Salary revision batch not found');
     }
@@ -185,6 +186,9 @@ export class SalaryRevisionService {
 
     if (batch.status === 'applied') {
       throw new ValidationError('Salary revision batch has already been applied');
+    }
+    if (batch.status !== 'draft' && batch.status !== 'previewed') {
+      throw new ValidationError(`Salary revision batch cannot be approved in status '${batch.status}'`);
     }
 
     const items = batch.rows as unknown as BulkRevisionItem[];
@@ -208,8 +212,13 @@ export class SalaryRevisionService {
 
       // Close previous active salary: effectiveTo = day before batch.effectiveFrom
       if (activeSalary) {
-        const fromDate = new Date(batch.effectiveFrom);
-        fromDate.setDate(fromDate.getDate() - 1);
+        if (activeSalary.effectiveFrom >= batch.effectiveFrom) {
+          throw new ValidationError(
+            `Revision effective date must be after the current assignment start (${activeSalary.effectiveFrom}) for employee ${item.employeeId}`,
+          );
+        }
+        const fromDate = new Date(`${batch.effectiveFrom}T00:00:00Z`);
+        fromDate.setUTCDate(fromDate.getUTCDate() - 1);
         const dayBefore = fromDate.toISOString().slice(0, 10);
 
         await this.repo.updateSalaryAssignment(db, ctx.companyId, activeSalary.id, {
@@ -218,23 +227,25 @@ export class SalaryRevisionService {
         });
       }
 
-      // Create new approved salary assignment
-      await this.repo.createSalaryAssignment(db, {
-        companyId: ctx.companyId,
-        employeeId: item.employeeId,
-        structureId,
-        structureVersion,
-        ctcAnnual: item.newCtcAnnual,
-        overrides: {},
-        effectiveFrom: batch.effectiveFrom,
-        effectiveTo: null,
-        reason: item.reason || 'revision',
-        status: 'approved',
-        makerId: batch.createdBy || userId,
-        checkerId: userId,
-        createdBy: userId,
-        updatedBy: userId,
-      });
+      // Create new approved salary assignment (the exclusion constraint rejects any overlap)
+      await withDbErrorTranslation(() =>
+        this.repo.createSalaryAssignment(db, {
+          companyId: ctx.companyId,
+          employeeId: item.employeeId,
+          structureId,
+          structureVersion,
+          ctcAnnual: item.newCtcAnnual,
+          overrides: {},
+          effectiveFrom: batch.effectiveFrom,
+          effectiveTo: null,
+          reason: item.reason || 'revision',
+          status: 'approved',
+          makerId: batch.createdBy || userId,
+          checkerId: userId,
+          createdBy: userId,
+          updatedBy: userId,
+        }),
+      );
 
       // Generate arrears if revision is backdated (effectiveFromPeriod < currentPeriod)
       if (activeSalary && effectiveFromPeriod < currentPeriod) {
@@ -265,12 +276,14 @@ export class SalaryRevisionService {
               updatedBy: userId,
             };
 
-            await db
+            // Idempotent via uq_payroll_inputs_source; only rows really inserted are counted.
+            const inserted = await db
               .insert(payrollInputs)
               .values(inputRecord)
-              .onConflictDoNothing();
+              .onConflictDoNothing()
+              .returning({ id: payrollInputs.id });
 
-            arrearsGenerated++;
+            arrearsGenerated += inserted.length;
           }
         }
       }

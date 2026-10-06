@@ -6,6 +6,14 @@ import {
 import { Database, PayrollRun } from '@hrms/db';
 import { PERMISSIONS, ForbiddenError, ValidationError } from '@hrms/shared';
 
+vi.mock('./guards.js', () => ({
+  assertInputsReadyPreconditions: vi.fn().mockResolvedValue(undefined),
+  assertSecondApproverCanUnlock: vi.fn().mockResolvedValue(undefined),
+  canSkipAttendanceLockCheck: vi.fn().mockReturnValue(true),
+}));
+
+const activeStepUp = () => new Date(Date.now() + 60_000);
+
 describe('Payroll Run State Machine & Precondition Guards (P4-RUN-02)', () => {
   describe('1. Transition Graph Integrity', () => {
     it('allows valid sequential transitions', () => {
@@ -105,6 +113,7 @@ describe('Payroll Run State Machine & Precondition Guards (P4-RUN-02)', () => {
         isAuthenticated: true,
         roles: ['hr_manager'],
         permissions: [PERMISSIONS.PAYROLL_RUN_APPROVE],
+        stepUpUntil: activeStepUp(),
       };
 
       await expect(
@@ -123,6 +132,7 @@ describe('Payroll Run State Machine & Precondition Guards (P4-RUN-02)', () => {
         isAuthenticated: true,
         roles: ['finance_head'],
         permissions: [PERMISSIONS.PAYROLL_RUN_APPROVE],
+        stepUpUntil: activeStepUp(),
       };
 
       const result = await executeRunTransition(checkerCtx, mockDb, 'run-1', 'approved');
@@ -186,6 +196,7 @@ describe('Payroll Run State Machine & Precondition Guards (P4-RUN-02)', () => {
         isAuthenticated: true,
         roles: ['super_admin'],
         permissions: [PERMISSIONS.PAYROLL_RUN_UNLOCK],
+        stepUpUntil: activeStepUp(),
       };
 
       // Fails if reason is missing

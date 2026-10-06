@@ -1,5 +1,5 @@
 import { Decimal } from 'decimal.js';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import {
   Database,
   employeeLoans,
@@ -80,7 +80,7 @@ export class LoanService {
       monthlyEmi = monthlyPrincipal;
     } else {
       // Flat monthly interest calculation for simplicity & transparency
-      const totalInterest = principalDec.mul(interestRateDec.div(100)).mul(count / 12);
+      const totalInterest = principalDec.mul(interestRateDec.div(100)).mul(new Decimal(count).div(12));
       monthlyPrincipal = principalDec.div(count).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
       monthlyInterest = totalInterest.div(count).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
       monthlyEmi = monthlyPrincipal.plus(monthlyInterest);
@@ -154,7 +154,10 @@ export class LoanService {
       throw new ForbiddenError('Permission denied: payroll.loan.manage or input.create required');
     }
 
-    const userId = ctx.userId || '00000000-0000-0000-0000-000000000000';
+    const userId = ctx.userId;
+    if (!userId) {
+      throw new UnauthorizedError('User authentication required');
+    }
 
     // Find due installments for this period
     const dueInstallments = await db
@@ -166,13 +169,21 @@ export class LoanService {
         installmentNumber: loanInstallments.installmentNumber,
       })
       .from(loanInstallments)
-      .innerJoin(employeeLoans, eq(loanInstallments.loanId, employeeLoans.id))
+      .innerJoin(
+        employeeLoans,
+        and(
+          eq(loanInstallments.companyId, employeeLoans.companyId),
+          eq(loanInstallments.loanId, employeeLoans.id),
+        ),
+      )
       .where(
         and(
           eq(loanInstallments.companyId, ctx.companyId),
           eq(loanInstallments.duePeriod, period),
           eq(loanInstallments.status, 'due'),
           eq(employeeLoans.status, 'active'),
+          isNull(loanInstallments.deletedAt),
+          isNull(employeeLoans.deletedAt),
         ),
       );
 
@@ -195,14 +206,94 @@ export class LoanService {
         updatedBy: userId,
       };
 
-      await db
+      // Idempotent via uq_payroll_inputs_source: a conflict inserts nothing and is not counted.
+      const inserted = await db
         .insert(payrollInputs)
         .values(inputRecord)
-        .onConflictDoNothing();
+        .onConflictDoNothing()
+        .returning({ id: payrollInputs.id });
 
-      inputsGenerated++;
+      inputsGenerated += inserted.length;
     }
 
     return { inputsGenerated };
+  }
+
+  /**
+   * Marks the period's approved loan EMI inputs as consumed by `runId` and their installments as
+   * recovered. Both steps are conditional updates (`status = 'approved'` / `status = 'due'`), so
+   * calling this twice or concurrently recovers each installment exactly once. Loans whose
+   * installments are all recovered are completed.
+   * Permission: payroll.run.lock (executed by the run locking pipeline).
+   */
+  async recoverInstallmentsForRun(
+    ctx: RequestContext,
+    db: Database,
+    runId: string,
+    period: string,
+  ): Promise<{ installmentsRecovered: number }> {
+    if (!ctx.permissions?.includes(PERMISSIONS.PAYROLL_RUN_LOCK)) {
+      throw new ForbiddenError('Permission denied: payroll.run.lock required');
+    }
+
+    const consumed = await db
+      .update(payrollInputs)
+      .set({ status: 'consumed', consumedRunId: runId, updatedAt: new Date(), updatedBy: ctx.userId ?? null })
+      .where(
+        and(
+          eq(payrollInputs.companyId, ctx.companyId),
+          eq(payrollInputs.forPeriod, period),
+          eq(payrollInputs.type, 'loan_emi'),
+          eq(payrollInputs.status, 'approved'),
+          eq(payrollInputs.sourceType, 'loan_installment'),
+          isNull(payrollInputs.deletedAt),
+        ),
+      )
+      .returning({ sourceId: payrollInputs.sourceId });
+
+    const installmentIds = consumed.map(c => c.sourceId).filter((id): id is string => Boolean(id));
+    if (installmentIds.length === 0) {
+      return { installmentsRecovered: 0 };
+    }
+
+    const recovered = await db
+      .update(loanInstallments)
+      .set({
+        status: 'recovered',
+        recoveredRunId: runId,
+        recoveredAt: new Date(),
+        updatedAt: new Date(),
+        updatedBy: ctx.userId ?? null,
+      })
+      .where(
+        and(
+          eq(loanInstallments.companyId, ctx.companyId),
+          inArray(loanInstallments.id, installmentIds),
+          eq(loanInstallments.status, 'due'),
+        ),
+      )
+      .returning({ loanId: loanInstallments.loanId });
+
+    const loanIds = [...new Set(recovered.map(r => r.loanId))];
+    for (const loanId of loanIds) {
+      const [remaining] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(loanInstallments)
+        .where(
+          and(
+            eq(loanInstallments.companyId, ctx.companyId),
+            eq(loanInstallments.loanId, loanId),
+            eq(loanInstallments.status, 'due'),
+          ),
+        );
+      if ((remaining?.count ?? 0) === 0) {
+        await db
+          .update(employeeLoans)
+          .set({ status: 'completed', updatedAt: new Date(), updatedBy: ctx.userId ?? null })
+          .where(and(eq(employeeLoans.companyId, ctx.companyId), eq(employeeLoans.id, loanId)));
+      }
+    }
+
+    return { installmentsRecovered: recovered.length };
   }
 }

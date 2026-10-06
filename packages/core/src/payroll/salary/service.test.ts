@@ -4,6 +4,7 @@ import { SalaryRepository } from './repository.js';
 import { calculateCtcBreakup, StructureComponentDef } from './ctc-calculator.js';
 import { Database, EmployeeSalary } from '@hrms/db';
 import { PERMISSIONS } from '@hrms/shared';
+import type { AuditService } from '../../audit/service.js';
 
 describe('Salary Module (Service & CTC Calculator)', () => {
   describe('1. Pure calculateCtcBreakup', () => {
@@ -97,7 +98,8 @@ describe('Salary Module (Service & CTC Calculator)', () => {
     } as unknown as SalaryRepository;
 
     const mockDb = {} as unknown as Database;
-    const service = new SalaryService(mockRepo);
+    const mockAudit = { recordEvent: vi.fn().mockResolvedValue('audit-1') } as unknown as AuditService;
+    const service = new SalaryService(mockRepo, mockAudit);
 
     const makerCtx = {
       companyId: 'comp-1',
@@ -242,7 +244,7 @@ describe('Salary Module (Service & CTC Calculator)', () => {
       expect(result.checkerId).toBe(checkerCtx.userId);
     });
 
-    it('getEmployeeSalary enforces step-up authentication when requireStepUp is true', async () => {
+    it('getEmployeeSalary always requires step-up, masks by default, audits access', async () => {
       const viewerCtx = {
         companyId: 'comp-1',
         userId: 'hr-user-1',
@@ -274,28 +276,35 @@ describe('Salary Module (Service & CTC Calculator)', () => {
         deletedAt: null,
         rowVersion: 1,
       });
+      vi.mocked(mockAudit.recordEvent).mockClear();
 
-      // Without step-up, should throw
+      // Without step-up, should throw and must not audit a successful view
       await expect(
-        service.getEmployeeSalary(viewerCtx, mockDb, 'emp-101', '2026-10-01', { requireStepUp: true }),
+        service.getEmployeeSalary(viewerCtx, mockDb, 'emp-101', '2026-10-01'),
       ).rejects.toThrow(/Step-up authentication required/);
+      expect(mockAudit.recordEvent).not.toHaveBeenCalled();
 
-      // With active step-up, should succeed
       const stepUpViewerCtx = {
         ...viewerCtx,
         stepUpUntil: new Date(Date.now() + 60000),
       };
 
+      // With active step-up, masked by default
+      const maskedSalary = await service.getEmployeeSalary(stepUpViewerCtx, mockDb, 'emp-101', '2026-10-01');
+      expect(maskedSalary?.ctcAnnual).toBe('••••••');
+
+      // Explicit unmask returns the real amount
       const salary = await service.getEmployeeSalary(stepUpViewerCtx, mockDb, 'emp-101', '2026-10-01', {
-        requireStepUp: true,
+        unmask: true,
       });
       expect(salary?.ctcAnnual).toBe('1200000.00');
 
-      // With masking requested, returns masked ctcAnnual
-      const maskedSalary = await service.getEmployeeSalary(stepUpViewerCtx, mockDb, 'emp-101', '2026-10-01', {
-        mask: true,
-      });
-      expect(maskedSalary?.ctcAnnual).toBe('••••••');
+      // Both successful views are audited
+      expect(mockAudit.recordEvent).toHaveBeenCalledTimes(2);
+      expect(mockAudit.recordEvent).toHaveBeenCalledWith(
+        stepUpViewerCtx,
+        expect.objectContaining({ action: 'payroll.salary.view', entity: 'employee_salary' }),
+      );
     });
   });
 });
