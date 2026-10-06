@@ -1,0 +1,40 @@
+[
+  {
+    "id": "TEST-G01",
+    "description": "Standard Full Month - 6 LPA CTC - New Regime Baseline",
+    "ruleSnapshot": { "TDS_IN": "TEST_TDS_V1", "PF_IN": "TEST_PF_V1", "ESI_IN": "TEST_ESI_V1", "PT_KA": "TEST_PT_V1" },
+    "employee": { "empCode": "EMP-001", "state": "KA", "regime": "new" },
+    "salary": { "ctcAnnual": 600000, "structure": "TEST_STD_ENG" },
+    "attendance": { "calendarDays": 31, "paidDays": 31, "lopDays": 0 },
+    "inputs": [],
+    "expected": {
+      "lines": [
+        { "code": "BASIC", "monthly": "25000.00" },
+        { "code": "HRA", "monthly": "10000.00" },
+        { "code": "SPECIAL_ALLOWANCE", "monthly": "15000.00" }
+      ],
+      "grossMonthly": "50000.00",
+      "ctcMonthly": "50000.00"
+    },
+    "notes": "Synthetic structural baseline verification"
+  },
+  {
+    "id": "TEST-G02",
+    "description": "Standard Full Month - 12 LPA CTC - Balancing Component Check",
+    "ruleSnapshot": { "TDS_IN": "TEST_TDS_V1", "PF_IN": "TEST_PF_V1" },
+    "employee": { "empCode": "EMP-002", "state": "MH", "regime": "new" },
+    "salary": { "ctcAnnual": 1200000, "structure": "TEST_STD_ENG" },
+    "attendance": { "calendarDays": 30, "paidDays": 30, "lopDays": 0 },
+    "inputs": [],
+    "expected": {
+      "lines": [
+        { "code": "BASIC", "monthly": "50000.00" },
+        { "code": "HRA", "monthly": "20000.00" },
+        { "code": "SPECIAL_ALLOWANCE", "monthly": "30000.00" }
+      ],
+      "grossMonthly": "100000.00",
+      "ctcMonthly": "100000.00"
+    },
+    "notes": "Synthetic structural test for 12 LPA"
+  }
+]

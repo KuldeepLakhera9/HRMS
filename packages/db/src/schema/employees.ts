@@ -34,6 +34,7 @@ export const employees = pgTable(
     gradeId: uuid('grade_id'),
     costCenterId: uuid('cost_center_id'),
     locationId: uuid('location_id'),
+    legalEntityId: uuid('legal_entity_id'),
     managerId: uuid('manager_id'),
     employmentType: text('employment_type', {
       enum: ['full_time', 'part_time', 'contract', 'intern'],

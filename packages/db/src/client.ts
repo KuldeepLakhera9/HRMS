@@ -5,6 +5,7 @@ import * as schema from './schema/index.js';
 
 export type Pool = pg.Pool;
 export type PoolClient = pg.PoolClient;
+export type Database = NodePgDatabase<typeof schema>;
 
 const { Pool: PgPool } = pg;
 

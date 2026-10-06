@@ -25,3 +25,4 @@ export * from './announcements.js';
 export * from './helpdesk.js';
 export * from './pilot.js';
 export * from './migrations.js';
+export * from './payroll.js';
