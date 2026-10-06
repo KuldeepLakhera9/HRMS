@@ -1,0 +1,149 @@
+[
+  {
+    "id": "CA-PAY-01",
+    "description": "Full Month - 6 LPA CTC - Karnataka - Standard New Regime (Zero TDS via 87A)",
+    "input": {
+      "employee": { "id": "emp-001", "state": "KA", "gender": "male" },
+      "settings": {
+        "paidDaysBasis": "calendar",
+        "prorationMode": "prorate_earnings",
+        "negativeNetPolicy": "block",
+        "pfEnabled": true,
+        "esiEnabled": false,
+        "ptEnabled": true
+      },
+      "attendance": { "calendarDays": 30, "paidDays": 30, "lopDays": 0 },
+      "salary": {
+        "ctcAnnual": "600000.00",
+        "components": [
+          { "code": "BASIC", "name": "Basic", "kind": "earning", "calc": "formula", "formula": "MONTHLY_CTC * 0.50", "pfWage": true },
+          { "code": "HRA", "name": "HRA", "kind": "earning", "calc": "formula", "formula": "BASIC * 0.40", "pfWage": false },
+          { "code": "SPECIAL", "name": "Special Allowance", "kind": "earning", "calc": "fixed", "isBalancing": true, "pfWage": false }
+        ]
+      },
+      "inputs": [],
+      "loansDue": [],
+      "rules": {
+        "PF_IN": {
+          "employeeRatePct": 12,
+          "employerEpsRatePct": 8.33,
+          "employerEpfRatePct": 3.67,
+          "edliRatePct": 0.5,
+          "adminChargeRatePct": 0.5,
+          "wageCeilingMonthly": 15000,
+          "allowContributeOnActual": false,
+          "allowVpf": false,
+          "roundingMode": "half_up",
+          "ecrFileFormatVersion": "2.0",
+          "ncpDaysRule": "lop_only"
+        },
+        "PT": {
+          "stateCode": "KA",
+          "slabs": [
+            { "minMonthlyGross": 0, "maxMonthlyGross": 15000, "taxAmount": 0 },
+            { "minMonthlyGross": 15000, "maxMonthlyGross": null, "taxAmount": 200 }
+          ]
+        },
+        "TDS_IN": {
+          "financialYear": "2026-2027",
+          "regimes": {
+            "new": {
+              "standardDeduction": 75000,
+              "taxSlabs": [
+                { "minIncome": 0, "maxIncome": 300000, "ratePct": 0 },
+                { "minIncome": 300000, "maxIncome": 700000, "ratePct": 5 }
+              ],
+              "rebate": { "thresholdTaxableIncome": 700000, "maxRebateAmount": 20000, "marginalReliefEnabled": true },
+              "surchargeSlabs": [],
+              "healthAndEducationCessPct": 4,
+              "allowedDeductions": []
+            },
+            "old": {
+              "standardDeduction": 50000,
+              "taxSlabs": [],
+              "rebate": { "thresholdTaxableIncome": 500000, "maxRebateAmount": 12500, "marginalReliefEnabled": false },
+              "surchargeSlabs": [],
+              "healthAndEducationCessPct": 4,
+              "allowedDeductions": []
+            }
+          }
+        }
+      },
+      "taxDeclaration": { "regime": "new", "remainingMonths": 11 }
+    },
+    "expected": {
+      "gross": "50000.00",
+      "deductions": "2000.00",
+      "reimbursements": "0.00",
+      "net": "48000.00",
+      "lines": [
+        { "code": "BASIC", "amount": "25000.00" },
+        { "code": "HRA", "amount": "10000.00" },
+        { "code": "SPECIAL", "amount": "15000.00" },
+        { "code": "PF_EE", "amount": "1800.00" },
+        { "code": "PT", "amount": "200.00" }
+      ]
+    }
+  },
+  {
+    "id": "CA-PAY-02",
+    "description": "Mid-month joiner (15 paid days out of 30) - 6 LPA CTC",
+    "input": {
+      "employee": { "id": "emp-002", "state": "KA", "gender": "male" },
+      "settings": {
+        "paidDaysBasis": "calendar",
+        "prorationMode": "prorate_earnings",
+        "negativeNetPolicy": "block",
+        "pfEnabled": true,
+        "esiEnabled": false,
+        "ptEnabled": true
+      },
+      "attendance": { "calendarDays": 30, "paidDays": 15, "lopDays": 0 },
+      "salary": {
+        "ctcAnnual": "600000.00",
+        "components": [
+          { "code": "BASIC", "name": "Basic", "kind": "earning", "calc": "formula", "formula": "MONTHLY_CTC * 0.50", "pfWage": true },
+          { "code": "HRA", "name": "HRA", "kind": "earning", "calc": "formula", "formula": "BASIC * 0.40", "pfWage": false },
+          { "code": "SPECIAL", "name": "Special Allowance", "kind": "earning", "calc": "fixed", "isBalancing": true, "pfWage": false }
+        ]
+      },
+      "inputs": [],
+      "loansDue": [],
+      "rules": {
+        "PF_IN": {
+          "employeeRatePct": 12,
+          "employerEpsRatePct": 8.33,
+          "employerEpfRatePct": 3.67,
+          "edliRatePct": 0.5,
+          "adminChargeRatePct": 0.5,
+          "wageCeilingMonthly": 15000,
+          "allowContributeOnActual": false,
+          "allowVpf": false,
+          "roundingMode": "half_up",
+          "ecrFileFormatVersion": "2.0",
+          "ncpDaysRule": "lop_only"
+        },
+        "PT": {
+          "stateCode": "KA",
+          "slabs": [
+            { "minMonthlyGross": 0, "maxMonthlyGross": 15000, "taxAmount": 0 },
+            { "minMonthlyGross": 15000, "maxMonthlyGross": null, "taxAmount": 200 }
+          ]
+        }
+      }
+    },
+    "expected": {
+      "gross": "25000.00",
+      "deductions": "1700.00",
+      "reimbursements": "0.00",
+      "net": "23300.00",
+      "lines": [
+        { "code": "BASIC", "amount": "12500.00" },
+        { "code": "HRA", "amount": "5000.00" },
+        { "code": "SPECIAL", "amount": "7500.00" },
+        { "code": "PF_EE", "amount": "1500.00" },
+        { "code": "PT", "amount": "200.00" }
+      ]
+    }
+  }
+]

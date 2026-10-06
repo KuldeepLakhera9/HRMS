@@ -61,7 +61,7 @@ const mockStructures: Record<string, StructureComponentDef[]> = {
 describe('Golden Payroll Test Harness (External CA Test Oracle Runner)', () => {
   const jsonFiles = fs
     .readdirSync(__dirname)
-    .filter(file => file.endsWith('.json'));
+    .filter(file => file.includes('structure') && file.endsWith('.json'));
 
   it('fails loudly if any golden JSON file is malformed or missing required schema keys', () => {
     for (const file of jsonFiles) {

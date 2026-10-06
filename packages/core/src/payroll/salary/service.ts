@@ -23,6 +23,7 @@ import {
 } from './ctc-calculator.js';
 import { analyzeFormulaDependencies } from '../formula/dependency-graph.js';
 import { assertSegregationOfDuties } from '../maker-checker.js';
+import { assertStepUp, maskField } from '../crypto/cipher.js';
 
 export class SalaryService {
   constructor(private repo = new SalaryRepository()) {}
@@ -253,12 +254,27 @@ export class SalaryService {
     db: Database,
     employeeId: string,
     asOfDate: string,
+    options?: { requireStepUp?: boolean; mask?: boolean },
   ): Promise<EmployeeSalary | null> {
     if (!ctx.permissions?.includes(PERMISSIONS.PAYROLL_SALARY_VIEW)) {
       throw new ForbiddenError('Permission denied: payroll.salary.view required');
     }
 
-    return this.repo.getActiveSalaryAssignment(db, ctx.companyId, employeeId, asOfDate);
+    if (options?.requireStepUp) {
+      assertStepUp(ctx, 'view employee salary');
+    }
+
+    const assignment = await this.repo.getActiveSalaryAssignment(db, ctx.companyId, employeeId, asOfDate);
+    if (!assignment) return null;
+
+    if (options?.mask) {
+      return {
+        ...assignment,
+        ctcAnnual: maskField(assignment.ctcAnnual, 'salary'),
+      };
+    }
+
+    return assignment;
   }
 
   async simulateCtcBreakup(

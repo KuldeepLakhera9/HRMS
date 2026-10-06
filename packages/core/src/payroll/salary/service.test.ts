@@ -241,5 +241,62 @@ describe('Salary Module (Service & CTC Calculator)', () => {
       expect(result.status).toBe('approved');
       expect(result.checkerId).toBe(checkerCtx.userId);
     });
+
+    it('getEmployeeSalary enforces step-up authentication when requireStepUp is true', async () => {
+      const viewerCtx = {
+        companyId: 'comp-1',
+        userId: 'hr-user-1',
+        requestId: 'req-view',
+        isAuthenticated: true,
+        roles: ['hr_manager'],
+        permissions: [PERMISSIONS.PAYROLL_SALARY_VIEW],
+        stepUpUntil: null,
+      };
+
+      vi.mocked(mockRepo.getActiveSalaryAssignment).mockResolvedValue({
+        id: 'assign-1',
+        companyId: 'comp-1',
+        employeeId: 'emp-101',
+        structureId: 'struct-1',
+        structureVersion: 1,
+        ctcAnnual: '1200000.00',
+        overrides: {},
+        effectiveFrom: '2026-10-01',
+        effectiveTo: null,
+        reason: 'join',
+        status: 'approved',
+        makerId: 'maker-1',
+        checkerId: 'checker-1',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: 'maker-1',
+        updatedBy: 'checker-1',
+        deletedAt: null,
+        rowVersion: 1,
+      });
+
+      // Without step-up, should throw
+      await expect(
+        service.getEmployeeSalary(viewerCtx, mockDb, 'emp-101', '2026-10-01', { requireStepUp: true }),
+      ).rejects.toThrow(/Step-up authentication required/);
+
+      // With active step-up, should succeed
+      const stepUpViewerCtx = {
+        ...viewerCtx,
+        stepUpUntil: new Date(Date.now() + 60000),
+      };
+
+      const salary = await service.getEmployeeSalary(stepUpViewerCtx, mockDb, 'emp-101', '2026-10-01', {
+        requireStepUp: true,
+      });
+      expect(salary?.ctcAnnual).toBe('1200000.00');
+
+      // With masking requested, returns masked ctcAnnual
+      const maskedSalary = await service.getEmployeeSalary(stepUpViewerCtx, mockDb, 'emp-101', '2026-10-01', {
+        mask: true,
+      });
+      expect(maskedSalary?.ctcAnnual).toBe('••••••');
+    });
   });
 });
+

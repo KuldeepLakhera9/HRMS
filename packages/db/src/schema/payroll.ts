@@ -222,3 +222,232 @@ export type SalaryRevision = typeof salaryRevisions.$inferSelect;
 export type NewSalaryRevision = typeof salaryRevisions.$inferInsert;
 export type StatutoryRuleSet = typeof statutoryRuleSets.$inferSelect;
 export type NewStatutoryRuleSet = typeof statutoryRuleSets.$inferInsert;
+
+export const payrollPeriods = pgTable(
+  'payroll_periods',
+  {
+    ...baseTenantColumns,
+    legalEntityId: uuid('legal_entity_id').notNull(),
+    period: text('period').notNull(), // 'YYYY-MM'
+    fy: text('fy').notNull(), // 'YYYY-YYYY'
+    startDate: date('start_date').notNull(),
+    endDate: date('end_date').notNull(),
+    cutoffDate: date('cutoff_date').notNull(),
+    payDate: date('pay_date').notNull(),
+    status: text('status').$type<'open' | 'locked'>().default('open').notNull(),
+  },
+  table => [
+    uniqueIndex('idx_payroll_periods_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_payroll_periods_company_entity_period').on(
+      table.companyId,
+      table.legalEntityId,
+      table.period,
+    ),
+  ],
+);
+
+export const payrollRuns = pgTable(
+  'payroll_runs',
+  {
+    ...baseTenantColumns,
+    periodId: uuid('period_id').notNull(),
+    runType: text('run_type')
+      .$type<'regular' | 'off_cycle' | 'correction' | 'final'>()
+      .default('regular')
+      .notNull(),
+    sequence: integer('sequence').default(1).notNull(),
+    status: text('status')
+      .$type<
+        | 'draft'
+        | 'inputs_ready'
+        | 'calculating'
+        | 'calculated'
+        | 'review'
+        | 'approved'
+        | 'locking'
+        | 'locked'
+        | 'published'
+        | 'paid'
+        | 'cancelled'
+      >()
+      .default('draft')
+      .notNull(),
+    calcVersion: integer('calc_version').default(1).notNull(),
+    ruleVersions: jsonb('rule_versions').$type<Record<string, string>>().default({}).notNull(),
+    settingsSnapshot: jsonb('settings_snapshot').$type<Record<string, unknown>>().default({}).notNull(),
+    engineVersion: text('engine_version').default('1.0.0').notNull(),
+    counts: jsonb('counts')
+      .$type<{ total: number; included: number; held: number; excluded: number; errors: number }>()
+      .default({ total: 0, included: 0, held: 0, excluded: 0, errors: 0 })
+      .notNull(),
+    totals: jsonb('totals')
+      .$type<{ gross: string; deductions: string; employerCost: string; net: string }>()
+      .default({ gross: '0.00', deductions: '0.00', employerCost: '0.00', net: '0.00' })
+      .notNull(),
+    approvedBy: uuid('approved_by'),
+    lockedBy: uuid('locked_by'),
+    lockedAt: timestamp('locked_at', { withTimezone: true, mode: 'date' }),
+    runHash: text('run_hash'),
+    notes: text('notes'),
+  },
+  table => [
+    uniqueIndex('idx_payroll_runs_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_payroll_runs_unique_seq').on(
+      table.companyId,
+      table.periodId,
+      table.runType,
+      table.sequence,
+    ),
+    index('idx_payroll_runs_status').on(table.companyId, table.status),
+  ],
+);
+
+export const payrollInputs = pgTable(
+  'payroll_inputs',
+  {
+    ...baseTenantColumns,
+    employeeId: uuid('employee_id').notNull(),
+    type: text('type')
+      .$type<
+        | 'bonus'
+        | 'incentive'
+        | 'arrear'
+        | 'deduction'
+        | 'loan_emi'
+        | 'reimbursement'
+        | 'adjustment'
+        | 'lop_override'
+        | 'leave_encashment'
+        | 'other'
+      >()
+      .notNull(),
+    componentCode: text('component_code'),
+    amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+    taxable: boolean('taxable').default(true).notNull(),
+    forPeriod: text('for_period').notNull(), // 'YYYY-MM'
+    sourceType: text('source_type'), // e.g. 'salary_revision', 'loan_installment', 'manual'
+    sourceId: text('source_id'),
+    status: text('status')
+      .$type<'pending' | 'approved' | 'consumed' | 'cancelled'>()
+      .default('pending')
+      .notNull(),
+    approvedBy: uuid('approved_by'),
+    consumedRunId: uuid('consumed_run_id'),
+    note: text('note'),
+  },
+  table => [
+    uniqueIndex('idx_payroll_inputs_company_id').on(table.companyId, table.id),
+    index('idx_payroll_inputs_status_period').on(table.companyId, table.status, table.forPeriod),
+    index('idx_payroll_inputs_emp_period').on(table.companyId, table.employeeId, table.forPeriod),
+  ],
+);
+
+export const payrollEmployeeRuns = pgTable(
+  'payroll_employee_runs',
+  {
+    ...baseTenantColumns,
+    runId: uuid('run_id').notNull(),
+    employeeId: uuid('employee_id').notNull(),
+    status: text('status')
+      .$type<'included' | 'held' | 'excluded' | 'error'>()
+      .default('included')
+      .notNull(),
+    holdReason: text('hold_reason'),
+    warnings: jsonb('warnings').$type<string[]>().default([]).notNull(),
+    blockers: jsonb('blockers').$type<string[]>().default([]).notNull(),
+    inputHash: text('input_hash'),
+    calcVersion: integer('calc_version').default(1).notNull(),
+    gross: numeric('gross', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    deductions: numeric('deductions', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    employerCost: numeric('employer_cost', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    net: numeric('net', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    result: jsonb('result').$type<Record<string, unknown>>().default({}).notNull(),
+  },
+  table => [
+    uniqueIndex('idx_payroll_employee_runs_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_payroll_employee_runs_run_emp').on(table.companyId, table.runId, table.employeeId),
+    index('idx_payroll_employee_runs_status').on(table.companyId, table.runId, table.status),
+  ],
+);
+
+export const payrollRunEvents = pgTable(
+  'payroll_run_events',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    companyId: uuid('company_id').notNull(),
+    runId: uuid('run_id').notNull(),
+    ts: timestamp('ts', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    actorId: uuid('actor_id').notNull(),
+    fromStatus: text('from_status').notNull(),
+    toStatus: text('to_status').notNull(),
+    event: text('event').notNull(),
+    details: jsonb('details').$type<Record<string, unknown>>().default({}).notNull(),
+  },
+  table => [
+    uniqueIndex('idx_payroll_run_events_company_id').on(table.companyId, table.id),
+    index('idx_payroll_run_events_run_ts').on(table.companyId, table.runId, table.ts),
+  ],
+);
+
+export const employeeLoans = pgTable(
+  'employee_loans',
+  {
+    ...baseTenantColumns,
+    employeeId: uuid('employee_id').notNull(),
+    type: text('type').$type<'loan' | 'advance'>().default('loan').notNull(),
+    principal: numeric('principal', { precision: 14, scale: 2 }).notNull(),
+    interestRate: numeric('interest_rate', { precision: 5, scale: 2 }).default('0.00').notNull(),
+    installmentsCount: integer('installments_count').notNull(),
+    emiAmount: numeric('emi_amount', { precision: 14, scale: 2 }).notNull(),
+    startPeriod: text('start_period').notNull(), // 'YYYY-MM'
+    status: text('status')
+      .$type<'active' | 'completed' | 'paused' | 'cancelled'>()
+      .default('active')
+      .notNull(),
+  },
+  table => [
+    uniqueIndex('idx_employee_loans_company_id').on(table.companyId, table.id),
+    index('idx_employee_loans_emp_status').on(table.companyId, table.employeeId, table.status),
+  ],
+);
+
+export const loanInstallments = pgTable(
+  'loan_installments',
+  {
+    ...baseTenantColumns,
+    loanId: uuid('loan_id').notNull(),
+    installmentNumber: integer('installment_number').notNull(),
+    duePeriod: text('due_period').notNull(), // 'YYYY-MM'
+    principalComponent: numeric('principal_component', { precision: 14, scale: 2 }).notNull(),
+    interestComponent: numeric('interest_component', { precision: 14, scale: 2 }).notNull(),
+    totalAmount: numeric('total_amount', { precision: 14, scale: 2 }).notNull(),
+    status: text('status').$type<'due' | 'recovered' | 'skipped'>().default('due').notNull(),
+    recoveredRunId: uuid('recovered_run_id'),
+    recoveredAt: timestamp('recovered_at', { withTimezone: true, mode: 'date' }),
+  },
+  table => [
+    uniqueIndex('idx_loan_installments_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_loan_installments_loan_inst').on(
+      table.companyId,
+      table.loanId,
+      table.installmentNumber,
+    ),
+    index('idx_loan_installments_due_period').on(table.companyId, table.duePeriod, table.status),
+  ],
+);
+
+export type PayrollPeriod = typeof payrollPeriods.$inferSelect;
+export type NewPayrollPeriod = typeof payrollPeriods.$inferInsert;
+export type PayrollRun = typeof payrollRuns.$inferSelect;
+export type NewPayrollRun = typeof payrollRuns.$inferInsert;
+export type PayrollInput = typeof payrollInputs.$inferSelect;
+export type NewPayrollInput = typeof payrollInputs.$inferInsert;
+export type PayrollEmployeeRun = typeof payrollEmployeeRuns.$inferSelect;
+export type NewPayrollEmployeeRun = typeof payrollEmployeeRuns.$inferInsert;
+export type PayrollRunEvent = typeof payrollRunEvents.$inferSelect;
+export type NewPayrollRunEvent = typeof payrollRunEvents.$inferInsert;
+export type EmployeeLoan = typeof employeeLoans.$inferSelect;
+export type NewEmployeeLoan = typeof employeeLoans.$inferInsert;
+export type LoanInstallment = typeof loanInstallments.$inferSelect;
+export type NewLoanInstallment = typeof loanInstallments.$inferInsert;
+

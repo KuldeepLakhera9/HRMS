@@ -5,7 +5,7 @@ import type { ptRulePayloadSchema } from '../rules/schemas.js';
 export interface PtCalculationInput {
   grossEarnings: number | string;
   month: number; // 1 to 12 (calendar month e.g. 2 for February)
-  gender?: 'male' | 'female' | 'other';
+  gender?: 'male' | 'female' | 'other' | undefined;
   rule: z.infer<typeof ptRulePayloadSchema>;
 }
 
