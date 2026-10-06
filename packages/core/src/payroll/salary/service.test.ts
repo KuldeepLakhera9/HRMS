@@ -47,6 +47,7 @@ describe('Salary Module (Service & CTC Calculator)', () => {
       expect(hraLine?.monthlyAmount).toBe('10000.00');
       expect(specialLine?.monthlyAmount).toBe('15000.00');
       expect(specialLine?.isBalancing).toBe(true);
+      expect(result.labourCodeFloorWarning).toBe(false);
     });
 
     it('throws validation error if balancing allowance becomes negative', () => {

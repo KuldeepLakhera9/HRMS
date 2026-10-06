@@ -22,6 +22,7 @@ import {
   StructureComponentDef,
 } from './ctc-calculator.js';
 import { analyzeFormulaDependencies } from '../formula/dependency-graph.js';
+import { assertSegregationOfDuties } from '../maker-checker.js';
 
 export class SalaryService {
   constructor(private repo = new SalaryRepository()) {}
@@ -69,11 +70,7 @@ export class SalaryService {
     const component = await this.repo.getComponentById(db, ctx.companyId, componentId);
     if (!component) throw new NotFoundError('Salary component not found');
 
-    if (component.createdBy === userId) {
-      throw new ForbiddenError(
-        'Segregation of duties violation: Maker cannot approve their own component',
-      );
-    }
+    assertSegregationOfDuties(component.createdBy, userId, 'salary component');
 
     const updated = await this.repo.updateComponent(db, ctx.companyId, componentId, {
       status: 'approved',
@@ -159,11 +156,7 @@ export class SalaryService {
     const structure = await this.repo.getStructureById(db, ctx.companyId, structureId);
     if (!structure) throw new NotFoundError('Salary structure not found');
 
-    if (structure.createdBy === userId) {
-      throw new ForbiddenError(
-        'Segregation of duties violation: Maker cannot approve their own structure',
-      );
-    }
+    assertSegregationOfDuties(structure.createdBy, userId, 'salary structure');
 
     const updated = await this.repo.updateStructure(db, ctx.companyId, structureId, {
       status: 'approved',
@@ -244,11 +237,7 @@ export class SalaryService {
     const assignment = await this.repo.getSalaryAssignmentById(db, ctx.companyId, assignmentId);
     if (!assignment) throw new NotFoundError('Salary assignment not found');
 
-    if (assignment.makerId === userId) {
-      throw new ForbiddenError(
-        'Segregation of duties violation: Maker cannot approve their own salary assignment',
-      );
-    }
+    assertSegregationOfDuties(assignment.makerId, userId, 'salary assignment');
 
     const updated = await this.repo.updateSalaryAssignment(db, ctx.companyId, assignmentId, {
       status: 'approved',

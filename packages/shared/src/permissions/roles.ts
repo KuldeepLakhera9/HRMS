@@ -5,6 +5,8 @@ export const SYSTEM_ROLES = {
   SUPER_ADMIN: 'super_admin',
   HR_MANAGER: 'hr_manager',
   ACCOUNTANT: 'accountant',
+  FINANCE_HEAD: 'finance_head',
+  PAYROLL_AUDITOR: 'payroll_auditor',
   MANAGER: 'manager',
   EMPLOYEE: 'employee',
   RECRUITER: 'recruiter',
@@ -22,6 +24,8 @@ export const ROLES_REQUIRING_MFA: readonly SystemRole[] = [
   SYSTEM_ROLES.SUPER_ADMIN,
   SYSTEM_ROLES.HR_MANAGER,
   SYSTEM_ROLES.ACCOUNTANT,
+  SYSTEM_ROLES.FINANCE_HEAD,
+  SYSTEM_ROLES.PAYROLL_AUDITOR,
 ];
 
 export function isMfaMandatoryForRole(role: string): boolean {

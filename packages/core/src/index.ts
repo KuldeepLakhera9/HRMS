@@ -33,6 +33,12 @@ export * from './pilot/index.js';
 export * from './payroll/formula/index.js';
 export * from './payroll/rules/index.js';
 export * from './payroll/salary/index.js';
+export * from './payroll/maker-checker.js';
+export * from './payroll/engines/index.js';
+export * from './payroll/settings/index.js';
 export * as formula from './payroll/formula/index.js';
 export * as rules from './payroll/rules/index.js';
 export * as salary from './payroll/salary/index.js';
+export * as engines from './payroll/engines/index.js';
+export * as payrollSettings from './payroll/settings/index.js';
+

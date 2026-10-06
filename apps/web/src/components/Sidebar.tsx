@@ -80,9 +80,12 @@ const NAVIGATION: NavSection[] = [
     ],
   },
   {
-    title: 'UPCOMING MODULES',
+    title: 'PAYROLL & TAX',
     items: [
-      { title: 'Payroll & Tax', href: '#', icon: CircleDollarSign, phase: 'Phase 4' },
+      { title: 'Payroll Settings', href: '/payroll/settings', icon: Building2 },
+      { title: 'Salary Components', href: '/payroll/components', icon: Layers },
+      { title: 'Salary Structures', href: '/payroll/structures', icon: CircleDollarSign },
+      { title: 'Statutory Rules', href: '/payroll/rules', icon: ShieldCheck },
     ],
   },
 ];

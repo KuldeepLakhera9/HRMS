@@ -33,6 +33,7 @@ export interface CtcBreakupResult {
   totalMonthlyEmployerContributions: string;
   totalAnnualEmployerContributions: string;
   netTakeHomeEstimateMonthly: string;
+  labourCodeFloorWarning: boolean;
   lines: CtcBreakupLine[];
 }
 
@@ -159,6 +160,10 @@ export function calculateCtcBreakup(
     .times(12)
     .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 
+  const basicWage = calculatedMonthly['BASIC'] ?? new Decimal(0);
+  const floor50Pct = cumulativeGrossEarnings.times(0.5);
+  const labourCodeFloorWarning = cumulativeGrossEarnings.greaterThan(0) && basicWage.lessThan(floor50Pct);
+
   return {
     ctcAnnual: ctcAnnual.toFixed(2),
     monthlyCtc: monthlyCtc.toFixed(2),
@@ -167,6 +172,7 @@ export function calculateCtcBreakup(
     totalMonthlyEmployerContributions: cumulativeEmployerCost.toFixed(2),
     totalAnnualEmployerContributions: totalAnnualEmployer.toFixed(2),
     netTakeHomeEstimateMonthly: cumulativeGrossEarnings.toFixed(2), // Pre-tax baseline
+    labourCodeFloorWarning,
     lines,
   };
 }

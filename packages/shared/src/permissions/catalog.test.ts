@@ -29,13 +29,17 @@ describe('Permission Catalog and Role Scopes', () => {
   it('contains all system roles', () => {
     expect(ALL_SYSTEM_ROLES).toContain('super_admin');
     expect(ALL_SYSTEM_ROLES).toContain('employee');
-    expect(ROLES_REQUIRING_MFA.length).toBe(3);
+    expect(ROLES_REQUIRING_MFA.length).toBe(5);
+    expect(ALL_SYSTEM_ROLES).toContain('finance_head');
+    expect(ALL_SYSTEM_ROLES).toContain('payroll_auditor');
   });
 
   it('correctly identifies roles requiring mandatory MFA', () => {
     expect(isMfaMandatoryForRole(SYSTEM_ROLES.SUPER_ADMIN)).toBe(true);
     expect(isMfaMandatoryForRole(SYSTEM_ROLES.HR_MANAGER)).toBe(true);
     expect(isMfaMandatoryForRole(SYSTEM_ROLES.ACCOUNTANT)).toBe(true);
+    expect(isMfaMandatoryForRole(SYSTEM_ROLES.FINANCE_HEAD)).toBe(true);
+    expect(isMfaMandatoryForRole(SYSTEM_ROLES.PAYROLL_AUDITOR)).toBe(true);
     expect(isMfaMandatoryForRole(SYSTEM_ROLES.EMPLOYEE)).toBe(false);
     expect(isMfaMandatoryForRole(SYSTEM_ROLES.MANAGER)).toBe(false);
   });

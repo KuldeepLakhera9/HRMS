@@ -9,6 +9,7 @@ import {
 import type { RequestContext } from '../../routing/context.js';
 import { StatutoryRulesRepository } from './repository.js';
 import { validateRuleSetPayload } from './schemas.js';
+import { assertSegregationOfDuties } from '../maker-checker.js';
 
 export interface CreateRuleSetDTO {
   key: string;
@@ -130,11 +131,7 @@ export class StatutoryRulesService {
     }
 
     // Segregation of Duties Check
-    if (rule.makerId === userId) {
-      throw new ForbiddenError(
-        'Segregation of duties violation: Maker cannot approve their own statutory rule set',
-      );
-    }
+    assertSegregationOfDuties(rule.makerId, userId, 'statutory rule set');
 
     // Retire existing active version for this key & jurisdiction if one exists
     const currentActive = await this.repo.getActiveRuleSet(
