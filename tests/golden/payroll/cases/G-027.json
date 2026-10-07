@@ -1,0 +1,117 @@
+{
+  "id": "G-027",
+  "description": "Labour Welfare Fund contribution month (June => EE 20, ER 40)",
+  "scenario": "lwf_month",
+  "ruleSnapshot": {
+    "TDS_IN": "TDS_IN_2026_V1",
+    "PF_IN": "PF_IN_STD_V1",
+    "ESI_IN": "ESI_IN_STD_V1",
+    "LWF_KA": "LWF_KA_V1"
+  },
+  "employee": {
+    "id": "emp-027",
+    "state": "KA",
+    "gender": "male",
+    "regime": "new",
+    "employmentType": "permanent",
+    "joinDate": "2026-04-01"
+  },
+  "salary": {
+    "ctcAnnual": "600000.00",
+    "structure": "S1",
+    "effectiveFrom": "2026-04-01",
+    "components": [
+      {
+        "code": "BASIC",
+        "name": "Basic",
+        "kind": "earning",
+        "calc": "formula",
+        "formula": "MONTHLY_CTC * 0.50",
+        "pfWage": true,
+        "esiWage": true,
+        "statutoryWage": true
+      },
+      {
+        "code": "HRA",
+        "name": "HRA",
+        "kind": "earning",
+        "calc": "formula",
+        "formula": "BASIC * 0.40",
+        "pfWage": false,
+        "esiWage": true,
+        "statutoryWage": false
+      },
+      {
+        "code": "SPECIAL",
+        "name": "Special Allowance",
+        "kind": "earning",
+        "calc": "fixed",
+        "isBalancing": true,
+        "pfWage": false,
+        "esiWage": true,
+        "statutoryWage": false
+      }
+    ]
+  },
+  "settings": {
+    "paidDaysBasis": "calendar",
+    "prorationMode": "prorate_earnings",
+    "negativeNetPolicy": "block",
+    "lwfEnabled": true
+  },
+  "attendance": {
+    "calendarDays": 30,
+    "paidDays": 30,
+    "lopDays": 0
+  },
+  "inputs": [],
+  "loansDue": [],
+  "rules": {
+    "LWF": {
+      "stateCode": "KA",
+      "employeeContribution": 20,
+      "employerContribution": 40,
+      "frequency": "yearly",
+      "deductionMonths": [
+        6,
+        12
+      ]
+    }
+  },
+  "ytd": {
+    "gross": "0.00",
+    "tdsDeducted": "0.00"
+  },
+  "taxDeclaration": {
+    "regime": "new",
+    "remainingMonths": 10
+  },
+  "periodMonth": 6,
+  "expected": {
+    "lines": [
+      {
+        "code": "BASIC",
+        "amount": "25000.00"
+      },
+      {
+        "code": "HRA",
+        "amount": "10000.00"
+      },
+      {
+        "code": "SPECIAL",
+        "amount": "15000.00"
+      },
+      {
+        "code": "LWF_EE",
+        "amount": "20.00"
+      }
+    ],
+    "gross": "50000.00",
+    "deductions": "20.00",
+    "reimbursements": "0.00",
+    "net": "49980.00",
+    "employerCost": "50000.00",
+    "tds": "0.00"
+  },
+  "notes": "CA working spreadsheet, row 28"
+}

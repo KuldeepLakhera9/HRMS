@@ -1,0 +1,130 @@
+{
+  "id": "G-021",
+  "description": "ESI crossing threshold mid-period continuity rule (remains covered)",
+  "scenario": "esi_threshold_continuity",
+  "ruleSnapshot": {
+    "TDS_IN": "TDS_IN_2026_V1",
+    "PF_IN": "PF_IN_STD_V1",
+    "ESI_IN": "ESI_IN_STD_V1"
+  },
+  "employee": {
+    "id": "emp-021",
+    "state": "KA",
+    "gender": "male",
+    "regime": "new",
+    "employmentType": "permanent",
+    "joinDate": "2026-04-01"
+  },
+  "salary": {
+    "ctcAnnual": "216000.00",
+    "structure": "S1",
+    "effectiveFrom": "2026-04-01",
+    "components": [
+      {
+        "code": "BASIC",
+        "name": "Basic",
+        "kind": "earning",
+        "calc": "formula",
+        "formula": "MONTHLY_CTC * 0.50",
+        "pfWage": true,
+        "esiWage": true,
+        "statutoryWage": true
+      },
+      {
+        "code": "HRA",
+        "name": "HRA",
+        "kind": "earning",
+        "calc": "formula",
+        "formula": "BASIC * 0.40",
+        "pfWage": false,
+        "esiWage": true,
+        "statutoryWage": false
+      },
+      {
+        "code": "SPECIAL",
+        "name": "Special Allowance",
+        "kind": "earning",
+        "calc": "fixed",
+        "isBalancing": true,
+        "pfWage": false,
+        "esiWage": true,
+        "statutoryWage": false
+      }
+    ]
+  },
+  "settings": {
+    "paidDaysBasis": "calendar",
+    "prorationMode": "prorate_earnings",
+    "negativeNetPolicy": "block",
+    "pfEnabled": false,
+    "esiEnabled": true,
+    "ptEnabled": false
+  },
+  "attendance": {
+    "calendarDays": 30,
+    "paidDays": 30,
+    "lopDays": 0
+  },
+  "inputs": [
+    {
+      "type": "incentive",
+      "componentCode": "INCENTIVE",
+      "amount": "4000.00",
+      "taxable": true
+    }
+  ],
+  "loansDue": [],
+  "rules": {
+    "ESI_IN": {
+      "wageThresholdMonthly": 21000,
+      "employeeRatePct": 0.75,
+      "employerRatePct": 3.25,
+      "continuityRule": true,
+      "roundingMode": "round_up"
+    }
+  },
+  "ytd": {
+    "gross": "0.00",
+    "tdsDeducted": "0.00"
+  },
+  "taxDeclaration": {
+    "regime": "new",
+    "remainingMonths": 12
+  },
+  "periodMonth": 4,
+  "expected": {
+    "lines": [
+      {
+        "code": "BASIC",
+        "amount": "9000.00"
+      },
+      {
+        "code": "HRA",
+        "amount": "3600.00"
+      },
+      {
+        "code": "SPECIAL",
+        "amount": "5400.00"
+      },
+      {
+        "code": "INCENTIVE",
+        "amount": "4000.00"
+      },
+      {
+        "code": "ESI_EE",
+        "amount": "135.00"
+      },
+      {
+        "code": "ESI_ER",
+        "amount": "585.00"
+      }
+    ],
+    "gross": "22000.00",
+    "deductions": "135.00",
+    "reimbursements": "0.00",
+    "net": "21865.00",
+    "employerCost": "22585.00",
+    "tds": "0.00"
+  },
+  "notes": "CA working spreadsheet, row 22"
+}

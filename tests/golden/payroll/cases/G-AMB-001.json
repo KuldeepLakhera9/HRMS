@@ -1,0 +1,70 @@
+{
+  "id": "G-AMB-001",
+  "description": "Ambiguous Case: Missing employee state in CA working sheet",
+  "scenario": "pt_slabs_special_month",
+  "ruleSnapshot": {
+    "TDS_IN": "TDS_IN_2026_V1",
+    "PF_IN": "PF_IN_STD_V1"
+  },
+  "employee": {
+    "id": "emp-amb-001",
+    "gender": "male",
+    "regime": "new",
+    "employmentType": "permanent",
+    "joinDate": "2026-04-01"
+  },
+  "salary": {
+    "ctcAnnual": "600000.00",
+    "structure": "S1",
+    "effectiveFrom": "2026-04-01"
+  },
+  "settings": {
+    "paidDaysBasis": "calendar",
+    "prorationMode": "prorate_earnings",
+    "negativeNetPolicy": "block"
+  },
+  "attendance": {
+    "calendarDays": 30,
+    "paidDays": 30,
+    "lopDays": 0
+  },
+  "inputs": [],
+  "loansDue": [],
+  "rules": {},
+  "ytd": {
+    "gross": "0.00",
+    "tdsDeducted": "0.00"
+  },
+  "taxDeclaration": {
+    "regime": "new",
+    "remainingMonths": 12
+  },
+  "periodMonth": 4,
+  "expected": {
+    "lines": [
+      {
+        "code": "BASIC",
+        "amount": "25000.00"
+      },
+      {
+        "code": "HRA",
+        "amount": "10000.00"
+      },
+      {
+        "code": "SPECIAL",
+        "amount": "15000.00"
+      },
+      {
+        "code": "PF_EE",
+        "amount": "1800.00"
+      }
+    ],
+    "gross": "50000.00",
+    "deductions": "1800.00",
+    "reimbursements": "0.00",
+    "net": "48200.00",
+    "employerCost": "1800.00",
+    "tds": "0.00"
+  },
+  "notes": "CA working sheet row 54 - Note: employee state column left blank by CA"
+}

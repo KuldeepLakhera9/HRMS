@@ -1,0 +1,74 @@
+{
+  "id": "G-AMB-002",
+  "description": "Ambiguous Case: Mid-month joiner with paidDays=15 but joinDate missing",
+  "scenario": "mid_month_join_exit",
+  "ruleSnapshot": {
+    "TDS_IN": "TDS_IN_2026_V1",
+    "PF_IN": "PF_IN_STD_V1",
+    "PT_KA": "PT_KA_V1"
+  },
+  "employee": {
+    "id": "emp-amb-002",
+    "state": "KA",
+    "gender": "female",
+    "regime": "new",
+    "employmentType": "permanent"
+  },
+  "salary": {
+    "ctcAnnual": "600000.00",
+    "structure": "S1"
+  },
+  "settings": {
+    "paidDaysBasis": "calendar",
+    "prorationMode": "prorate_earnings",
+    "negativeNetPolicy": "block"
+  },
+  "attendance": {
+    "calendarDays": 30,
+    "paidDays": 15,
+    "lopDays": 0
+  },
+  "inputs": [],
+  "loansDue": [],
+  "rules": {},
+  "ytd": {
+    "gross": "0.00",
+    "tdsDeducted": "0.00"
+  },
+  "taxDeclaration": {
+    "regime": "new",
+    "remainingMonths": 12
+  },
+  "periodMonth": 4,
+  "expected": {
+    "lines": [
+      {
+        "code": "BASIC",
+        "amount": "12500.00"
+      },
+      {
+        "code": "HRA",
+        "amount": "5000.00"
+      },
+      {
+        "code": "SPECIAL",
+        "amount": "7500.00"
+      },
+      {
+        "code": "PF_EE",
+        "amount": "1500.00"
+      },
+      {
+        "code": "PT",
+        "amount": "200.00"
+      }
+    ],
+    "gross": "25000.00",
+    "deductions": "1700.00",
+    "reimbursements": "0.00",
+    "net": "23300.00",
+    "employerCost": "1500.00",
+    "tds": "0.00"
+  },
+  "notes": "CA working sheet row 55 - Attendance indicates 15 days joiner but exact joining date omitted"
+}

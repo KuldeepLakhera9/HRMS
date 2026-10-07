@@ -788,3 +788,5 @@ const processedGoldenCases = rawTestCases.map(tc => {
 const outputPath = path.resolve(__dirname, '../tests/golden/payroll/ca_golden_cases.json');
 fs.writeFileSync(outputPath, JSON.stringify(processedGoldenCases, null, 2), 'utf-8');
 console.info(`Successfully generated and verified ${processedGoldenCases.length} CA golden cases in ${outputPath}`);
+
+export { rawTestCases, processedGoldenCases };

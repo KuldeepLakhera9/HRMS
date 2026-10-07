@@ -63,4 +63,11 @@ export default tseslint.config(
       'no-restricted-imports': 'off',
     },
   },
+  {
+    files: ['scripts/**/*.ts', 'tests/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-console': 'off',
+    },
+  },
 );

@@ -1,0 +1,230 @@
+{
+  "id": "G-008",
+  "description": "LOP 5 days (25 paid days out of 30) - 6 LPA CTC",
+  "scenario": "lop_unpaid_leave",
+  "ruleSnapshot": {
+    "TDS_IN": "TDS_IN_2026_V1",
+    "PF_IN": "PF_IN_STD_V1",
+    "ESI_IN": "ESI_IN_STD_V1",
+    "PT_KA": "PT_KA_V1"
+  },
+  "employee": {
+    "id": "emp-008",
+    "state": "KA",
+    "gender": "male",
+    "regime": "new",
+    "employmentType": "permanent",
+    "joinDate": "2026-04-01"
+  },
+  "salary": {
+    "ctcAnnual": "600000.00",
+    "structure": "S1",
+    "effectiveFrom": "2026-04-01",
+    "components": [
+      {
+        "code": "BASIC",
+        "name": "Basic",
+        "kind": "earning",
+        "calc": "formula",
+        "formula": "MONTHLY_CTC * 0.50",
+        "pfWage": true,
+        "esiWage": true,
+        "statutoryWage": true
+      },
+      {
+        "code": "HRA",
+        "name": "HRA",
+        "kind": "earning",
+        "calc": "formula",
+        "formula": "BASIC * 0.40",
+        "pfWage": false,
+        "esiWage": true,
+        "statutoryWage": false
+      },
+      {
+        "code": "SPECIAL",
+        "name": "Special Allowance",
+        "kind": "earning",
+        "calc": "fixed",
+        "isBalancing": true,
+        "pfWage": false,
+        "esiWage": true,
+        "statutoryWage": false
+      }
+    ]
+  },
+  "settings": {
+    "paidDaysBasis": "calendar",
+    "prorationMode": "prorate_earnings",
+    "negativeNetPolicy": "block",
+    "pfEnabled": true,
+    "ptEnabled": true
+  },
+  "attendance": {
+    "calendarDays": 30,
+    "paidDays": 25,
+    "lopDays": 5
+  },
+  "inputs": [],
+  "loansDue": [],
+  "rules": {
+    "PF_IN": {
+      "employeeRatePct": 12,
+      "employerEpsRatePct": 8.33,
+      "employerEpfRatePct": 3.67,
+      "edliRatePct": 0.5,
+      "adminChargeRatePct": 0.5,
+      "wageCeilingMonthly": 15000,
+      "allowContributeOnActual": false,
+      "allowVpf": false,
+      "roundingMode": "half_up",
+      "ecrFileFormatVersion": "2.0",
+      "ncpDaysRule": "lop_only"
+    },
+    "PT": {
+      "stateCode": "KA",
+      "slabs": [
+        {
+          "minMonthlyGross": 0,
+          "maxMonthlyGross": 15000,
+          "taxAmount": 0
+        },
+        {
+          "minMonthlyGross": 15000,
+          "maxMonthlyGross": null,
+          "taxAmount": 200
+        }
+      ]
+    },
+    "TDS_IN": {
+      "financialYear": "2026-2027",
+      "regimes": {
+        "new": {
+          "standardDeduction": 75000,
+          "taxSlabs": [
+            {
+              "minIncome": 0,
+              "maxIncome": 300000,
+              "ratePct": 0
+            },
+            {
+              "minIncome": 300000,
+              "maxIncome": 700000,
+              "ratePct": 5
+            },
+            {
+              "minIncome": 700000,
+              "maxIncome": 1000000,
+              "ratePct": 10
+            },
+            {
+              "minIncome": 1000000,
+              "maxIncome": 1200000,
+              "ratePct": 15
+            },
+            {
+              "minIncome": 1200000,
+              "maxIncome": 1500000,
+              "ratePct": 20
+            },
+            {
+              "minIncome": 1500000,
+              "maxIncome": null,
+              "ratePct": 30
+            }
+          ],
+          "rebate": {
+            "thresholdTaxableIncome": 700000,
+            "maxRebateAmount": 25000,
+            "marginalReliefEnabled": true
+          },
+          "surchargeSlabs": [],
+          "healthAndEducationCessPct": 4,
+          "allowedDeductions": []
+        },
+        "old": {
+          "standardDeduction": 50000,
+          "taxSlabs": [
+            {
+              "minIncome": 0,
+              "maxIncome": 250000,
+              "ratePct": 0
+            },
+            {
+              "minIncome": 250000,
+              "maxIncome": 500000,
+              "ratePct": 5
+            },
+            {
+              "minIncome": 500000,
+              "maxIncome": 1000000,
+              "ratePct": 20
+            },
+            {
+              "minIncome": 1000000,
+              "maxIncome": null,
+              "ratePct": 30
+            }
+          ],
+          "rebate": {
+            "thresholdTaxableIncome": 500000,
+            "maxRebateAmount": 12500,
+            "marginalReliefEnabled": false
+          },
+          "surchargeSlabs": [],
+          "healthAndEducationCessPct": 4,
+          "allowedDeductions": [
+            "80C",
+            "80D",
+            "80CCD_1B",
+            "24B"
+          ]
+        }
+      }
+    }
+  },
+  "ytd": {
+    "gross": "0.00",
+    "tdsDeducted": "0.00"
+  },
+  "taxDeclaration": {
+    "regime": "new",
+    "remainingMonths": 12
+  },
+  "periodMonth": 4,
+  "expected": {
+    "lines": [
+      {
+        "code": "BASIC",
+        "amount": "16666.68"
+      },
+      {
+        "code": "HRA",
+        "amount": "6666.67"
+      },
+      {
+        "code": "SPECIAL",
+        "amount": "10000.00"
+      },
+      {
+        "code": "PF_EE",
+        "amount": "1800.00"
+      },
+      {
+        "code": "PF_ER",
+        "amount": "1951.00"
+      },
+      {
+        "code": "PT",
+        "amount": "200.00"
+      }
+    ],
+    "gross": "33333.35",
+    "deductions": "2000.00",
+    "reimbursements": "0.00",
+    "net": "31333.35",
+    "employerCost": "35284.35",
+    "tds": "0.00"
+  },
+  "notes": "CA working spreadsheet, row 9"
+}

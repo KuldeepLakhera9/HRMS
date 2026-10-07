@@ -1,0 +1,76 @@
+{
+  "id": "G-AMB-003",
+  "description": "Inconsistent Case: Math discrepancy in CA spreadsheet (Net != Gross - Deductions)",
+  "scenario": "full_month_standard",
+  "ruleSnapshot": {
+    "TDS_IN": "TDS_IN_2026_V1",
+    "PF_IN": "PF_IN_STD_V1",
+    "PT_KA": "PT_KA_V1"
+  },
+  "employee": {
+    "id": "emp-amb-003",
+    "state": "KA",
+    "gender": "male",
+    "regime": "new",
+    "employmentType": "permanent",
+    "joinDate": "2026-04-01"
+  },
+  "salary": {
+    "ctcAnnual": "600000.00",
+    "structure": "S1",
+    "effectiveFrom": "2026-04-01"
+  },
+  "settings": {
+    "paidDaysBasis": "calendar",
+    "prorationMode": "prorate_earnings",
+    "negativeNetPolicy": "block"
+  },
+  "attendance": {
+    "calendarDays": 30,
+    "paidDays": 30,
+    "lopDays": 0
+  },
+  "inputs": [],
+  "loansDue": [],
+  "rules": {},
+  "ytd": {
+    "gross": "0.00",
+    "tdsDeducted": "0.00"
+  },
+  "taxDeclaration": {
+    "regime": "new",
+    "remainingMonths": 12
+  },
+  "periodMonth": 4,
+  "expected": {
+    "lines": [
+      {
+        "code": "BASIC",
+        "amount": "25000.00"
+      },
+      {
+        "code": "HRA",
+        "amount": "10000.00"
+      },
+      {
+        "code": "SPECIAL",
+        "amount": "15000.00"
+      },
+      {
+        "code": "PF_EE",
+        "amount": "1800.00"
+      },
+      {
+        "code": "PT",
+        "amount": "200.00"
+      }
+    ],
+    "gross": "50000.00",
+    "deductions": "2000.00",
+    "reimbursements": "0.00",
+    "net": "47500.00",
+    "employerCost": "2000.00",
+    "tds": "0.00"
+  },
+  "notes": "CA working sheet row 56 - Arithmetic mismatch in CA sheet: 50,000 - 2,000 != 47,500"
+}

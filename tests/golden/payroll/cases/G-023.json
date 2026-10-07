@@ -1,0 +1,118 @@
+{
+  "id": "G-023",
+  "description": "Professional Tax Karnataka zero slab (Gross 12,000 <= 15,000 => PT 0)",
+  "scenario": "pt_slabs_special_month",
+  "ruleSnapshot": {
+    "TDS_IN": "TDS_IN_2026_V1",
+    "PF_IN": "PF_IN_STD_V1",
+    "ESI_IN": "ESI_IN_STD_V1",
+    "PT_KA": "PT_KA_V1"
+  },
+  "employee": {
+    "id": "emp-023",
+    "state": "KA",
+    "gender": "male",
+    "regime": "new",
+    "employmentType": "permanent",
+    "joinDate": "2026-04-01"
+  },
+  "salary": {
+    "ctcAnnual": "144000.00",
+    "structure": "S1",
+    "effectiveFrom": "2026-04-01",
+    "components": [
+      {
+        "code": "BASIC",
+        "name": "Basic",
+        "kind": "earning",
+        "calc": "formula",
+        "formula": "MONTHLY_CTC * 0.50",
+        "pfWage": true,
+        "esiWage": true,
+        "statutoryWage": true
+      },
+      {
+        "code": "HRA",
+        "name": "HRA",
+        "kind": "earning",
+        "calc": "formula",
+        "formula": "BASIC * 0.40",
+        "pfWage": false,
+        "esiWage": true,
+        "statutoryWage": false
+      },
+      {
+        "code": "SPECIAL",
+        "name": "Special Allowance",
+        "kind": "earning",
+        "calc": "fixed",
+        "isBalancing": true,
+        "pfWage": false,
+        "esiWage": true,
+        "statutoryWage": false
+      }
+    ]
+  },
+  "settings": {
+    "paidDaysBasis": "calendar",
+    "prorationMode": "prorate_earnings",
+    "negativeNetPolicy": "block",
+    "ptEnabled": true
+  },
+  "attendance": {
+    "calendarDays": 30,
+    "paidDays": 30,
+    "lopDays": 0
+  },
+  "inputs": [],
+  "loansDue": [],
+  "rules": {
+    "PT": {
+      "stateCode": "KA",
+      "slabs": [
+        {
+          "minMonthlyGross": 0,
+          "maxMonthlyGross": 15000,
+          "taxAmount": 0
+        },
+        {
+          "minMonthlyGross": 15000,
+          "maxMonthlyGross": null,
+          "taxAmount": 200
+        }
+      ]
+    }
+  },
+  "ytd": {
+    "gross": "0.00",
+    "tdsDeducted": "0.00"
+  },
+  "taxDeclaration": {
+    "regime": "new",
+    "remainingMonths": 12
+  },
+  "periodMonth": 4,
+  "expected": {
+    "lines": [
+      {
+        "code": "BASIC",
+        "amount": "6000.00"
+      },
+      {
+        "code": "HRA",
+        "amount": "2400.00"
+      },
+      {
+        "code": "SPECIAL",
+        "amount": "3600.00"
+      }
+    ],
+    "gross": "12000.00",
+    "deductions": "0.00",
+    "reimbursements": "0.00",
+    "net": "12000.00",
+    "employerCost": "12000.00",
+    "tds": "0.00"
+  },
+  "notes": "CA working spreadsheet, row 24"
+}

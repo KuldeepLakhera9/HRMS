@@ -1,0 +1,127 @@
+{
+  "id": "G-026",
+  "description": "Professional Tax Telangana slabs (Gross 20,000 => PT 200)",
+  "scenario": "pt_slabs_special_month",
+  "ruleSnapshot": {
+    "TDS_IN": "TDS_IN_2026_V1",
+    "PF_IN": "PF_IN_STD_V1",
+    "ESI_IN": "ESI_IN_STD_V1",
+    "PT_TG": "PT_TG_V1"
+  },
+  "employee": {
+    "id": "emp-026",
+    "state": "TG",
+    "gender": "male",
+    "regime": "new",
+    "employmentType": "permanent",
+    "joinDate": "2026-04-01"
+  },
+  "salary": {
+    "ctcAnnual": "240000.00",
+    "structure": "S1",
+    "effectiveFrom": "2026-04-01",
+    "components": [
+      {
+        "code": "BASIC",
+        "name": "Basic",
+        "kind": "earning",
+        "calc": "formula",
+        "formula": "MONTHLY_CTC * 0.50",
+        "pfWage": true,
+        "esiWage": true,
+        "statutoryWage": true
+      },
+      {
+        "code": "HRA",
+        "name": "HRA",
+        "kind": "earning",
+        "calc": "formula",
+        "formula": "BASIC * 0.40",
+        "pfWage": false,
+        "esiWage": true,
+        "statutoryWage": false
+      },
+      {
+        "code": "SPECIAL",
+        "name": "Special Allowance",
+        "kind": "earning",
+        "calc": "fixed",
+        "isBalancing": true,
+        "pfWage": false,
+        "esiWage": true,
+        "statutoryWage": false
+      }
+    ]
+  },
+  "settings": {
+    "paidDaysBasis": "calendar",
+    "prorationMode": "prorate_earnings",
+    "negativeNetPolicy": "block",
+    "ptEnabled": true
+  },
+  "attendance": {
+    "calendarDays": 30,
+    "paidDays": 30,
+    "lopDays": 0
+  },
+  "inputs": [],
+  "loansDue": [],
+  "rules": {
+    "PT": {
+      "stateCode": "TG",
+      "slabs": [
+        {
+          "minMonthlyGross": 0,
+          "maxMonthlyGross": 15000,
+          "taxAmount": 0
+        },
+        {
+          "minMonthlyGross": 15000,
+          "maxMonthlyGross": 20000,
+          "taxAmount": 150
+        },
+        {
+          "minMonthlyGross": 20000,
+          "maxMonthlyGross": null,
+          "taxAmount": 200
+        }
+      ]
+    }
+  },
+  "ytd": {
+    "gross": "0.00",
+    "tdsDeducted": "0.00"
+  },
+  "taxDeclaration": {
+    "regime": "new",
+    "remainingMonths": 12
+  },
+  "periodMonth": 4,
+  "expected": {
+    "lines": [
+      {
+        "code": "BASIC",
+        "amount": "10000.00"
+      },
+      {
+        "code": "HRA",
+        "amount": "4000.00"
+      },
+      {
+        "code": "SPECIAL",
+        "amount": "6000.00"
+      },
+      {
+        "code": "PT",
+        "amount": "150.00"
+      }
+    ],
+    "gross": "20000.00",
+    "deductions": "150.00",
+    "reimbursements": "0.00",
+    "net": "19850.00",
+    "employerCost": "20000.00",
+    "tds": "0.00"
+  },
+  "notes": "CA working spreadsheet, row 27"
+}

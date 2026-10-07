@@ -1,0 +1,76 @@
+{
+  "id": "G-AMB-005",
+  "description": "Suspected Source Error: CA computed PF on Gross instead of Basic wage",
+  "scenario": "pf_ceilings_vpf",
+  "ruleSnapshot": {
+    "TDS_IN": "TDS_IN_2026_V1",
+    "PF_IN": "PF_IN_ACTUAL_V1",
+    "PT_KA": "PT_KA_V1"
+  },
+  "employee": {
+    "id": "emp-amb-005",
+    "state": "KA",
+    "gender": "male",
+    "regime": "new",
+    "employmentType": "permanent",
+    "joinDate": "2026-04-01"
+  },
+  "salary": {
+    "ctcAnnual": "600000.00",
+    "structure": "S1",
+    "effectiveFrom": "2026-04-01"
+  },
+  "settings": {
+    "paidDaysBasis": "calendar",
+    "prorationMode": "prorate_earnings",
+    "negativeNetPolicy": "block"
+  },
+  "attendance": {
+    "calendarDays": 30,
+    "paidDays": 30,
+    "lopDays": 0
+  },
+  "inputs": [],
+  "loansDue": [],
+  "rules": {},
+  "ytd": {
+    "gross": "0.00",
+    "tdsDeducted": "0.00"
+  },
+  "taxDeclaration": {
+    "regime": "new",
+    "remainingMonths": 12
+  },
+  "periodMonth": 4,
+  "expected": {
+    "lines": [
+      {
+        "code": "BASIC",
+        "amount": "25000.00"
+      },
+      {
+        "code": "HRA",
+        "amount": "10000.00"
+      },
+      {
+        "code": "SPECIAL",
+        "amount": "15000.00"
+      },
+      {
+        "code": "PF_EE",
+        "amount": "6000.00"
+      },
+      {
+        "code": "PT",
+        "amount": "200.00"
+      }
+    ],
+    "gross": "50000.00",
+    "deductions": "6200.00",
+    "reimbursements": "0.00",
+    "net": "43800.00",
+    "employerCost": "6000.00",
+    "tds": "0.00"
+  },
+  "notes": "CA working sheet row 58 - Suspected calculation mistake by CA (12% applied to total gross instead of PF eligible basic wages)"
+}

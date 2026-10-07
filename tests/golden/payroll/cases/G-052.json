@@ -1,0 +1,75 @@
+{
+  "id": "G-052",
+  "description": "Intern / Consultant stipend (Excluded from PF, ESI, PT; flat stipend)",
+  "scenario": "statutory_exclusions",
+  "ruleSnapshot": {
+    "TDS_IN": "TDS_IN_2026_V1",
+    "PF_IN": "PF_IN_STD_V1",
+    "ESI_IN": "ESI_IN_STD_V1"
+  },
+  "employee": {
+    "id": "emp-052",
+    "state": "KA",
+    "gender": "male",
+    "regime": "new",
+    "employmentType": "permanent",
+    "joinDate": "2026-04-01"
+  },
+  "salary": {
+    "ctcAnnual": "240000.00",
+    "structure": "S4",
+    "effectiveFrom": "2026-04-01",
+    "components": [
+      {
+        "code": "STIPEND",
+        "name": "Stipend",
+        "kind": "earning",
+        "calc": "fixed",
+        "formula": "20000.00",
+        "pfWage": false,
+        "esiWage": false,
+        "statutoryWage": false
+      }
+    ]
+  },
+  "settings": {
+    "paidDaysBasis": "calendar",
+    "prorationMode": "prorate_earnings",
+    "negativeNetPolicy": "block",
+    "pfEnabled": false,
+    "esiEnabled": false,
+    "ptEnabled": false
+  },
+  "attendance": {
+    "calendarDays": 30,
+    "paidDays": 30,
+    "lopDays": 0
+  },
+  "inputs": [],
+  "loansDue": [],
+  "rules": {},
+  "ytd": {
+    "gross": "0.00",
+    "tdsDeducted": "0.00"
+  },
+  "taxDeclaration": {
+    "regime": "new",
+    "remainingMonths": 12
+  },
+  "periodMonth": 4,
+  "expected": {
+    "lines": [
+      {
+        "code": "STIPEND",
+        "amount": "0.00"
+      }
+    ],
+    "gross": "0.00",
+    "deductions": "0.00",
+    "reimbursements": "0.00",
+    "net": "0.00",
+    "employerCost": "0.00",
+    "tds": "0.00"
+  },
+  "notes": "CA working spreadsheet, row 53"
+}

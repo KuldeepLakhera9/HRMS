@@ -1,0 +1,157 @@
+{
+  "id": "G-051",
+  "description": "Off-cycle bonus run with bonus input only and zero regular salary",
+  "scenario": "off_cycle_bonus_correction",
+  "ruleSnapshot": {
+    "TDS_IN": "TDS_IN_2026_V1",
+    "PF_IN": "PF_IN_STD_V1",
+    "ESI_IN": "ESI_IN_STD_V1"
+  },
+  "employee": {
+    "id": "emp-051",
+    "state": "KA",
+    "gender": "male",
+    "regime": "new",
+    "employmentType": "permanent",
+    "joinDate": "2026-04-01"
+  },
+  "salary": {
+    "ctcAnnual": "0.00",
+    "structure": "OFF_CYCLE",
+    "effectiveFrom": "2026-04-01",
+    "components": []
+  },
+  "settings": {
+    "paidDaysBasis": "calendar",
+    "prorationMode": "prorate_earnings",
+    "negativeNetPolicy": "block",
+    "pfEnabled": false,
+    "ptEnabled": false
+  },
+  "attendance": {
+    "calendarDays": 30,
+    "paidDays": 30,
+    "lopDays": 0
+  },
+  "inputs": [
+    {
+      "type": "bonus",
+      "componentCode": "OFF_CYCLE_BONUS",
+      "amount": "50000.00",
+      "taxable": true
+    }
+  ],
+  "loansDue": [],
+  "rules": {
+    "TDS_IN": {
+      "financialYear": "2026-2027",
+      "regimes": {
+        "new": {
+          "standardDeduction": 75000,
+          "taxSlabs": [
+            {
+              "minIncome": 0,
+              "maxIncome": 300000,
+              "ratePct": 0
+            },
+            {
+              "minIncome": 300000,
+              "maxIncome": 700000,
+              "ratePct": 5
+            },
+            {
+              "minIncome": 700000,
+              "maxIncome": 1000000,
+              "ratePct": 10
+            },
+            {
+              "minIncome": 1000000,
+              "maxIncome": 1200000,
+              "ratePct": 15
+            },
+            {
+              "minIncome": 1200000,
+              "maxIncome": 1500000,
+              "ratePct": 20
+            },
+            {
+              "minIncome": 1500000,
+              "maxIncome": null,
+              "ratePct": 30
+            }
+          ],
+          "rebate": {
+            "thresholdTaxableIncome": 700000,
+            "maxRebateAmount": 25000,
+            "marginalReliefEnabled": true
+          },
+          "surchargeSlabs": [],
+          "healthAndEducationCessPct": 4,
+          "allowedDeductions": []
+        },
+        "old": {
+          "standardDeduction": 50000,
+          "taxSlabs": [
+            {
+              "minIncome": 0,
+              "maxIncome": 250000,
+              "ratePct": 0
+            },
+            {
+              "minIncome": 250000,
+              "maxIncome": 500000,
+              "ratePct": 5
+            },
+            {
+              "minIncome": 500000,
+              "maxIncome": 1000000,
+              "ratePct": 20
+            },
+            {
+              "minIncome": 1000000,
+              "maxIncome": null,
+              "ratePct": 30
+            }
+          ],
+          "rebate": {
+            "thresholdTaxableIncome": 500000,
+            "maxRebateAmount": 12500,
+            "marginalReliefEnabled": false
+          },
+          "surchargeSlabs": [],
+          "healthAndEducationCessPct": 4,
+          "allowedDeductions": [
+            "80C",
+            "80D",
+            "80CCD_1B",
+            "24B"
+          ]
+        }
+      }
+    }
+  },
+  "ytd": {
+    "gross": "0.00",
+    "tdsDeducted": "0.00"
+  },
+  "taxDeclaration": {
+    "regime": "new",
+    "remainingMonths": 6
+  },
+  "periodMonth": 4,
+  "expected": {
+    "lines": [
+      {
+        "code": "OFF_CYCLE_BONUS",
+        "amount": "50000.00"
+      }
+    ],
+    "gross": "50000.00",
+    "deductions": "0.00",
+    "reimbursements": "0.00",
+    "net": "50000.00",
+    "employerCost": "50000.00",
+    "tds": "0.00"
+  },
+  "notes": "CA working spreadsheet, row 52"
+}
