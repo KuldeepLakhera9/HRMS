@@ -1,0 +1,58 @@
+---
+# Staging Global Environment Variables
+environment_tier: staging
+domain_name: staging.orghub.internal
+public_fqdn: hrms-staging.example.com
+
+# Time Synchronization
+ntp_servers:
+  - time.google.com
+  - time.cloudflare.com
+timezone: "Asia/Kolkata"
+
+# Network Subnets
+vlan_subnets:
+  dmz: "10.10.10.0/24"
+  app: "10.10.20.0/24"
+  data: "10.10.30.0/24"
+  backup: "10.10.40.0/24"
+  mgmt: "10.10.50.0/24"
+
+# Edge Settings
+nginx_http2_enabled: true
+nginx_brotli_enabled: true
+nginx_waf_mode: "DetectionOnly" # Start in detection mode during staging/UAT
+maintenance_mode_enabled: false
+
+# Database HA Settings
+patroni_cluster_name: "hrms-patroni-staging"
+patroni_synchronous_mode: true
+patroni_synchronous_mode_strict: false # ADR-0019: Non-strict with P1 Alerting
+pg_version: "16"
+
+# PgBouncer Settings
+pgbouncer_pool_mode: "transaction"
+pgbouncer_default_pool_size: 25
+pgbouncer_max_client_conn: 300
+
+# Valkey / Cache Settings
+valkey_port: 6379
+valkey_sentinel_port: 26379
+valkey_cluster_name: "valkey-hrms-staging"
+
+# Storage Settings
+storage_backend: "minio" # ADR-0020: default minio, alternate seaweedfs
+minio_port: 9000
+minio_console_port: 9001
+
+# Secrets & OpenBao
+openbao_port: 8200
+openbao_cluster_port: 8201
+
+# Backup Settings
+pgbackrest_stanza: "hrms_staging"
+pgbackrest_cipher_type: "aes-256-cbc" # Client-side encryption for offsite
+
+# Egress Proxy
+egress_proxy_host: "10.10.50.83"
+egress_proxy_port: 3128

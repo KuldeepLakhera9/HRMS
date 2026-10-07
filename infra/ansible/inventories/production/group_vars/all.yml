@@ -1,0 +1,58 @@
+---
+# Production Global Environment Variables
+environment_tier: production
+domain_name: orghub.internal
+public_fqdn: hrms.example.com # Replace with customer production domain
+
+# Time Synchronization (PTP / chrony with local data center stratum 1/2)
+ntp_servers:
+  - time.google.com
+  - time.cloudflare.com
+timezone: "Asia/Kolkata"
+
+# Network Subnets (Replace with customer production network architecture)
+vlan_subnets:
+  dmz: "192.168.10.0/24"
+  app: "192.168.20.0/24"
+  data: "192.168.30.0/24"
+  backup: "192.168.40.0/24"
+  mgmt: "192.168.50.0/24"
+
+# Edge Settings
+nginx_http2_enabled: true
+nginx_brotli_enabled: true
+nginx_waf_mode: "On" # Strict blocking in production after staging tuning
+maintenance_mode_enabled: false
+
+# Database HA Settings
+patroni_cluster_name: "hrms-patroni-prod"
+patroni_synchronous_mode: true
+patroni_synchronous_mode_strict: false # ADR-0019
+pg_version: "16"
+
+# PgBouncer Settings (Sized for 5,000 employees)
+pgbouncer_pool_mode: "transaction"
+pgbouncer_default_pool_size: 40
+pgbouncer_max_client_conn: 800
+
+# Valkey / Cache Settings
+valkey_port: 6379
+valkey_sentinel_port: 26379
+valkey_cluster_name: "valkey-hrms-prod"
+
+# Storage Settings
+storage_backend: "minio" # ADR-0020
+minio_port: 9000
+minio_console_port: 9001
+
+# Secrets & OpenBao
+openbao_port: 8200
+openbao_cluster_port: 8201
+
+# Backup Settings
+pgbackrest_stanza: "hrms_prod"
+pgbackrest_cipher_type: "aes-256-cbc"
+
+# Egress Proxy
+egress_proxy_host: "192.168.50.83"
+egress_proxy_port: 3128
