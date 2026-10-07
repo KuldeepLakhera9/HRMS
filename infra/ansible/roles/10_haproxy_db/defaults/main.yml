@@ -1,0 +1,22 @@
+---
+# Defaults for 10_haproxy_db
+haproxy_db_primary_port: 5000
+haproxy_db_replica_port: 5001
+haproxy_stats_port: 7000
+
+haproxy_stats_user: "admin"
+haproxy_stats_password: "{{ vault_haproxy_stats_password | default('HrmsDbStatsPass99!') }}"
+
+db_nodes:
+  - name: "db-node-01"
+    ip: "10.10.30.31"
+    pg_port: 5432
+    patroni_port: 8008
+  - name: "db-node-02"
+    ip: "10.10.30.32"
+    pg_port: 5432
+    patroni_port: 8008
+  - name: "db-node-03"
+    ip: "10.10.30.33"
+    pg_port: 5432
+    patroni_port: 8008

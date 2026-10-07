@@ -1,0 +1,27 @@
+---
+# Defaults for 09_postgres_patroni
+pg_version: "16"
+patroni_scope: "hrms-db-cluster"
+patroni_namespace: "/service"
+
+patroni_rest_port: 8008
+patroni_data_dir: "/var/lib/postgresql/16/main"
+
+etcd_hosts:
+  - "10.10.30.31:2379"
+  - "10.10.30.32:2379"
+  - "10.10.30.33:2379"
+
+# Sizing for 16GB RAM node
+pg_shared_buffers: "4GB"
+pg_effective_cache_size: "12GB"
+pg_work_mem: "32MB"
+pg_maintenance_work_mem: "1GB"
+pg_max_connections: 250
+
+db_app_user: "hrms_app"
+db_app_password: "{{ vault_db_app_password | default('ChangeMeAppSecretDb99!') }}"
+db_repl_user: "replicator"
+db_repl_password: "{{ vault_db_repl_password | default('ChangeMeReplSecret99!') }}"
+db_superuser: "postgres"
+db_superuser_password: "{{ vault_db_super_password | default('ChangeMeSuperSecret99!') }}"

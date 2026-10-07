@@ -1,0 +1,40 @@
+[databases]
+{{ db_name }} = host={{ db_host_primary }} port={{ db_port_primary }} dbname={{ db_name }} auth_user=pgbouncer
+{{ db_name }}_ro = host={{ db_host_replica }} port={{ db_port_replica }} dbname={{ db_name }} auth_user=pgbouncer
+
+[pgbouncer]
+logfile = /var/log/postgresql/pgbouncer.log
+pidfile = /run/postgresql/pgbouncer.pid
+listen_addr = {{ pgbouncer_listen_addr }}
+listen_port = {{ pgbouncer_listen_port }}
+auth_type = {{ pgbouncer_auth_type }}
+auth_file = /etc/pgbouncer/userlist.txt
+
+# Transaction pooling mandatory for Node/Next.js/BullMQ scale
+pool_mode = {{ pgbouncer_pool_mode }}
+
+# Connection limits
+max_client_conn = {{ pgbouncer_max_client_conn }}
+default_pool_size = {{ pgbouncer_default_pool_size }}
+min_pool_size = {{ pgbouncer_min_pool_size }}
+reserve_pool_size = {{ pgbouncer_reserve_pool_size }}
+reserve_pool_timeout = 5
+max_db_connections = 120
+
+# Timeouts
+server_idle_timeout = 600
+server_lifetime = 3600
+server_connect_timeout = 5
+client_idle_timeout = 0
+client_login_timeout = 10
+query_timeout = 0
+query_wait_timeout = 30
+
+# Clean connection state
+server_reset_query = DISCARD ALL
+server_check_query = select 1
+server_check_delay = 10
+
+# TLS
+client_tls_sslmode = prefer
+server_tls_sslmode = prefer

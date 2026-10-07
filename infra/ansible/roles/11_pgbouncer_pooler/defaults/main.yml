@@ -1,0 +1,24 @@
+---
+# Defaults for 11_pgbouncer_pooler
+pgbouncer_listen_addr: "0.0.0.0"
+pgbouncer_listen_port: 6432
+pgbouncer_pool_mode: "transaction"
+
+db_host_primary: "10.10.30.31" # Points to HAProxy primary frontend
+db_port_primary: 5000
+db_host_replica: "10.10.30.31" # Points to HAProxy replica frontend
+db_port_replica: 5001
+db_name: "hrms"
+
+pgbouncer_default_pool_size: 40
+pgbouncer_min_pool_size: 10
+pgbouncer_reserve_pool_size: 10
+pgbouncer_max_client_conn: 1000
+
+# Auth users
+pgbouncer_auth_type: "scram-sha-256"
+pgbouncer_users:
+  - user: "hrms_app"
+    password: "{{ vault_db_app_password | default('ChangeMeAppSecretDb99!') }}"
+  - user: "pgbouncer"
+    password: "{{ vault_pgbouncer_auth_password | default('ChangeMePgBouncerAuth99!') }}"

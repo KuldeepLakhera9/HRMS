@@ -1,0 +1,23 @@
+---
+# Defaults for 08_etcd_cluster
+etcd_version: "3.5.15"
+etcd_client_port: 2379
+etcd_peer_port: 2380
+etcd_data_dir: "/var/lib/etcd"
+
+etcd_cluster_token: "hrms-etcd-cluster"
+etcd_initial_cluster_state: "new"
+
+# Initial cluster definition
+etcd_peers:
+  - name: "db-node-01"
+    ip: "10.10.30.31"
+  - name: "db-node-02"
+    ip: "10.10.30.32"
+  - name: "db-node-03"
+    ip: "10.10.30.33"
+
+# TLS paths
+etcd_ca_file: "/etc/ssl/hrms/hrms-internal-ca.crt"
+etcd_cert_file: "/etc/ssl/hrms/certs/etcd.crt"
+etcd_key_file: "/etc/ssl/hrms/private/etcd.key"
