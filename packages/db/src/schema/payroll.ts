@@ -536,6 +536,166 @@ export const tdsComputations = pgTable(
   ],
 );
 
+export const bankFormatTemplates = pgTable(
+  'bank_format_templates',
+  {
+    ...baseTenantColumns,
+    name: text('name').notNull(),
+    bankCode: text('bank_code').notNull(),
+    columnsMapping: jsonb('columns_mapping').$type<Record<string, unknown>>().notNull(),
+    delimiter: text('delimiter').default(',').notNull(),
+    hasHeader: boolean('has_header').default(true).notNull(),
+    hasFooter: boolean('has_footer').default(false).notNull(),
+    validations: jsonb('validations').$type<Record<string, unknown>>().default({}).notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+  },
+  table => [
+    uniqueIndex('idx_bank_format_templates_company_id').on(table.companyId, table.id),
+    index('idx_bank_format_templates_company').on(table.companyId),
+  ],
+);
+
+export const bankAdviceFiles = pgTable(
+  'bank_advice_files',
+  {
+    ...baseTenantColumns,
+    runId: uuid('run_id').notNull(),
+    formatTemplateId: uuid('format_template_id').notNull(),
+    fileId: uuid('file_id'),
+    checksum: text('checksum').notNull(),
+    recordCount: integer('record_count').notNull(),
+    totalAmount: numeric('total_amount', { precision: 14, scale: 2 }).notNull(),
+    status: text('status')
+      .$type<'generated' | 'downloaded' | 'sent' | 'confirmed' | 'cancelled'>()
+      .default('generated')
+      .notNull(),
+    version: integer('version').default(1).notNull(),
+    reasonForRegeneration: text('reason_for_regeneration'),
+    encryptedPayload: text('encrypted_payload'),
+    generatedBy: uuid('generated_by').notNull(),
+    approvedBy: uuid('approved_by'),
+    downloadedAt: timestamp('downloaded_at', { withTimezone: true, mode: 'date' }),
+    downloadCount: integer('download_count').default(0).notNull(),
+  },
+  table => [
+    uniqueIndex('idx_bank_advice_files_company_id').on(table.companyId, table.id),
+    index('idx_bank_advice_files_run').on(table.companyId, table.runId),
+    index('idx_bank_advice_files_status').on(table.companyId, table.status),
+  ],
+);
+
+export const paymentConfirmations = pgTable(
+  'payment_confirmations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    companyId: uuid('company_id').notNull(),
+    adviceFileId: uuid('advice_file_id').notNull(),
+    runId: uuid('run_id').notNull(),
+    employeeId: uuid('employee_id').notNull(),
+    utr: text('utr').notNull(),
+    status: text('status').$type<'success' | 'failed' | 'returned'>().notNull(),
+    amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+    failureReason: text('failure_reason'),
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    importedBy: uuid('imported_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex('idx_payment_confirmations_company_id').on(table.companyId, table.id),
+    index('idx_payment_confirmations_run').on(table.companyId, table.runId),
+    index('idx_payment_confirmations_emp').on(table.companyId, table.employeeId),
+    index('idx_payment_confirmations_utr').on(table.companyId, table.utr),
+  ],
+);
+
+export const expenseCategories = pgTable(
+  'expense_categories',
+  {
+    ...baseTenantColumns,
+    code: text('code').notNull(),
+    name: text('name').notNull(),
+    perClaimLimit: numeric('per_claim_limit', { precision: 14, scale: 2 }),
+    perMonthLimit: numeric('per_month_limit', { precision: 14, scale: 2 }),
+    billRequiredAbove: numeric('bill_required_above', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    taxable: boolean('taxable').default(false).notNull(),
+    glCode: text('gl_code'),
+    allowedGrades: jsonb('allowed_grades').$type<string[]>().default([]).notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+  },
+  table => [
+    uniqueIndex('idx_expense_categories_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_expense_categories_code').on(table.companyId, table.code),
+    index('idx_expense_categories_company').on(table.companyId),
+  ],
+);
+
+export const expensePolicies = pgTable(
+  'expense_policies',
+  {
+    ...baseTenantColumns,
+    categoryId: uuid('category_id').notNull(),
+    gradeId: uuid('grade_id'),
+    limits: jsonb('limits').$type<Record<string, unknown>>().default({}).notNull(),
+    rules: jsonb('rules').$type<Record<string, unknown>>().default({}).notNull(),
+  },
+  table => [
+    uniqueIndex('idx_expense_policies_company_id').on(table.companyId, table.id),
+    index('idx_expense_policies_cat').on(table.companyId, table.categoryId),
+  ],
+);
+
+export const expenseClaims = pgTable(
+  'expense_claims',
+  {
+    ...baseTenantColumns,
+    employeeId: uuid('employee_id').notNull(),
+    claimNo: text('claim_no').notNull(),
+    title: text('title').notNull(),
+    status: text('status')
+      .$type<'draft' | 'submitted' | 'approved' | 'partially_approved' | 'rejected' | 'paid' | 'cancelled'>()
+      .default('draft')
+      .notNull(),
+    totalClaimed: numeric('total_claimed', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    totalApproved: numeric('total_approved', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    workflowRequestId: uuid('workflow_request_id'),
+    payoutMode: text('payout_mode').$type<'payroll' | 'bank'>().default('payroll').notNull(),
+    payoutRef: text('payout_ref'),
+    submittedAt: timestamp('submitted_at', { withTimezone: true, mode: 'date' }),
+    approvedAt: timestamp('approved_at', { withTimezone: true, mode: 'date' }),
+    paidAt: timestamp('paid_at', { withTimezone: true, mode: 'date' }),
+  },
+  table => [
+    uniqueIndex('idx_expense_claims_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_expense_claims_claim_no').on(table.companyId, table.claimNo),
+    index('idx_expense_claims_emp').on(table.companyId, table.employeeId, table.status),
+    index('idx_expense_claims_status').on(table.companyId, table.status),
+  ],
+);
+
+export const expenseItems = pgTable(
+  'expense_items',
+  {
+    ...baseTenantColumns,
+    claimId: uuid('claim_id').notNull(),
+    expenseDate: date('expense_date', { mode: 'string' }).notNull(),
+    categoryId: uuid('category_id').notNull(),
+    amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+    merchant: text('merchant'),
+    description: text('description'),
+    billFileId: uuid('bill_file_id'),
+    billHash: text('bill_hash'),
+    policyFlags: jsonb('policy_flags').$type<string[]>().default([]).notNull(),
+    approvedAmount: numeric('approved_amount', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    status: text('status').$type<'pending' | 'approved' | 'rejected'>().default('pending').notNull(),
+    rejectionReason: text('rejection_reason'),
+  },
+  table => [
+    uniqueIndex('idx_expense_items_company_id').on(table.companyId, table.id),
+    index('idx_expense_items_claim').on(table.companyId, table.claimId),
+    index('idx_expense_items_hash').on(table.companyId, table.billHash),
+  ],
+);
+
 export type PayrollPeriod = typeof payrollPeriods.$inferSelect;
 export type NewPayrollPeriod = typeof payrollPeriods.$inferInsert;
 export type PayrollRun = typeof payrollRuns.$inferSelect;
@@ -558,4 +718,18 @@ export type PayrollYtd = typeof payrollYtd.$inferSelect;
 export type NewPayrollYtd = typeof payrollYtd.$inferInsert;
 export type TdsComputation = typeof tdsComputations.$inferSelect;
 export type NewTdsComputation = typeof tdsComputations.$inferInsert;
+export type BankFormatTemplate = typeof bankFormatTemplates.$inferSelect;
+export type NewBankFormatTemplate = typeof bankFormatTemplates.$inferInsert;
+export type BankAdviceFile = typeof bankAdviceFiles.$inferSelect;
+export type NewBankAdviceFile = typeof bankAdviceFiles.$inferInsert;
+export type PaymentConfirmation = typeof paymentConfirmations.$inferSelect;
+export type NewPaymentConfirmation = typeof paymentConfirmations.$inferInsert;
+export type ExpenseCategory = typeof expenseCategories.$inferSelect;
+export type NewExpenseCategory = typeof expenseCategories.$inferInsert;
+export type ExpensePolicy = typeof expensePolicies.$inferSelect;
+export type NewExpensePolicy = typeof expensePolicies.$inferInsert;
+export type ExpenseClaim = typeof expenseClaims.$inferSelect;
+export type NewExpenseClaim = typeof expenseClaims.$inferInsert;
+export type ExpenseItem = typeof expenseItems.$inferSelect;
+export type NewExpenseItem = typeof expenseItems.$inferInsert;
 

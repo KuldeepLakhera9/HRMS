@@ -6,4 +6,5 @@ export * from './warnings-blockers.js';
 export * from './calculation-worker.js';
 export * from './materialization-service.js';
 export * from './review-service.js';
+export * from './lifecycle-service.js';
 

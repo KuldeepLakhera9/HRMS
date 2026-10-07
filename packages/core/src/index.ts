@@ -40,6 +40,7 @@ export * from './payroll/crypto/cipher.js';
 export * from './payroll/loans/index.js';
 export * from './payroll/inputs/index.js';
 export * from './payroll/runs/index.js';
+export * from './payroll/pdf/index.js';
 export * as formula from './payroll/formula/index.js';
 export * as rules from './payroll/rules/index.js';
 export * as salary from './payroll/salary/index.js';

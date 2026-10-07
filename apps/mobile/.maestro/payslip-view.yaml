@@ -1,0 +1,38 @@
+appId: com.orghub.hrms
+---
+# ==============================================================================
+# Maestro E2E Mobile Automation Flow: Employee Payslip Viewing & Download (P4-SLIP-02)
+# ==============================================================================
+
+- launchApp:
+    clearState: false
+
+# 1. Assert bottom navigation and navigate to Payroll / Payslips
+- assertVisible: "Clock In"
+- tapOn:
+    text: "More"
+
+- assertVisible: "Payslips"
+- tapOn:
+    text: "Payslips"
+
+# 2. Assert Payslips List Screen
+- assertVisible: "My Payslips"
+- assertVisible: "Net Pay"
+
+# 3. Tap on latest payslip card
+- tapOn:
+    id: "payslip-card-latest"
+
+# 4. Assert Payslip Detail Breakdown & Verification
+- assertVisible: "Earnings"
+- assertVisible: "Deductions"
+- assertVisible: "Net Salary"
+- assertVisible: "AIC-ADT Innovation Centre"
+
+# 5. Tap on Download PDF button
+- tapOn:
+    id: "download-pdf-button"
+
+# 6. Assert download prompt / signed URL retrieval
+- assertVisible: "Payslip downloaded"
