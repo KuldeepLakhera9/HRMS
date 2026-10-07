@@ -13,12 +13,12 @@ interface GoldenCaseTemplate {
   description: string;
   scenario?: string;
   ruleSnapshot: Record<string, string>;
-  employee: any;
-  salary: any;
-  attendance: any;
-  inputs: any[];
-  ytd?: any;
-  taxDeclaration?: any;
+  employee: Record<string, unknown>;
+  salary: Record<string, unknown>;
+  attendance: Record<string, unknown>;
+  inputs: Array<Record<string, unknown>>;
+  ytd?: Record<string, unknown>;
+  taxDeclaration?: Record<string, unknown>;
   expected: {
     gross: string;
     deductions: string;
@@ -37,7 +37,7 @@ describe('Engineer-authored payslip smoke cases', () => {
     id: string;
     description: string;
     input: PayslipCalculationInput;
-    expected: any;
+    expected: Record<string, unknown>;
   }> = JSON.parse(raw);
 
   cases.forEach(tc => {

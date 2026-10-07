@@ -52,7 +52,65 @@ export const standardEsiRule = {
   roundingMode: 'round_up' as const,
 };
 
-export const ptRules: Record<string, any> = {
+export interface GoldenTestCaseInput {
+  id?: string;
+  description: string;
+  ruleSnapshot: Record<string, string>;
+  employee: {
+    id?: string;
+    empCode?: string;
+    state?: string;
+    gender?: 'male' | 'female' | 'other';
+    joinDate?: string;
+    exitDate?: string;
+    pan?: string;
+  };
+  salary: {
+    structure?: string;
+    ctcAnnual: string | number;
+    components?: PayslipComponentDef[];
+  };
+  settings?: Record<string, unknown>;
+  attendance: {
+    calendarDays: number;
+    paidDays: number;
+    lopDays: number;
+  };
+  inputs?: Array<{
+    type: string;
+    componentCode?: string;
+    amount: string | number;
+    taxable?: boolean;
+  }>;
+  loansDue?: Array<{
+    loanId: string;
+    installmentId: string;
+    amount: string | number;
+  }>;
+  rules?: Record<string, unknown>;
+  ytd?: {
+    grossEarnings?: string | number;
+    tdsDeducted?: string | number;
+  };
+  taxDeclaration?: {
+    regime?: 'new' | 'old';
+    verifiedDeductions?: Record<string, string | number>;
+    previousEmployer?: {
+      grossEarnings?: string | number;
+      tdsDeducted?: string | number;
+    };
+  };
+  periodMonth?: number;
+}
+
+export const ptRules: Record<
+  string,
+  {
+    stateCode: string;
+    slabs: Array<{ minMonthlyGross: number; maxMonthlyGross: number | null; taxAmount: number }>;
+    specialMonth?: { month: number; taxAmount: number };
+  }
+> = {
   KA: {
     stateCode: 'KA',
     slabs: [
@@ -120,7 +178,7 @@ export const standardTdsRule = {
   },
 };
 
-export function buildCalculationInputFromCase(tc: any): PayslipCalculationInput {
+export function buildCalculationInputFromCase(tc: GoldenTestCaseInput): PayslipCalculationInput {
   const structureCode = tc.salary.structure || 'S1';
   let components = tc.salary.components && tc.salary.components.length > 0
     ? tc.salary.components
@@ -132,11 +190,11 @@ export function buildCalculationInputFromCase(tc: any): PayslipCalculationInput 
   }
 
   // Resolve rules
-  let rules: any = tc.rules && Object.keys(tc.rules).length > 0 ? { ...tc.rules } : undefined;
+  let rules: Record<string, unknown> | undefined = tc.rules && Object.keys(tc.rules).length > 0 ? { ...tc.rules } : undefined;
 
   if (!rules) {
     rules = {};
-    let pfRule: any = standardPfRule;
+    let pfRule: Record<string, unknown> = standardPfRule;
     if (tc.ruleSnapshot['PF_IN'] === 'PF_IN_ACTUAL_V1' || tc.description.toLowerCase().includes('contribute-on-actual')) {
       pfRule = { ...standardPfRule, allowContributeOnActual: true };
     } else if (tc.ruleSnapshot['PF_IN'] === 'PF_IN_VPF_V1' || tc.description.toLowerCase().includes('vpf')) {
@@ -191,7 +249,7 @@ export function buildCalculationInputFromCase(tc: any): PayslipCalculationInput 
       structureId: structureCode,
       components,
     },
-    inputs: (tc.inputs || []).map((i: any) => ({
+    inputs: (tc.inputs || []).map(i => ({
       type: i.type,
       componentCode: i.componentCode,
       amount: i.amount,

@@ -57,18 +57,6 @@ describe('Payroll Sprint 4.6 Parallel Run Support (Cycles 2 & 3)', () => {
 
   beforeAll(async () => {
     db = await setupTestDatabase();
-
-    // Ensure permissions and RLS policies on recon tables
-    await db.ownerPool.query(`
-      GRANT SELECT, INSERT, UPDATE, DELETE ON recon_cycles, recon_imports, recon_diffs TO hrms_app;
-      DROP POLICY IF EXISTS tenant_isolation_policy ON recon_cycles;
-      CREATE POLICY tenant_isolation_policy ON recon_cycles FOR ALL TO PUBLIC USING (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid) WITH CHECK (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid);
-      DROP POLICY IF EXISTS tenant_isolation_policy ON recon_imports;
-      CREATE POLICY tenant_isolation_policy ON recon_imports FOR ALL TO PUBLIC USING (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid) WITH CHECK (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid);
-      DROP POLICY IF EXISTS tenant_isolation_policy ON recon_diffs;
-      CREATE POLICY tenant_isolation_policy ON recon_diffs FOR ALL TO PUBLIC USING (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid) WITH CHECK (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid);
-    `);
-
     tenantA = await createPayrollTenant(db.ownerPool, 'ParallelReconCorp', 4);
 
     const p2Id = generateUuidV7();
