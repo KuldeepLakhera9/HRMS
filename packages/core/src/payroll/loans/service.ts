@@ -1,5 +1,5 @@
 import { Decimal } from 'decimal.js';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import {
   Database,
   employeeLoans,
@@ -139,6 +139,38 @@ export class LoanService {
       loan: createdLoan,
       installments: createdInstallments,
     };
+  }
+
+  /**
+   * Lists employee loans/advances for the tenant with optional employee and status filters.
+   * Permission: payroll.loan.read.
+   */
+  async listLoans(
+    ctx: RequestContext,
+    db: Database,
+    query: { employeeId?: string; status?: 'active' | 'cancelled' | 'completed' | 'paused' } = {},
+  ): Promise<EmployeeLoan[]> {
+    if (!ctx.permissions?.includes(PERMISSIONS.PAYROLL_LOAN_READ)) {
+      throw new ForbiddenError('Permission denied: payroll.loan.read required');
+    }
+
+    const conditions = [
+      eq(employeeLoans.companyId, ctx.companyId),
+      isNull(employeeLoans.deletedAt),
+    ];
+
+    if (query.employeeId) {
+      conditions.push(eq(employeeLoans.employeeId, query.employeeId));
+    }
+    if (query.status) {
+      conditions.push(eq(employeeLoans.status, query.status));
+    }
+
+    return db
+      .select()
+      .from(employeeLoans)
+      .where(and(...conditions))
+      .orderBy(desc(employeeLoans.createdAt));
   }
 
   /**

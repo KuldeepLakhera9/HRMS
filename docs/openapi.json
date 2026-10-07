@@ -365,6 +365,126 @@
         "description": "Submits 1-5 star user feedback with category and page context.",
         "responses": { "201": { "description": "Recorded feedback." } }
       }
+    },
+    "/api/v1/payroll/salary/employees/{id}": {
+      "get": {
+        "summary": "Get Employee Salary (Audited & Masked by default)",
+        "description": "Requires payroll.salary.view and active step-up session. Returns masked salary unless unmask=true. Every view is audited.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "asOfDate", "in": "query", "required": false, "schema": { "type": "string", "format": "date" } },
+          { "name": "unmask", "in": "query", "required": false, "schema": { "type": "boolean" } }
+        ],
+        "responses": { "200": { "description": "Employee salary assignment." } }
+      }
+    },
+    "/api/v1/payroll/revisions/preview": {
+      "post": {
+        "summary": "Preview Bulk Salary Revisions",
+        "description": "Calculates cost impact, annual/monthly deltas, and estimated arrears across employees without committing.",
+        "responses": { "200": { "description": "Bulk revision preview and cost breakdown." } }
+      }
+    },
+    "/api/v1/payroll/revisions": {
+      "post": {
+        "summary": "Create Draft Bulk Salary Revision Batch",
+        "description": "Creates draft revision batch. Maker action enforcing segregation of duties.",
+        "responses": { "200": { "description": "Draft revision batch." } }
+      }
+    },
+    "/api/v1/payroll/revisions/{id}/approve": {
+      "post": {
+        "summary": "Approve Bulk Salary Revision Batch",
+        "description": "Checker action. Validates segregation of duties, updates salary assignments and creates payroll arrears inputs.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Batch approval confirmation and arrears count." } }
+      }
+    },
+    "/api/v1/payroll/inputs": {
+      "get": {
+        "summary": "List Payroll Inputs",
+        "description": "Lists payroll inputs with optional filters for employeeId, period, and status.",
+        "responses": { "200": { "description": "Paginated list of payroll inputs." } }
+      },
+      "post": {
+        "summary": "Create Ad-hoc Payroll Input",
+        "description": "Creates pending bonus, incentive, deduction, reimbursement, or adjustment input.",
+        "responses": { "200": { "description": "Created pending payroll input." } }
+      }
+    },
+    "/api/v1/payroll/inputs/{id}/approve": {
+      "post": {
+        "summary": "Approve Payroll Input",
+        "description": "Checker action enforcing Segregation of Duties. Approves pending input.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Approved input." } }
+      }
+    },
+    "/api/v1/payroll/inputs/{id}/reject": {
+      "post": {
+        "summary": "Reject Payroll Input",
+        "description": "Cancels a pending input with audit trail and Segregation of Duties check.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Cancelled input." } }
+      }
+    },
+    "/api/v1/payroll/loans": {
+      "get": {
+        "summary": "List Employee Loans",
+        "description": "Lists active and completed loans/advances.",
+        "responses": { "200": { "description": "List of employee loans." } }
+      },
+      "post": {
+        "summary": "Create Loan and Installment Schedule",
+        "description": "Creates loan with amortized monthly installment schedule.",
+        "responses": { "200": { "description": "Loan and installment schedule." } }
+      }
+    },
+    "/api/v1/payroll/loans/emi-inputs": {
+      "post": {
+        "summary": "Generate Loan EMI Payroll Inputs",
+        "description": "Generates idempotent EMI recovery inputs for due installments in the given period.",
+        "responses": { "200": { "description": "Number of EMI inputs generated." } }
+      }
+    },
+    "/api/v1/payroll/periods": {
+      "get": {
+        "summary": "List Payroll Periods",
+        "description": "Lists periods for a legal entity.",
+        "responses": { "200": { "description": "List of payroll periods." } }
+      },
+      "post": {
+        "summary": "Create Payroll Period",
+        "description": "Defines payroll period with cutoff and pay dates.",
+        "responses": { "200": { "description": "Created payroll period." } }
+      }
+    },
+    "/api/v1/payroll/runs": {
+      "get": {
+        "summary": "List Payroll Runs",
+        "description": "Lists runs with period filter.",
+        "responses": { "200": { "description": "List of payroll runs." } }
+      },
+      "post": {
+        "summary": "Create Draft Payroll Run",
+        "description": "Creates draft payroll run for a period.",
+        "responses": { "200": { "description": "Created draft run." } }
+      }
+    },
+    "/api/v1/payroll/runs/{id}/transition": {
+      "post": {
+        "summary": "Transition Payroll Run State",
+        "description": "Advances payroll run status through the state machine with guards for attendance lock, maker-checker, dual-approval unlock, and step-up auth.",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Updated payroll run." } }
+      }
+    },
+    "/api/v1/payroll/tds/regime-compare": {
+      "post": {
+        "summary": "Compare Old vs New Tax Regimes",
+        "description": "Simulates income tax under old and new regimes, computing annual tax liability, marginal relief, and tax savings.",
+        "responses": { "200": { "description": "Tax comparison and recommendation." } }
+      }
     }
   }
 }
