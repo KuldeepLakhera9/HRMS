@@ -1,0 +1,32 @@
+---
+- name: Install WireGuard and tools
+  ansible.builtin.package:
+    name:
+      - wireguard
+      - wireguard-tools
+      - iptables
+    state: present
+
+- name: Deploy WireGuard wg0 configuration
+  ansible.builtin.template:
+    src: wg0.conf.j2
+    dest: /etc/wireguard/wg0.conf
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart wireguard
+
+- name: Deploy Bastion SSH configuration snippet
+  ansible.builtin.template:
+    src: sshd_bastion.conf.j2
+    dest: /etc/ssh/sshd_config.d/99-bastion.conf
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Reload sshd
+
+- name: Enable and start WireGuard wg-quick@wg0 service
+  ansible.builtin.systemd:
+    name: wg-quick@wg0
+    state: started
+    enabled: true

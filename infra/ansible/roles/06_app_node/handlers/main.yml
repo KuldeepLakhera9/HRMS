@@ -1,0 +1,9 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart hrms-web
+  ansible.builtin.systemd:
+    name: hrms-web
+    state: restarted

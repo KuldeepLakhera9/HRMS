@@ -1,0 +1,28 @@
+---
+# Defaults for 06_app_node
+app_user: "hrms"
+app_group: "hrms"
+app_port: 3000
+app_root_dir: "/opt/hrms"
+
+# Database via PgBouncer
+db_pooler_host: "10.10.30.34"
+db_pooler_port: 6432
+db_name: "hrms"
+db_user: "hrms_app"
+db_password: "{{ vault_db_app_password | default('ChangeMeAppSecretDb99!') }}"
+
+# Valkey / Redis
+valkey_sentinel_host: "10.10.30.35"
+valkey_sentinel_port: 26379
+valkey_master_name: "hrms-valkey-cluster"
+valkey_password: "{{ vault_valkey_password | default('ChangeMeValkeyPassword99!') }}"
+
+# S3 Storage
+s3_endpoint: "http://10.10.40.41:9000"
+s3_access_key: "hrms_s3_admin"
+s3_secret_key: "{{ vault_minio_root_password | default('ChangeMeMinioRootSecret99!') }}"
+s3_region: "ap-south-1"
+
+# Egress Proxy for outbound integrations
+egress_proxy_url: "http://10.10.50.83:3128"

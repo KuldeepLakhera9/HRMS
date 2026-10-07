@@ -1,0 +1,26 @@
+[Unit]
+Description=HRMS Next.js Web Application
+After=network.target
+
+[Service]
+Type=simple
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ app_root_dir }}
+EnvironmentFile=/etc/hrms/hrms-web.env
+ExecStart=/usr/bin/node apps/web/server.js
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+SendSIGKILL=yes
+
+# Sandboxing & Resource constraints
+LimitNOFILE=65535
+MemoryMax=4G
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

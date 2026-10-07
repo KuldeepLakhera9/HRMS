@@ -1,0 +1,13 @@
+# Bastion specific SSH restrictions
+Port {{ bastion_ssh_port }}
+ClientAliveInterval 300
+ClientAliveCountMax 3
+AllowTcpForwarding yes
+X11Forwarding no
+PermitTunnel no
+GatewayPorts no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 3
+MaxSessions 5

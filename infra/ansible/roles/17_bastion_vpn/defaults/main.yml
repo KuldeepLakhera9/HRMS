@@ -1,0 +1,14 @@
+---
+# Defaults for 17_bastion_vpn
+wireguard_interface: "wg0"
+wireguard_port: 51820
+wireguard_address: "10.10.99.1/24"
+wireguard_private_key: "{{ vault_wg_private_key | default('SGVsbG9Xb3JsZFByaXZhdGVLZXlGb3JXaXJlR3VhcmQ5OQ==') }}"
+
+wireguard_peers:
+  - name: "operator-admin"
+    public_key: "T3BlcmF0b3JBZG1pblB1YmxpY0tleUZvclNoYXJlZFNlczk5"
+    allowed_ips: "10.10.99.2/32"
+
+bastion_ssh_port: 22
+bastion_idle_timeout: 900 # 15 minutes

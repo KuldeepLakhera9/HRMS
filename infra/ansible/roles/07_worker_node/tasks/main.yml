@@ -1,0 +1,50 @@
+---
+- name: Create hrms system group
+  ansible.builtin.group:
+    name: "{{ worker_group }}"
+    system: true
+    state: present
+
+- name: Create hrms system user
+  ansible.builtin.user:
+    name: "{{ worker_user }}"
+    group: "{{ worker_group }}"
+    system: true
+    shell: /bin/bash
+    home: "{{ worker_root_dir }}"
+    create_home: true
+    state: present
+
+- name: Ensure /etc/hrms configuration directory exists
+  ansible.builtin.file:
+    path: /etc/hrms
+    state: directory
+    owner: "{{ worker_user }}"
+    group: "{{ worker_group }}"
+    mode: "0750"
+
+- name: Deploy worker environment file
+  ansible.builtin.template:
+    src: hrms-worker.env.j2
+    dest: /etc/hrms/hrms-worker.env
+    owner: "{{ worker_user }}"
+    group: "{{ worker_group }}"
+    mode: "0600"
+  notify: Restart hrms-worker
+
+- name: Deploy hrms-worker systemd unit
+  ansible.builtin.template:
+    src: hrms-worker.service.j2
+    dest: /etc/systemd/system/hrms-worker.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart hrms-worker
+
+- name: Enable and start hrms-worker service
+  ansible.builtin.systemd:
+    name: hrms-worker
+    state: started
+    enabled: true
