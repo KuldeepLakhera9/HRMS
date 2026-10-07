@@ -119,7 +119,6 @@ export class PayslipMaterializationService {
     for (let i = 0; i < includedStaged.length; i += chunkSize) {
       const chunk = includedStaged.slice(i, i + chunkSize);
       const payslipInserts: NewPayslip[] = [];
-      const linesInserts: NewPayslipLine[] = [];
 
       for (const st of chunk) {
         const rawRes = st.result as Record<string, unknown>;
@@ -194,7 +193,10 @@ export class PayslipMaterializationService {
           payslipIdByEmp.set(cp.employeeId, cp.id);
         }
 
-        // Insert payslip lines
+        const linesInserts: NewPayslipLine[] = [];
+        const ytdMap = new Map<string, typeof payrollYtd.$inferInsert>();
+
+        // Insert payslip lines and accumulate chunk YTD deltas
         for (const st of chunk) {
           const pId = payslipIdByEmp.get(st.employeeId);
           if (!pId) continue;
@@ -224,35 +226,45 @@ export class PayslipMaterializationService {
               createdBy: userId,
             });
 
-            // Update YTD idempotently per line
-            await db
-              .insert(payrollYtd)
-              .values({
+            // Aggregate YTD deltas per employee + component in chunk
+            const ytdKey = `${st.employeeId}:${l.code}`;
+            const existing = ytdMap.get(ytdKey);
+            if (existing) {
+              existing.amount = new Decimal(existing.amount).plus(new Decimal(l.amount)).toFixed(2);
+            } else {
+              ytdMap.set(ytdKey, {
                 companyId: ctx.companyId,
                 employeeId: st.employeeId,
                 fy: period.fy,
                 componentCode: l.code,
                 amount: l.amount,
                 lastRunId: runId,
-              })
-              .onConflictDoUpdate({
-                target: [
-                  payrollYtd.companyId,
-                  payrollYtd.employeeId,
-                  payrollYtd.fy,
-                  payrollYtd.componentCode,
-                ],
-                set: {
-                  amount: sql`${payrollYtd.amount} + EXCLUDED.amount`,
-                  lastRunId: sql`EXCLUDED.last_run_id`,
-                  updatedAt: new Date(),
-                },
               });
+            }
           }
         }
 
         if (linesInserts.length > 0) {
           await db.insert(payslipLines).values(linesInserts).onConflictDoNothing();
+        }
+
+        if (ytdMap.size > 0) {
+          await db
+            .insert(payrollYtd)
+            .values(Array.from(ytdMap.values()))
+            .onConflictDoUpdate({
+              target: [
+                payrollYtd.companyId,
+                payrollYtd.employeeId,
+                payrollYtd.fy,
+                payrollYtd.componentCode,
+              ],
+              set: {
+                amount: sql`${payrollYtd.amount} + EXCLUDED.amount`,
+                lastRunId: sql`EXCLUDED.last_run_id`,
+                updatedAt: new Date(),
+              },
+            });
         }
       }
     }
