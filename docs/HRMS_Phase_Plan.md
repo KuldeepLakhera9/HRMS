@@ -84,7 +84,7 @@ Lint, typecheck, unit tests, integration tests (real DB), dependency audit, cont
 | **2** | Workflow Engine + Attendance and Geofencing | 8 weeks | **R1a** Attendance beta (IT dept) | G2: geofenced punch works on real devices; exceptions flow end to end |
 | **3** | Stabilize (performance + brand theme), Leave, Calendars, Reports v1 and Pilot | 7-8 weeks | **R1** Pilot (one department, 4 weeks live) | G3: pilot signed off by HR; zero critical bugs open |
 | **4** | Payroll, Expenses and Tax | 12 weeks | **R2** Parallel payroll (2-3 cycles) | G4: payroll output matches current process; CA sign-off |
-| **5** | Hardening and Production Go-live | 6 weeks | **R3** Production GA | G5: go/no-go checklist (section 10) signed |
+| **5** | Hardening and Production Go-live | 8-10 weeks | **R3** Production GA | G5: go/no-go checklist (phase5/GOLIVE_PLAYBOOK.md section 13) signed |
 | **6** | Talent and Growth Modules | 12 weeks | **R4** | G6: spreadsheets retired for hiring/performance/assets |
 | **7** | Advanced and Scale | ongoing | R5+ | per roadmap |
 
@@ -350,7 +350,7 @@ Phase 7                                                                 ongoing
 
 **Goal:** accurate, auditable, configurable payroll, proven by parallel runs against your current process. Highest-risk phase; do not skip validation.
 
-**Prerequisite:** CA/payroll consultant engaged; current payslip format and statutory registrations documented; attendance and leave stable from the pilot.
+**Prerequisite:** CA/payroll consultant engaged (see `phase4/CA_VALIDATION_KIT.md`; the Income-tax Act 2025 applies from 1 April 2026 and the Labour Codes from 21 November 2025, so rule data must be re-confirmed by the CA); current payslip format and statutory registrations documented; attendance and leave stable from the pilot.
 
 ### Epics and tasks
 | ID | Task | Layer | BP |
@@ -362,7 +362,7 @@ Phase 7                                                                 ongoing
 | P4-SAL-04 | Field-level encryption and step-up auth for salary views; access logging | Backend | 8.2 |
 | **RULES** | | | |
 | P4-RULES-01 | Versioned statutory rules layer by financial year/state (PF, ESI, Professional Tax, LWF, gratuity, bonus) | Backend | 11.1, 18 |
-| P4-RULES-02 | TDS engine: old/new regime, projections, declarations, rebates, monthly spread | Backend | 11, 18 |
+| P4-RULES-02 | TDS engine (Section 392 of the Income-tax Act 2025): regimes, projections, declarations, rebate/surcharge/cess with marginal relief, monthly spread; all values from CA-approved rule data | Backend | 11, 18 |
 | P4-RULES-03 | Rules admin UI with effective dates and change history | Frontend | 11.1 |
 | **RUN** | | | |
 | P4-RUN-01 | Input collection: attendance/LOP, new joiners, exits, revisions, bonuses, arrears, loans, reimbursements | Backend | 11.4 |
@@ -380,7 +380,7 @@ Phase 7                                                                 ongoing
 | P4-EXP-02 | Approval via workflow; payout through payroll component or bank file | Full stack | 12.5 |
 | **TAX** | | | |
 | P4-TAX-01 | Investment declaration and proof upload/verification | Full stack | 3 |
-| P4-TAX-02 | Form 16 / 24Q data export and statutory reports (PF ECR, ESI, PT, TDS) | Backend | 18 |
+| P4-TAX-02 | TDS certificate and return data (Form 130 / Form 138 labels for tax year 2026-27 under the Income-tax Act 2025; Form 16 / 24Q for FY 2025-26) and statutory reports (PF ECR, ESI, PT, LWF); labels come from rule data | Backend | 18 |
 | **REP** | | | |
 | P4-REP-01 | Payroll reports: register, variance, department cost, bank summary, statutory summaries | Full stack | 3 |
 | **RECON** | | | |
@@ -412,42 +412,37 @@ Phase 7                                                                 ongoing
 
 ---
 
-## PHASE 5: Hardening and Production Go-live (6 weeks, 3 sprints)
+## PHASE 5: Hardening and Production Go-live (8-10 weeks, 6 sprints)
 
-**Goal:** make the platform safe, recoverable and ready for the whole organization.
+**Goal:** build and harden the production environment, prove reliability and security with drills and tests, migrate real data, pass UAT, go live, stabilize and hand over. Detailed specs: `phase5/PHASE5_SPEC.md`, `phase5/PRODUCTION_INFRA_REFERENCE.md`, `phase5/GOLIVE_PLAYBOOK.md`. **Sprint 5.1 (infrastructure) should start during Phase 4** because hardware, network and certificate lead times are the usual cause of delay. Feature freeze applies from the start of Phase 5.
 
-### Tasks
-| ID | Task | Layer | BP |
-|---|---|---|---|
-| P5-SEC-01 | Third-party penetration test; fix all critical/high; retest | Security | 8, 17 |
-| P5-SEC-02 | Secrets rotation test, key-recovery drill for field encryption, access review of all privileged accounts | Security | 8.2 |
-| P5-SEC-03 | WAF rules tuned, rate limits verified, security headers and CSP validated | Security | 8.2 |
-| P5-PERF-01 | Load test at 2x expected peak (punch spike, payroll run, report exports); tune indexes, queries, caching | Performance | 14.5, 17 |
-| P5-PERF-02 | Slow-query review; add missing indexes; connection pool sizing | Performance | 7.4 |
-| P5-DR-01 | Full disaster recovery drill: restore database and files to a clean environment; measure RPO/RTO; record in runbook | Infra | 16.4 |
-| P5-DR-02 | Failover drill: kill the database primary and an app node; verify automatic recovery and alerts | Infra | 16 |
-| P5-OPS-01 | Runbooks: deploy, rollback, failover, restore, certificate renewal, key rotation, incident response | Ops | 16.4 |
-| P5-OPS-02 | On-call rota, alert thresholds and escalation; status page; log retention | Ops | 16.6 |
-| P5-OPS-03 | Production environment build, configuration review, change freeze procedure | Infra | 16 |
-| P5-DATA-01 | Production data migration: employees, org, balances, salary, historical records; dry runs on staging; reconciliation reports | Backend | 3 |
-| P5-UAT-01 | Full UAT with HR, Finance, managers and selected employees; defect triage | QA | 17 |
-| P5-A11Y-01 | Accessibility audit on critical flows (WCAG 2.1 AA) | QA | 14 |
-| P5-TRAIN-01 | Training: role-based sessions, quick-start guides, short videos, in-app tours, FAQ | Product | 14 |
-| P5-LEGAL-01 | Final privacy notice, consent text, retention configuration, DPDP checklist review | Legal | 18 |
-| P5-CUT-01 | Cutover plan: freeze date, migration window, rollback criteria, comms plan | Product | 19 |
-| P5-PAY-01 | Parallel payroll cycle 3 (if not completed) and first live payroll with Finance on standby | Finance | 11 |
+### Workstreams and task IDs
+| Area | IDs | Summary |
+|---|---|---|
+| Infrastructure | P5-INFRA-01..12 | Ansible-built environments, OS/network hardening, edge + WAF, PostgreSQL HA (Patroni, etcd, HAProxy, PgBouncer), pgBackRest, Redis Sentinel, MinIO, Vault, CI/CD deploy, capacity plan, physical checklist |
+| Observability and ops | P5-OBS-01..06, P5-OPS-01..03 | Prometheus/Grafana/Loki as code, alerts, synthetic + real-user monitoring, runbooks, on-call, incident process |
+| Application hardening | P5-APP-01..07 | Degraded modes, timeouts, graceful shutdown, maintenance mode, abuse limits, migration safety, asset performance, mobile hardening |
+| Security | P5-SEC-01..10 | Supply chain, SAST/DAST, ASVS L2, authorization attack suite, external pen test, key custody, access governance, detection, audit integrity, email auth |
+| Reliability | P5-REL-01..08 | SLOs, load/soak/spike, failover and chaos drills, restore and DR drills, DB health review, zero-downtime deploy |
+| Data migration | P5-DATA-01..06 | Mapping, cleansing, importers, 3 dry runs, final migration, user provisioning waves |
+| Quality and people | P5-UAT-01/02, P5-A11Y-01/02, P5-TRAIN-01, P5-LEGAL-01 | UAT, accessibility, device matrix, training, DPDP-aligned privacy and legal readiness |
+| Go-live | P5-CUT-01/02, P5-PAY-01, P5-HYPER-01/02 | Cutover, go/no-go, first live payroll, hypercare, handover |
+
+### Sprint plan
+| Sprint | Focus |
+|---|---|
+| 5.1 | INFRA-01..12 |
+| 5.2 | OBS-01..06, OPS-01..03, APP-01..07 |
+| 5.3 | SEC-01..10 |
+| 5.4 | REL-01..08, performance acceptance on production hardware |
+| 5.5 | DATA-01..06, UAT-01/02, A11Y-01/02, TRAIN-01, LEGAL-01 |
+| 5.6 | CUT-01/02, PAY-01, HYPER-01/02, Gate G5 report |
 
 ### Acceptance criteria
-- Pen test: zero open critical/high findings
-- DR drill meets agreed RPO (target 15 minutes) and RTO (target 2 to 4 hours)
-- Failover drill recovers without data loss and alerts fire correctly
-- Load test at 2x peak meets performance targets (BP §14.5)
-- Migrated data reconciles to source with signed difference report
+See `phase5/PHASE5_SPEC.md` section 9 and the go/no-go checklist in `phase5/GOLIVE_PLAYBOOK.md` section 13.
 
-**Gate G5 / go-live checklist (see section 10):** signed by product owner, HR lead, Finance lead, security lead and DevOps lead.
-**After go-live:** 2 to 4 weeks of hypercare (daily triage, fast-fix lane, daily health review).
-
----
+**Gate G5:** signed by product owner, HR lead, Finance lead (with CA), IT lead, security lead and legal.
+**After go-live:** 2 to 4 weeks of hypercare, then handover to steady operations.
 
 ## PHASE 6: Talent and Growth Modules (12 weeks, 6 sprints)
 
