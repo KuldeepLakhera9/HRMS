@@ -131,34 +131,39 @@ export class StatutoryFilingService {
 
       const uan = (emp as unknown as { uan?: string }).uan || snap.employee?.uan || '100000000000';
       const name = emp.firstName ? `${emp.firstName} ${emp.lastName || ''}`.trim() : snap.employee?.name || 'Employee';
-      const gross = new Decimal(slip.gross).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
+      const grossDec = new Decimal(slip.gross).toDecimalPlaces(0, Decimal.ROUND_HALF_UP);
       const ncpDays = snap.attendance?.lopDays || 0;
 
       // Find EPF deduction line
       const epfLine = snap.lines?.find(l => l.code === 'EPF');
-      const epfAmount = epfLine ? new Decimal(epfLine.amount).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber() : 0;
-      fileTotalEpf = fileTotalEpf.plus(epfAmount);
+      const epfAmountDec = epfLine
+        ? new Decimal(epfLine.amount).toDecimalPlaces(0, Decimal.ROUND_HALF_UP)
+        : new Decimal(0);
+      fileTotalEpf = fileTotalEpf.plus(epfAmountDec);
 
-      // Wage bases (standard statutory cap of 15,000 for standard EPF)
-      const epfWages = Math.min(gross, 15000);
-      const epsWages = epfWages;
-      const edliWages = epfWages;
+      // Wage bases (statutory cap of 15,000 for standard EPF)
+      const epfWagesDec = Decimal.min(grossDec, new Decimal(15000));
+      const epsWagesDec = epfWagesDec;
+      const edliWagesDec = epfWagesDec;
 
-      // Employer split: EPS is 8.33% (capped at 1250), EPF employer is 3.67%
-      const epsContri = Math.min(Math.round(epsWages * 0.0833), 1250);
-      const epfEpsDiff = epfAmount > epsContri ? epfAmount - epsContri : 0;
+      // Employer split: EPS is 8.33% (capped at 1250)
+      const epsContriDec = Decimal.min(
+        epsWagesDec.mul('0.0833').toDecimalPlaces(0, Decimal.ROUND_HALF_UP),
+        new Decimal(1250),
+      );
+      const epfEpsDiffDec = epfAmountDec.gt(epsContriDec) ? epfAmountDec.minus(epsContriDec) : new Decimal(0);
 
       // Format as #~# delimited
       const row = [
         uan,
         name,
-        gross,
-        epfWages,
-        epsWages,
-        edliWages,
-        epfAmount,
-        epsContri,
-        epfEpsDiff,
+        grossDec.toFixed(0),
+        epfWagesDec.toFixed(0),
+        epsWagesDec.toFixed(0),
+        edliWagesDec.toFixed(0),
+        epfAmountDec.toFixed(0),
+        epsContriDec.toFixed(0),
+        epfEpsDiffDec.toFixed(0),
         ncpDays,
         0, // refund of advances
       ].join('#~#');
@@ -263,9 +268,9 @@ export class StatutoryFilingService {
       const esiLine = snap.lines?.find(l => l.code === 'ESI');
       if (!esiLine) continue;
 
-      const empContrib = new Decimal(esiLine.amount).toNumber();
-      const gross = new Decimal(slip.gross).toNumber();
-      const employerContrib = Math.round(gross * 0.0325);
+      const empContrib = new Decimal(esiLine.amount).toDecimalPlaces(0, Decimal.ROUND_HALF_UP);
+      const gross = new Decimal(slip.gross).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+      const employerContrib = gross.mul('0.0325').toDecimalPlaces(0, Decimal.ROUND_HALF_UP);
       fileTotalEsi = fileTotalEsi.plus(empContrib);
 
       const pan = (emp as unknown as { pan?: string }).pan || '';
@@ -273,9 +278,9 @@ export class StatutoryFilingService {
         ipNumber: pan ? `IP${pan.slice(-8)}` : '1100000000',
         ipName: emp.firstName ? `${emp.firstName} ${emp.lastName || ''}`.trim() : snap.employee?.name || 'Employee',
         paidDays: snap.attendance?.paidDays || 30,
-        totalWages: gross,
-        ipContribution: empContrib,
-        employerContribution: employerContrib,
+        totalWages: gross.toNumber(),
+        ipContribution: empContrib.toNumber(),
+        employerContribution: employerContrib.toNumber(),
       });
     }
 
@@ -429,7 +434,7 @@ export class StatutoryFilingService {
       new Date().toISOString().slice(0, 10),
     );
 
-    let quarterlyFormLabel = 'Form 138 (Quarterly Salary TDS)';
+    let quarterlyFormLabel = 'Quarterly Salary TDS Return';
     if (formLabelsRule) {
       const parsed = formLabelsRule.payload as { forms?: { quarterlyTdsReturn?: string } };
       if (parsed.forms?.quarterlyTdsReturn) {

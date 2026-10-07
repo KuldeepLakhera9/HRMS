@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { Decimal } from 'decimal.js';
 import { and, eq, desc, sql } from 'drizzle-orm';
 import {
   Database,
@@ -316,7 +317,7 @@ export class BankAdviceService {
         }
       }
 
-      const amount = Math.round(Number(r.payslip.net) * 100) / 100;
+      const amount = new Decimal(r.payslip.net).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber();
       return {
         employeeId: r.payslip.employeeId,
         empCode: r.employee.empCode,
