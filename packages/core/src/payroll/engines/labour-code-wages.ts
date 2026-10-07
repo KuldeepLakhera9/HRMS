@@ -50,9 +50,12 @@ export function calculateLabourCodeWages(input: LabourCodeWagesInput): LabourCod
     };
   }
 
-  // Floor: e.g. 50% of total remuneration
+  // Floor: statutory floor percentage of total remuneration (e.g. 50%)
   const ruleFallback = rule as unknown as Record<string, number | undefined>;
-  const floorVal = rule.statutoryWagesFloorPct ?? ruleFallback.floorPct ?? 50;
+  const floorVal = rule.statutoryWagesFloorPct ?? ruleFallback.floorPct;
+  if (floorVal == null) {
+    throw new Error('Statutory Labour Code rule must define statutoryWagesFloorPct');
+  }
   const floorPct = new Decimal(floorVal).div(100);
   const floorAmount = totalRemuneration.mul(floorPct);
 

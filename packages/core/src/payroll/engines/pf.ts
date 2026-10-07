@@ -30,7 +30,11 @@ export function calculatePf(input: PfCalculationInput): PfCalculationResult {
   const ruleFallback = rule as unknown as Record<string, number | undefined>;
   const wages = new Decimal(input.pfWages);
   const vpf = new Decimal(input.vpfAmount ?? 0);
-  const ceiling = new Decimal(rule.wageCeilingMonthly ?? ruleFallback.statutoryWageCeiling ?? 15000);
+  const rawCeiling = rule.wageCeilingMonthly ?? ruleFallback.statutoryWageCeiling;
+  if (rawCeiling == null) {
+    throw new Error('Statutory PF rule must define wageCeilingMonthly');
+  }
+  const ceiling = new Decimal(rawCeiling);
 
   // Determine wage base
   let wageBase = wages;
@@ -81,8 +85,11 @@ export function calculatePf(input: PfCalculationInput): PfCalculationResult {
     .div(100)
     .toDecimalPlaces(0, roundMode);
 
-  // Admin Charges (0.5% on actual or wage base)
-  const adminRate = rule.adminChargeRatePct ?? ruleFallback.adminChargesRatePct ?? 0.5;
+  // Admin Charges (on actual or wage base per rule)
+  const adminRate = rule.adminChargeRatePct ?? ruleFallback.adminChargesRatePct;
+  if (adminRate == null) {
+    throw new Error('Statutory PF rule must define adminChargeRatePct');
+  }
   const adminCharges = wageBase
     .mul(adminRate)
     .div(100)

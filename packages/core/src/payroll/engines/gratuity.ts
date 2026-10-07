@@ -26,12 +26,21 @@ export function calculateGratuityProvision(input: GratuityCalculationInput): Gra
   const tenure = new Decimal(tenureYears);
 
   const ruleFallback = rule as unknown as Record<string, number | undefined>;
-  const formulaBasisDays = rule.formulaBasisDays ?? 15;
-  const divisorDays = rule.divisorDays ?? 26;
+  const formulaBasisDays = rule.formulaBasisDays;
+  if (formulaBasisDays == null) {
+    throw new Error('Statutory Gratuity rule must define formulaBasisDays');
+  }
+  const divisorDays = rule.divisorDays;
+  if (divisorDays == null) {
+    throw new Error('Statutory Gratuity rule must define divisorDays');
+  }
   const minYears =
     employmentType === 'fixed_term'
-      ? (rule.eligibilityYearsFixedTerm ?? ruleFallback.fixedTermEligibilityYears ?? 1)
-      : (rule.eligibilityYearsPermanent ?? ruleFallback.permanentEligibilityYears ?? 5);
+      ? (rule.eligibilityYearsFixedTerm ?? ruleFallback.fixedTermEligibilityYears)
+      : (rule.eligibilityYearsPermanent ?? ruleFallback.permanentEligibilityYears);
+  if (minYears == null) {
+    throw new Error('Statutory Gratuity rule must define eligibility years');
+  }
 
   const eligible = tenure.gte(minYears);
 
@@ -49,7 +58,11 @@ export function calculateGratuityProvision(input: GratuityCalculationInput): Gra
     .mul(tenure)
     .div(divisorDays);
 
-  const ceiling = new Decimal(rule.maxCeilingAmount ?? ruleFallback.ceilingAmount ?? 2000000);
+  const rawCeiling = rule.maxCeilingAmount ?? ruleFallback.ceilingAmount;
+  if (rawCeiling == null) {
+    throw new Error('Statutory Gratuity rule must define maxCeilingAmount');
+  }
+  const ceiling = new Decimal(rawCeiling);
   let finalProvision = rawProvision;
   let isCapped = false;
 
