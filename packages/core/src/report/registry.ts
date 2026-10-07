@@ -3,6 +3,18 @@ import type pg from 'pg';
 import { PERMISSIONS } from '@hrms/shared';
 import type { RequestContext } from '../routing/context.js';
 import type { ReportDefinition } from './types.js';
+import {
+  payrollRegisterReport,
+  payrollVarianceReport,
+  departmentCostReport,
+  bankSummaryReport,
+  statutorySummaryReport,
+  ytdLedgerReport,
+  joinersExitsImpactReport,
+  payslipDistributionReport,
+  ctcVsGrossReconReport,
+  gratuityProvisionReport,
+} from './payroll-reports.js';
 
 /**
  * Filter schema for attendance summary report.
@@ -1021,6 +1033,18 @@ export class ReportRegistry {
     this.register(leaveUsageReport as unknown as ReportDefinition);
     this.register(headcountReport as unknown as ReportDefinition);
     this.register(joinersAndLeaversReport as unknown as ReportDefinition);
+
+    // Register 10 payroll reports for Phase 4 (P4-REP-01)
+    this.register(payrollRegisterReport as unknown as ReportDefinition);
+    this.register(payrollVarianceReport as unknown as ReportDefinition);
+    this.register(departmentCostReport as unknown as ReportDefinition);
+    this.register(bankSummaryReport as unknown as ReportDefinition);
+    this.register(statutorySummaryReport as unknown as ReportDefinition);
+    this.register(ytdLedgerReport as unknown as ReportDefinition);
+    this.register(joinersExitsImpactReport as unknown as ReportDefinition);
+    this.register(payslipDistributionReport as unknown as ReportDefinition);
+    this.register(ctcVsGrossReconReport as unknown as ReportDefinition);
+    this.register(gratuityProvisionReport as unknown as ReportDefinition);
   }
 
   static register(report: ReportDefinition): void {

@@ -16,7 +16,7 @@ export interface ReportDefinition<TFilters = Record<string, unknown>> {
   key: string;
   title: string;
   description: string;
-  category: 'attendance' | 'leave' | 'headcount' | 'organization';
+  category: 'attendance' | 'leave' | 'headcount' | 'organization' | 'payroll';
   permission: string;
   filtersSchema: ZodSchema<TFilters>;
   columns: ReportColumnDef[];
