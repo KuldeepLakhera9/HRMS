@@ -1,0 +1,54 @@
+appId: com.orghub.hrms
+---
+# ==============================================================================
+# Maestro E2E Mobile Automation Flow: Expense Claim & Bill Capture (P4-EXP-01)
+# ==============================================================================
+
+- launchApp:
+    clearState: false
+
+# 1. Assert bottom navigation and navigate to Expenses
+- assertVisible: "Clock In"
+- tapOn:
+    text: "More"
+
+- assertVisible: "Expenses"
+- tapOn:
+    text: "Expenses"
+
+# 2. Assert Claims Dashboard
+- assertVisible: "Expense Claims"
+- assertVisible: "New Claim"
+
+# 3. Tap on New Claim button
+- tapOn:
+    text: "New Claim"
+
+# 4. Fill Claim Details
+- assertVisible: "Claim Title"
+- tapOn:
+    id: "claim-title-input"
+- inputText: "Client Lunch & Travel"
+
+# 5. Add Expense Item with Bill Capture
+- tapOn:
+    text: "Add Item"
+
+- tapOn:
+    id: "expense-amount-input"
+- inputText: "1450"
+
+- tapOn:
+    id: "merchant-input"
+- inputText: "The Urban Cafe"
+
+# 6. Capture Receipt / Attachment
+- tapOn:
+    id: "attach-bill-button"
+
+# 7. Submit Claim for approval
+- tapOn:
+    text: "Submit Claim"
+
+# 8. Assert Success confirmation
+- assertVisible: "Claim submitted successfully"
