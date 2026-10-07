@@ -1,0 +1,17 @@
+---
+# Defaults for 05_edge_nginx
+edge_vip: "10.10.10.10"
+edge_interface: "eth0"
+keepalived_router_id: 51
+keepalived_role: "MASTER" # or BACKUP
+keepalived_priority: 101   # 101 for master, 100 for backup
+
+domain_name: "hrms.internal.local"
+acme_email: "security@company.internal"
+
+nginx_app_upstreams:
+  - "10.10.20.21:3000"
+  - "10.10.20.22:3000"
+
+enable_waf: true
+enable_maintenance_mode: false

@@ -1,0 +1,28 @@
+vrrp_script check_nginx {
+    script "/usr/local/bin/check_nginx.sh"
+    interval 2
+    weight 2
+    fall 2
+    rise 2
+}
+
+vrrp_instance VI_HRMS_EDGE {
+    state {{ keepalived_role }}
+    interface {{ edge_interface }}
+    virtual_router_id {{ keepalived_router_id }}
+    priority {{ keepalived_priority }}
+    advert_int 1
+
+    authentication {
+        auth_type PASS
+        auth_pass {{ keepalived_auth_pass | default('HrmsVrrpSecret99') }}
+    }
+
+    virtual_ipaddress {
+        {{ edge_vip }}/24 dev {{ edge_interface }}
+    }
+
+    track_script {
+        check_nginx
+    }
+}

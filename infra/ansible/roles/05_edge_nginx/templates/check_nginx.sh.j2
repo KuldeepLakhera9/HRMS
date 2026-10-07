@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Health check script for keepalived VRRP
+if /usr/bin/curl -k -s -f -o /dev/null http://127.0.0.1/nginx_health || /usr/bin/systemctl is-active --quiet nginx; then
+    exit 0
+else
+    exit 1
+fi
