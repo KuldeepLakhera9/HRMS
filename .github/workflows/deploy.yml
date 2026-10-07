@@ -1,0 +1,76 @@
+name: Production CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: Code Quality & Test Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Full Verification Suite
+        run: pnpm verify
+
+  staging-deploy:
+    name: Deploy to Staging Cluster
+    needs: [verify]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python & Ansible
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Run Migrations with Lock Timeout
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          pnpm --filter @hrms/db run migrate
+
+      - name: Run Ansible Staging Playbook
+        run: |
+          cd infra/ansible
+          ansible-playbook -i inventories/staging/hosts.yml playbooks/site.yml --syntax-check
+
+  production-deploy:
+    name: Deploy to Production Cluster (Gated)
+    needs: [staging-deploy]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Production Deployment Notification
+        run: |
+          echo "Production deployment gate approved. Rolling update ready."

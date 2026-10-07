@@ -12,7 +12,14 @@ export async function runMigrations(poolOverride?: pg.Pool): Promise<void> {
   const client = await pool.connect();
 
   try {
+    console.info('[Migration Runner] Acquiring migration advisory lock...');
+    await client.query("SELECT pg_advisory_lock(hashtext('hrms_migrations_lock'))");
+
     console.info('[Migration Runner] Checking and applying migrations as hrms_owner...');
+
+    // Set safe lock and statement timeouts for DDL migrations
+    await client.query("SET lock_timeout = '3s'");
+    await client.query("SET statement_timeout = '60s'");
 
     // 1. Create migrations tracking table
     await client.query(`
@@ -48,6 +55,7 @@ export async function runMigrations(poolOverride?: pg.Pool): Promise<void> {
 
         await client.query('BEGIN');
         try {
+          await client.query("SET LOCAL lock_timeout = '3s'");
           await client.query(sql);
           await client.query(
             'INSERT INTO __hrms_migrations (name) VALUES ($1)',
@@ -67,6 +75,11 @@ export async function runMigrations(poolOverride?: pg.Pool): Promise<void> {
 
     console.info('[Migration Runner] All migrations are up to date.');
   } finally {
+    try {
+      await client.query("SELECT pg_advisory_unlock(hashtext('hrms_migrations_lock'))");
+    } catch {
+      // Ignore unlock failure if connection terminated
+    }
     client.release();
   }
 }

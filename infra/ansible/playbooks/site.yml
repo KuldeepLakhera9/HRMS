@@ -1,0 +1,73 @@
+---
+- name: Apply Base OS Hardening & Network Security to all nodes
+  hosts: all
+  become: true
+  roles:
+    - 01_base_hardening
+    - 02_firewall_nftables
+    - 04_internal_pki
+
+- name: Setup Distributed Consensus Tier (etcd)
+  hosts: db_servers
+  become: true
+  roles:
+    - 08_etcd_cluster
+
+- name: Setup High-Availability PostgreSQL Data Tier (Patroni, HAProxy, PgBouncer, Backups)
+  hosts: db_servers
+  become: true
+  roles:
+    - 09_postgres_patroni
+    - 10_haproxy_db
+    - 11_pgbouncer_pooler
+    - 15_backup_pgbackrest
+
+- name: Setup Cache, Object Storage, and Secrets Management
+  hosts: all
+  become: true
+  tasks:
+    - name: Run Valkey Sentinel role on cache hosts
+      ansible.builtin.include_role:
+        name: 12_valkey_sentinel
+      when: "'cache_servers' in group_names"
+
+    - name: Run Object Storage role on storage hosts
+      ansible.builtin.include_role:
+        name: 13_object_storage
+      when: "'storage_servers' in group_names"
+
+    - name: Run OpenBao role on management hosts
+      ansible.builtin.include_role:
+        name: 14_openbao_vault
+      when: "'mgmt_servers' in group_names"
+
+- name: Setup Application & Worker Nodes
+  hosts: all
+  become: true
+  tasks:
+    - name: Run Docker Engine role
+      ansible.builtin.include_role:
+        name: 03_docker_engine
+      when: "'app_servers' in group_names or 'worker_servers' in group_names"
+
+    - name: Run App Node role
+      ansible.builtin.include_role:
+        name: 06_app_node
+      when: "'app_servers' in group_names"
+
+    - name: Run Worker Node role
+      ansible.builtin.include_role:
+        name: 07_worker_node
+      when: "'worker_servers' in group_names"
+
+- name: Setup DMZ Edge Reverse Proxy & WAF
+  hosts: edge_servers
+  become: true
+  roles:
+    - 05_edge_nginx
+
+- name: Setup Management Bastion & VPN
+  hosts: bastion_servers
+  become: true
+  roles:
+    - 17_bastion_vpn
