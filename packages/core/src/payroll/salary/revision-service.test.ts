@@ -69,11 +69,14 @@ describe('Salary Revision & Arrears Engine (P4-SAL-03)', () => {
     } as unknown as SalaryRepository;
 
     const mockDbInsert = vi.fn().mockReturnValue({
-      values: vi.fn().mockReturnValue({
+      values: vi.fn((vals: unknown) => ({
         onConflictDoNothing: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([{ id: 'input-new' }]),
+          returning: vi.fn().mockImplementation(async () => {
+            const arr = Array.isArray(vals) ? vals : [vals];
+            return arr.map((_, i) => ({ id: `input-${i}` }));
+          }),
         }),
-      }),
+      })),
     });
 
     const mockDb = {

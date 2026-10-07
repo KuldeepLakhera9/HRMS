@@ -187,36 +187,36 @@ export class LoanService {
         ),
       );
 
-    let inputsGenerated = 0;
-    for (const inst of dueInstallments) {
-      const inputRecord: NewPayrollInput = {
-        companyId: ctx.companyId,
-        employeeId: inst.employeeId,
-        type: 'loan_emi',
-        componentCode: 'LOAN_EMI',
-        amount: inst.totalAmount,
-        taxable: false,
-        forPeriod: period,
-        sourceType: 'loan_installment',
-        sourceId: inst.installmentId,
-        status: 'approved',
-        approvedBy: userId,
-        note: `Loan EMI recovery #${inst.installmentNumber} for ${period}`,
-        createdBy: userId,
-        updatedBy: userId,
-      };
-
-      // Idempotent via uq_payroll_inputs_source: a conflict inserts nothing and is not counted.
-      const inserted = await db
-        .insert(payrollInputs)
-        .values(inputRecord)
-        .onConflictDoNothing()
-        .returning({ id: payrollInputs.id });
-
-      inputsGenerated += inserted.length;
+    if (dueInstallments.length === 0) {
+      return { inputsGenerated: 0 };
     }
 
-    return { inputsGenerated };
+    const inputRecords: NewPayrollInput[] = dueInstallments.map(inst => ({
+      companyId: ctx.companyId,
+      employeeId: inst.employeeId,
+      type: 'loan_emi',
+      componentCode: 'LOAN_EMI',
+      amount: inst.totalAmount,
+      taxable: false,
+      forPeriod: period,
+      sourceType: 'loan_installment',
+      sourceId: inst.installmentId,
+      status: 'approved',
+      approvedBy: userId,
+      note: `Loan EMI recovery #${inst.installmentNumber} for ${period}`,
+      createdBy: userId,
+      updatedBy: userId,
+    }));
+
+    // Single set-based insert; idempotent via uq_payroll_inputs_source (conflicts insert nothing
+    // and are not returned, so the count reflects rows really created).
+    const inserted = await db
+      .insert(payrollInputs)
+      .values(inputRecords)
+      .onConflictDoNothing()
+      .returning({ id: payrollInputs.id });
+
+    return { inputsGenerated: inserted.length };
   }
 
   /**

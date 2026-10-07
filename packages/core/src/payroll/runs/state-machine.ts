@@ -163,13 +163,15 @@ export async function executeRunTransition(
     updates.approvedBy = userId;
   }
 
-  if (toStatus === 'locked') {
+  if (toStatus === 'locking' || toStatus === 'locked') {
     // Segregation of Duties: Locker cannot be the approver or the creator
     assertSegregationOfDuties(lockedRun.approvedBy, userId, 'payroll run lock');
     if (lockedRun.createdBy && lockedRun.createdBy === userId) {
       throw new ForbiddenError('Segregation of duties violation: Creator cannot lock the payroll run');
     }
+  }
 
+  if (toStatus === 'locked') {
     updates.lockedBy = userId;
     updates.lockedAt = new Date();
 

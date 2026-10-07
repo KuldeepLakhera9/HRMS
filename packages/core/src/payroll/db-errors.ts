@@ -38,6 +38,9 @@ export function translateDbError(err: unknown): never {
       throw new ConflictError('The requested change overlaps an existing effective-dated record.');
     case '23505':
       throw new ConflictError('A record with the same unique key already exists.');
+    case '40P01':
+    case '40001':
+      throw new ConflictError('A concurrent transaction conflict occurred. Please retry.');
     case '23503':
       throw new ValidationError('A referenced record does not exist.');
     case '23514':

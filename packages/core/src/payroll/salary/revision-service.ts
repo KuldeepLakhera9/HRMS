@@ -193,6 +193,7 @@ export class SalaryRevisionService {
 
     const items = batch.rows as unknown as BulkRevisionItem[];
     const effectiveFromPeriod = batch.effectiveFrom.slice(0, 7);
+    const arrearsToInsert: NewPayrollInput[] = [];
     let arrearsGenerated = 0;
 
     for (const item of items) {
@@ -247,7 +248,7 @@ export class SalaryRevisionService {
         }),
       );
 
-      // Generate arrears if revision is backdated (effectiveFromPeriod < currentPeriod)
+      // Collect arrears if revision is backdated (effectiveFromPeriod < currentPeriod)
       if (activeSalary && effectiveFromPeriod < currentPeriod) {
         const arrearsCalc = calculateArrears({
           currentCtcAnnual: activeSalary.ctcAnnual,
@@ -259,7 +260,7 @@ export class SalaryRevisionService {
         for (const p of arrearsCalc.periods) {
           const diffVal = new Decimal(p.difference);
           if (diffVal.greaterThan(0)) {
-            const inputRecord: NewPayrollInput = {
+            arrearsToInsert.push({
               companyId: ctx.companyId,
               employeeId: item.employeeId,
               type: 'arrear',
@@ -274,19 +275,21 @@ export class SalaryRevisionService {
               note: `Backdated salary revision arrear for ${p.period}`,
               createdBy: userId,
               updatedBy: userId,
-            };
-
-            // Idempotent via uq_payroll_inputs_source; only rows really inserted are counted.
-            const inserted = await db
-              .insert(payrollInputs)
-              .values(inputRecord)
-              .onConflictDoNothing()
-              .returning({ id: payrollInputs.id });
-
-            arrearsGenerated += inserted.length;
+            });
           }
         }
       }
+    }
+
+    if (arrearsToInsert.length > 0) {
+      // Idempotent via uq_payroll_inputs_source; only rows really inserted are returned & counted.
+      const inserted = await db
+        .insert(payrollInputs)
+        .values(arrearsToInsert)
+        .onConflictDoNothing()
+        .returning({ id: payrollInputs.id });
+
+      arrearsGenerated = inserted.length;
     }
 
     const updatedBatch = await this.repo.updateRevisionBatch(db, ctx.companyId, batch.id, {
