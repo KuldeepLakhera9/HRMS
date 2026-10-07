@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Configure MinIO Client alias
+mc alias set local http://127.0.0.1:{{ minio_api_port }} {{ minio_root_user }} {{ minio_root_password }}
+
+{% for bucket in minio_buckets %}
+echo "Ensuring bucket: {{ bucket.name }}..."
+{% if bucket.lock_enabled %}
+# Create bucket with Object Lock support for compliance WORM
+mc mb --with-lock local/{{ bucket.name }} || true
+mc retention set --default COMPLIANCE {{ bucket.retention_days | default(365) }}d local/{{ bucket.name }} || true
+{% else %}
+mc mb local/{{ bucket.name }} || true
+{% endif %}
+{% endfor %}
+
+echo "Bucket initialization complete."

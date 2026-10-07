@@ -1,0 +1,24 @@
+# OpenBao Secrets Engine Configuration
+storage "raft" {
+  path    = "{{ bao_data_dir }}"
+  node_id = "{{ inventory_hostname }}"
+}
+
+listener "tcp" {
+  address       = "{{ ansible_default_ipv4.address }}:{{ bao_port }}"
+  tls_cert_file = "/etc/ssl/hrms/certs/openbao.crt"
+  tls_key_file  = "/etc/ssl/hrms/private/openbao.key"
+  tls_min_version = "tls12"
+}
+
+listener "tcp" {
+  address     = "127.0.0.1:{{ bao_port }}"
+  tls_disable = 1
+}
+
+api_addr     = "https://{{ ansible_default_ipv4.address }}:{{ bao_port }}"
+cluster_addr = "https://{{ ansible_default_ipv4.address }}:{{ bao_cluster_port }}"
+cluster_name = "{{ bao_cluster_name }}"
+
+ui = {{ bao_ui_enabled | lower }}
+disable_mlock = false

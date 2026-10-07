@@ -1,0 +1,22 @@
+---
+# Defaults for 12_valkey_sentinel
+valkey_port: 6379
+valkey_sentinel_port: 26379
+valkey_cluster_name: "hrms-valkey-cluster"
+
+valkey_role: "primary" # primary or replica
+valkey_primary_ip: "10.10.30.35"
+valkey_primary_port: 6379
+
+valkey_password: "{{ vault_valkey_password | default('ChangeMeValkeyPassword99!') }}"
+valkey_maxmemory: "4gb"
+valkey_maxmemory_policy: "noeviction"
+
+sentinel_quorum: 2
+sentinel_down_after_ms: 5000
+sentinel_failover_timeout_ms: 60000
+
+sentinel_nodes:
+  - "10.10.30.35"
+  - "10.10.30.36"
+  - "10.10.30.37"

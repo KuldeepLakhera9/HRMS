@@ -1,0 +1,14 @@
+# Valkey Sentinel Configuration
+bind {{ ansible_default_ipv4.address }} 127.0.0.1
+port {{ valkey_sentinel_port }}
+protected-mode no
+daemonize no
+pidfile /run/valkey/valkey-sentinel.pid
+logfile /var/log/valkey/valkey-sentinel.log
+dir /var/lib/valkey
+
+sentinel monitor {{ valkey_cluster_name }} {{ valkey_primary_ip }} {{ valkey_primary_port }} {{ sentinel_quorum }}
+sentinel auth-pass {{ valkey_cluster_name }} {{ valkey_password }}
+sentinel down-after-milliseconds {{ valkey_cluster_name }} {{ sentinel_down_after_ms }}
+sentinel parallel-syncs {{ valkey_cluster_name }} 1
+sentinel failover-timeout {{ valkey_cluster_name }} {{ sentinel_failover_timeout_ms }}

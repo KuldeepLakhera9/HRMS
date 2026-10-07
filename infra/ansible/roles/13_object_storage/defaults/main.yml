@@ -1,0 +1,19 @@
+---
+# Defaults for 13_object_storage
+minio_api_port: 9000
+minio_console_port: 9001
+minio_data_dir: "/var/lib/minio/data"
+
+minio_root_user: "hrms_s3_admin"
+minio_root_password: "{{ vault_minio_root_password | default('ChangeMeMinioRootSecret99!') }}"
+
+minio_buckets:
+  - name: "hrms-documents"
+    lock_enabled: false
+  - name: "hrms-exports"
+    lock_enabled: false
+  - name: "hrms-audit"
+    lock_enabled: true
+    retention_days: 2555 # 7-year compliance WORM lock
+  - name: "hrms-backups"
+    lock_enabled: false

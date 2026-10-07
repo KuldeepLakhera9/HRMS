@@ -1,0 +1,51 @@
+# Valkey Server Configuration
+bind {{ ansible_default_ipv4.address }} 127.0.0.1
+port {{ valkey_port }}
+protected-mode yes
+tcp-backlog 511
+timeout 0
+tcp-keepalive 300
+
+daemonize no
+supervised systemd
+pidfile /run/valkey/valkey-server.pid
+loglevel notice
+logfile /var/log/valkey/valkey-server.log
+
+databases 16
+always-show-logo no
+
+# Persistence
+save 900 1
+save 300 10
+save 60 10000
+stop-writes-on-bgsave-error yes
+rdbcompression yes
+rdbchecksum yes
+dbfilename dump.rdb
+dir /var/lib/valkey
+
+# AOF - enabled for BullMQ durability
+appendonly yes
+appendfilename "appendonly.aof"
+appendfsync everysec
+no-appendfsync-on-rewrite no
+auto-aof-rewrite-percentage 100
+auto-aof-rewrite-min-size 64mb
+aof-load-truncated yes
+aof-use-rdb-preamble yes
+
+# Replication
+{% if valkey_role == 'replica' %}
+replicaof {{ valkey_primary_ip }} {{ valkey_primary_port }}
+{% endif %}
+masterauth {{ valkey_password }}
+replica-read-only yes
+replica-serve-stale-data yes
+
+# Security
+requirepass {{ valkey_password }}
+
+# Limits & Memory
+maxmemory {{ valkey_maxmemory }}
+maxmemory-policy {{ valkey_maxmemory_policy }}

@@ -1,0 +1,13 @@
+---
+# Defaults for 14_openbao_vault
+bao_port: 8200
+bao_cluster_port: 8201
+bao_data_dir: "/var/lib/openbao/data"
+
+bao_cluster_name: "hrms-secrets-cluster"
+bao_ui_enabled: true
+
+# Raft storage peers
+bao_raft_peers:
+  - name: "mgmt-node-01"
+    ip: "10.10.50.84"

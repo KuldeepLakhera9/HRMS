@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export BAO_ADDR="http://127.0.0.1:{{ bao_port }}"
+
+echo "Checking OpenBao status..."
+INIT_STATUS=$(bao status -format=json | jq -r .initialized || true)
+
+if [ "$INIT_STATUS" != "true" ]; then
+    echo "Initializing OpenBao with 5 Shamir shares and threshold 3..."
+    bao operator init -key-shares=5 -key-threshold=3 -format=json > /etc/openbao/unseal_keys.json
+    chmod 0600 /etc/openbao/unseal_keys.json
+    echo "Keys written to /etc/openbao/unseal_keys.json (STRICT SECURITY CUSTODY REQUIRED)."
+else
+    echo "OpenBao already initialized."
+fi

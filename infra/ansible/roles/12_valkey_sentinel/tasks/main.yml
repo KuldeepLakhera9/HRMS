@@ -1,0 +1,50 @@
+---
+- name: Install Valkey / Redis packages
+  ansible.builtin.package:
+    name:
+      - redis-server
+      - redis-sentinel
+      - redis-tools
+    state: present
+
+- name: Create Valkey configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: redis
+    group: redis
+    mode: "0750"
+  loop:
+    - /etc/valkey
+    - /var/lib/valkey
+    - /var/log/valkey
+
+- name: Deploy Valkey server configuration
+  ansible.builtin.template:
+    src: valkey.conf.j2
+    dest: /etc/valkey/valkey.conf
+    owner: redis
+    group: redis
+    mode: "0640"
+  notify: Restart valkey-server
+
+- name: Deploy Valkey sentinel configuration
+  ansible.builtin.template:
+    src: sentinel.conf.j2
+    dest: /etc/valkey/sentinel.conf
+    owner: redis
+    group: redis
+    mode: "0640"
+  notify: Restart valkey-sentinel
+
+- name: Enable and start Valkey server
+  ansible.builtin.systemd:
+    name: redis-server
+    state: started
+    enabled: true
+
+- name: Enable and start Valkey sentinel
+  ansible.builtin.systemd:
+    name: redis-sentinel
+    state: started
+    enabled: true
