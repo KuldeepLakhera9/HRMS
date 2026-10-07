@@ -550,111 +550,110 @@ export class BankAdviceService {
 
     let successCount = 0;
     let failedCount = 0;
+    const tx = db;
 
-    await db.transaction(async tx => {
-      for (const row of rows) {
-        if (!row.utr || row.utr.trim().length === 0) {
-          continue;
-        }
-
-        // Find employee
-        let targetEmployeeId: string | null = null;
-        if (row.empCode) {
-          const [emp] = await tx
-            .select({ id: employees.id })
-            .from(employees)
-            .where(and(eq(employees.companyId, ctx.companyId), eq(employees.empCode, row.empCode)));
-          if (emp) targetEmployeeId = emp.id;
-        }
-
-        if (!targetEmployeeId) {
-          continue;
-        }
-
-        // Insert payment confirmation
-        await tx.insert(paymentConfirmations).values({
-          companyId: ctx.companyId,
-          adviceFileId,
-          runId: file.runId,
-          employeeId: targetEmployeeId,
-          utr: row.utr.trim(),
-          status: row.status,
-          amount: row.amount.toFixed(2),
-          failureReason: row.failureReason ?? null,
-          importedBy: ctx.userId ?? 'system',
-        });
-
-        // Update payslip
-        const newPaymentStatus = row.status === 'success' ? 'paid' : 'failed';
-        await tx
-          .update(payslips)
-          .set({
-            paymentStatus: newPaymentStatus,
-            paymentRef: row.utr.trim(),
-            updatedAt: new Date(),
-            updatedBy: ctx.userId ?? 'system',
-          })
-          .where(
-            and(
-              eq(payslips.companyId, ctx.companyId),
-              eq(payslips.runId, file.runId),
-              eq(payslips.employeeId, targetEmployeeId),
-            ),
-          );
-
-        if (row.status === 'success') successCount++;
-        else failedCount++;
+    for (const row of rows) {
+      if (!row.utr || row.utr.trim().length === 0) {
+        continue;
       }
 
-      // Check if all payslips for this run are now 'paid'
-      const [unpaid] = await tx
-        .select({ count: sql<number>`count(*)::int` })
-        .from(payslips)
+      // Find employee
+      let targetEmployeeId: string | null = null;
+      if (row.empCode) {
+        const [emp] = await tx
+          .select({ id: employees.id })
+          .from(employees)
+          .where(and(eq(employees.companyId, ctx.companyId), eq(employees.empCode, row.empCode)));
+        if (emp) targetEmployeeId = emp.id;
+      }
+
+      if (!targetEmployeeId) {
+        continue;
+      }
+
+      // Insert payment confirmation
+      await tx.insert(paymentConfirmations).values({
+        companyId: ctx.companyId,
+        adviceFileId,
+        runId: file.runId,
+        employeeId: targetEmployeeId,
+        utr: row.utr.trim(),
+        status: row.status,
+        amount: row.amount.toFixed(2),
+        failureReason: row.failureReason ?? null,
+        importedBy: ctx.userId ?? 'system',
+      });
+
+      // Update payslip
+      const newPaymentStatus = row.status === 'success' ? 'paid' : 'failed';
+      await tx
+        .update(payslips)
+        .set({
+          paymentStatus: newPaymentStatus,
+          paymentRef: row.utr.trim(),
+          updatedAt: new Date(),
+          updatedBy: ctx.userId ?? 'system',
+        })
         .where(
           and(
             eq(payslips.companyId, ctx.companyId),
             eq(payslips.runId, file.runId),
-            sql`${payslips.paymentStatus} != 'paid'`,
+            eq(payslips.employeeId, targetEmployeeId),
           ),
         );
 
-      const allPaid = (unpaid?.count ?? 0) === 0;
+      if (row.status === 'success') successCount++;
+      else failedCount++;
+    }
 
-      if (allPaid) {
-        await tx
-          .update(payrollRuns)
-          .set({
-            status: 'paid',
-            updatedAt: new Date(),
-            updatedBy: ctx.userId ?? 'system',
-          })
-          .where(and(eq(payrollRuns.companyId, ctx.companyId), eq(payrollRuns.id, file.runId)));
+    // Check if all payslips for this run are now 'paid'
+    const [unpaid] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(payslips)
+      .where(
+        and(
+          eq(payslips.companyId, ctx.companyId),
+          eq(payslips.runId, file.runId),
+          sql`${payslips.paymentStatus} != 'paid'`,
+        ),
+      );
 
-        await tx.insert(payrollRunEvents).values({
-          companyId: ctx.companyId,
-          runId: file.runId,
-          actorId: ctx.userId ?? 'system',
-          fromStatus: 'locked',
-          toStatus: 'paid',
-          event: 'RUN_MARKED_PAID',
-          details: {
-            action: 'ALL_PAYSLIPS_CONFIRMED',
-            adviceFileId,
-            successCount,
-          },
-        });
-      }
+    const allPaid = (unpaid?.count ?? 0) === 0;
 
-      // Update advice file status to confirmed
+    if (allPaid) {
       await tx
-        .update(bankAdviceFiles)
+        .update(payrollRuns)
         .set({
-          status: 'confirmed',
+          status: 'paid',
           updatedAt: new Date(),
           updatedBy: ctx.userId ?? 'system',
         })
-        .where(and(eq(bankAdviceFiles.companyId, ctx.companyId), eq(bankAdviceFiles.id, adviceFileId)));
-    });
+        .where(and(eq(payrollRuns.companyId, ctx.companyId), eq(payrollRuns.id, file.runId)));
+
+      await tx.insert(payrollRunEvents).values({
+        companyId: ctx.companyId,
+        runId: file.runId,
+        actorId: ctx.userId ?? 'system',
+        fromStatus: 'locked',
+        toStatus: 'paid',
+        event: 'RUN_MARKED_PAID',
+        details: {
+          action: 'ALL_PAYSLIPS_CONFIRMED',
+          adviceFileId,
+          successCount,
+        },
+      });
+    }
+
+    // Update advice file status to confirmed
+    await tx
+      .update(bankAdviceFiles)
+      .set({
+        status: 'confirmed',
+        updatedAt: new Date(),
+        updatedBy: ctx.userId ?? 'system',
+      })
+      .where(and(eq(bankAdviceFiles.companyId, ctx.companyId), eq(bankAdviceFiles.id, adviceFileId)));
 
     const [unpaidCheck] = await db
       .select({ count: sql<number>`count(*)::int` })

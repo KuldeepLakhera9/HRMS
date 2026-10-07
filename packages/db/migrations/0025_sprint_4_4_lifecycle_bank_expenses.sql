@@ -273,41 +273,55 @@ ALTER TABLE expense_items FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_policy ON bank_format_templates;
 CREATE POLICY tenant_isolation_policy ON bank_format_templates
   FOR ALL TO PUBLIC
-  USING (company_id = current_setting('app.company_id', true)::uuid)
-  WITH CHECK (company_id = current_setting('app.company_id', true)::uuid);
+  USING (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid)
+  WITH CHECK (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid);
 
 DROP POLICY IF EXISTS tenant_isolation_policy ON bank_advice_files;
 CREATE POLICY tenant_isolation_policy ON bank_advice_files
   FOR ALL TO PUBLIC
-  USING (company_id = current_setting('app.company_id', true)::uuid)
-  WITH CHECK (company_id = current_setting('app.company_id', true)::uuid);
+  USING (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid)
+  WITH CHECK (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid);
 
 DROP POLICY IF EXISTS tenant_isolation_policy ON payment_confirmations;
 CREATE POLICY tenant_isolation_policy ON payment_confirmations
   FOR ALL TO PUBLIC
-  USING (company_id = current_setting('app.company_id', true)::uuid)
-  WITH CHECK (company_id = current_setting('app.company_id', true)::uuid);
+  USING (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid)
+  WITH CHECK (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid);
 
 DROP POLICY IF EXISTS tenant_isolation_policy ON expense_categories;
 CREATE POLICY tenant_isolation_policy ON expense_categories
   FOR ALL TO PUBLIC
-  USING (company_id = current_setting('app.company_id', true)::uuid)
-  WITH CHECK (company_id = current_setting('app.company_id', true)::uuid);
+  USING (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid)
+  WITH CHECK (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid);
 
 DROP POLICY IF EXISTS tenant_isolation_policy ON expense_policies;
 CREATE POLICY tenant_isolation_policy ON expense_policies
   FOR ALL TO PUBLIC
-  USING (company_id = current_setting('app.company_id', true)::uuid)
-  WITH CHECK (company_id = current_setting('app.company_id', true)::uuid);
+  USING (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid)
+  WITH CHECK (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid);
 
 DROP POLICY IF EXISTS tenant_isolation_policy ON expense_claims;
 CREATE POLICY tenant_isolation_policy ON expense_claims
   FOR ALL TO PUBLIC
-  USING (company_id = current_setting('app.company_id', true)::uuid)
-  WITH CHECK (company_id = current_setting('app.company_id', true)::uuid);
+  USING (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid)
+  WITH CHECK (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid);
 
 DROP POLICY IF EXISTS tenant_isolation_policy ON expense_items;
 CREATE POLICY tenant_isolation_policy ON expense_items
   FOR ALL TO PUBLIC
-  USING (company_id = current_setting('app.company_id', true)::uuid)
-  WITH CHECK (company_id = current_setting('app.company_id', true)::uuid);
+  USING (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid)
+  WITH CHECK (company_id = NULLIF(current_setting('app.company_id', true), '')::uuid);
+
+-- 11. Runtime Grants to hrms_app non-owner role
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hrms_app') THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON bank_format_templates TO hrms_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON bank_advice_files TO hrms_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON payment_confirmations TO hrms_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON expense_categories TO hrms_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON expense_policies TO hrms_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON expense_claims TO hrms_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON expense_items TO hrms_app;
+  END IF;
+END $$;
