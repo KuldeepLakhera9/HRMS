@@ -27,9 +27,10 @@ export interface PfCalculationResult {
  */
 export function calculatePf(input: PfCalculationInput): PfCalculationResult {
   const { rule } = input;
+  const ruleFallback = rule as unknown as Record<string, number | undefined>;
   const wages = new Decimal(input.pfWages);
   const vpf = new Decimal(input.vpfAmount ?? 0);
-  const ceiling = new Decimal(rule.wageCeilingMonthly);
+  const ceiling = new Decimal(rule.wageCeilingMonthly ?? ruleFallback.statutoryWageCeiling ?? 15000);
 
   // Determine wage base
   let wageBase = wages;
@@ -81,8 +82,9 @@ export function calculatePf(input: PfCalculationInput): PfCalculationResult {
     .toDecimalPlaces(0, roundMode);
 
   // Admin Charges (0.5% on actual or wage base)
+  const adminRate = rule.adminChargeRatePct ?? ruleFallback.adminChargesRatePct ?? 0.5;
   const adminCharges = wageBase
-    .mul(rule.adminChargeRatePct)
+    .mul(adminRate)
     .div(100)
     .toDecimalPlaces(0, roundMode);
 

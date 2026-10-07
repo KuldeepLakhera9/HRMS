@@ -51,7 +51,9 @@ export function calculateLabourCodeWages(input: LabourCodeWagesInput): LabourCod
   }
 
   // Floor: e.g. 50% of total remuneration
-  const floorPct = new Decimal(rule.statutoryWagesFloorPct).div(100);
+  const ruleFallback = rule as unknown as Record<string, number | undefined>;
+  const floorVal = rule.statutoryWagesFloorPct ?? ruleFallback.floorPct ?? 50;
+  const floorPct = new Decimal(floorVal).div(100);
   const floorAmount = totalRemuneration.mul(floorPct);
 
   // If excluded allowances exceed 50% of total remuneration

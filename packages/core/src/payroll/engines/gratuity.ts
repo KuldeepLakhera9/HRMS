@@ -25,10 +25,13 @@ export function calculateGratuityProvision(input: GratuityCalculationInput): Gra
   const basic = new Decimal(input.basicWageMonthly);
   const tenure = new Decimal(tenureYears);
 
+  const ruleFallback = rule as unknown as Record<string, number | undefined>;
+  const formulaBasisDays = rule.formulaBasisDays ?? 15;
+  const divisorDays = rule.divisorDays ?? 26;
   const minYears =
     employmentType === 'fixed_term'
-      ? rule.eligibilityYearsFixedTerm
-      : rule.eligibilityYearsPermanent;
+      ? (rule.eligibilityYearsFixedTerm ?? ruleFallback.fixedTermEligibilityYears ?? 1)
+      : (rule.eligibilityYearsPermanent ?? ruleFallback.permanentEligibilityYears ?? 5);
 
   const eligible = tenure.gte(minYears);
 
@@ -42,11 +45,11 @@ export function calculateGratuityProvision(input: GratuityCalculationInput): Gra
 
   // Formula: (basic * formulaBasisDays * tenure) / divisorDays
   const rawProvision = basic
-    .mul(rule.formulaBasisDays)
+    .mul(formulaBasisDays)
     .mul(tenure)
-    .div(rule.divisorDays);
+    .div(divisorDays);
 
-  const ceiling = new Decimal(rule.maxCeilingAmount);
+  const ceiling = new Decimal(rule.maxCeilingAmount ?? ruleFallback.ceilingAmount ?? 2000000);
   let finalProvision = rawProvision;
   let isCapped = false;
 

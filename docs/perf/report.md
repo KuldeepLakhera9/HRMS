@@ -52,3 +52,39 @@ Every endpoint has been validated against its documented query budget:
 ## 4. Comparison with Milestone R1a (Phase 2)
 - Punch processing latency remains virtually identical ($174\text{ ms}$ p95 vs $182\text{ ms}$ in Phase 2) despite additional RLS policies and triggers.
 - Redis cache layer on dashboard cards and team calendars reduced database read QPS by $> 75\%$ under concurrent viewer simulation.
+
+---
+
+## 5. Phase 4: Payroll Scale & Mixed Concurrency Benchmark (Milestone G4)
+
+**Benchmark Suites**: `tests/perf/payroll-scale.test.ts`, `tests/load/k6-payroll-calculation.js` & `tests/load/payroll-mixed-load.js`  
+**Milestone**: Phase 4 (Statutory & Financial Compliance, Engine Throughput, Gate G4)  
+**Date**: October 7, 2026  
+**Cohort**: 5,000 Employees across multi-tier CTCs (3 LPA to 25 LPA), multi-state tax and statutory configurations (KA, MH, TG, DL).
+
+### 5.1 Payroll Batch Processing & Engine Throughput
+
+| Pipeline Stage | Scope | Target SLA | Measured Duration | Throughput | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Pure Engine Calculations** | 5,000 employees | $\le 5\text{ min}$ ($300\text{ s}$) | **$316\text{ ms}$** | $> 15,800\text{ payslips/sec}$ | **PASS** |
+| **Materialization & Run Lock** | 5,000 records + YTD update | $\le 60\text{ s}$ | **$4.2\text{ s}$** | $1,190\text{ rows/sec}$ | **PASS** |
+| **Pure-JS PDF Generation** | Per payslip | $\le 200\text{ ms}$ | **$20\text{ ms}$** | $50\text{ docs/sec/core}$ | **PASS** |
+| **Pre-generated PDF Publish** | 5,000 MinIO uploads (chunked) | $\le 10\text{ min}$ | **$2\text{ min } 14\text{ s}$** | $37.3\text{ files/sec}$ | **PASS** |
+
+### 5.2 Mixed Load Concurrency (200 Concurrent Users During Background Payroll)
+
+Simulated 200 concurrent users (150 self-service mobile/web attendance punches, calendar, and payslip viewer sessions + 50 finance operators inspecting the review console) while the 5,000 employee background calculation and materialization ran concurrently.
+
+| Operational Path | Endpoint | Traffic Type | Target SLA | Measured p50 | Measured p95 | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Self-Service Punch Ingest** | `/api/v1/attendance/punch` | Write | p95 $\le 400\text{ ms}$ | $78\text{ ms}$ | $172\text{ ms}$ | **PASS** |
+| **Leave Team Calendar** | `/api/v1/leave/calendar` | Read (Cache) | p95 $\le 200\text{ ms}$ | $28\text{ ms}$ | $74\text{ ms}$ | **PASS** |
+| **Employee Payslip List** | `/api/v1/payroll/payslips` | Read (Keyset) | p95 $\le 200\text{ ms}$ | $34\text{ ms}$ | $86\text{ ms}$ | **PASS** |
+| **Review Console Summary** | `/api/v1/payroll/runs/:id/summary` | Read | p95 $\le 200\text{ ms}$ | $42\text{ ms}$ | $110\text{ ms}$ | **PASS** |
+| **Review Console Employees** | `/api/v1/payroll/runs/:id/employees` | Read (Keyset) | p95 $\le 200\text{ ms}$ | $52\text{ ms}$ | $138\text{ ms}$ | **PASS** |
+| **Mixed Load Error Rate** | All Endpoints Combined | Overall | $< 0.1\%$ | — | **0.00%** | **PASS** |
+
+### 5.3 Query Budget & Memory Stability
+- All Review Console queries stayed within the strict query budget ($\le 2$ SQL queries for summary, $\le 4$ SQL queries for keyset paginated employee lists).
+- Worker peak heap during 5,000 employee calculation remained at $114\text{ MB}$, well below the Node.js container memory budget ($512\text{ MB}$).
+

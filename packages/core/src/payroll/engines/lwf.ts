@@ -34,7 +34,7 @@ export function calculateLwf(input: LwfCalculationInput): LwfCalculationResult {
   }
 
   // Check wage eligibility ceiling if configured
-  if (rule.wageEligibilityCeiling !== null && gross.gt(rule.wageEligibilityCeiling)) {
+  if (rule.wageEligibilityCeiling != null && gross.gt(rule.wageEligibilityCeiling)) {
     return {
       isDeductionMonth: false,
       employeeContribution: '0.00',

@@ -18,7 +18,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['packages/**/*.test.ts', 'apps/**/*.test.ts', 'tests/golden/**/*.test.ts'],
+    include: ['packages/**/*.test.ts', 'apps/**/*.test.ts', 'tests/golden/**/*.test.ts', 'tests/perf/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**', 'tests/integration/**'],
     testTimeout: 30000,
     hookTimeout: 30000,

@@ -3,7 +3,7 @@ import { getEnv } from '@hrms/config';
 
 let rootLogger: pino.Logger | null = null;
 
-const REDACTION_PATHS = [
+export const REDACTION_PATHS = [
   'password',
   'password_hash',
   'passwordHash',
@@ -22,6 +22,14 @@ const REDACTION_PATHS = [
   'bank_enc',
   'account_number',
   'accountNumber',
+  'bankAccountNumber',
+  'bank_account_number',
+  'salary',
+  'netPay',
+  'grossPay',
+  'ctc',
+  'ifsc',
+  'ifscCode',
   '*.password',
   '*.token',
   'authorization',
