@@ -1,0 +1,27 @@
+port:
+  tcp:5432:
+    listening: true
+  tcp:8008:
+    listening: true
+  tcp:5000:
+    listening: true
+  tcp:5001:
+    listening: true
+  tcp:6432:
+    listening: true
+
+service:
+  patroni:
+    enabled: true
+    running: true
+  haproxy:
+    enabled: true
+    running: true
+  pgbouncer:
+    enabled: true
+    running: true
+
+http:
+  http://127.0.0.1:8008/primary:
+    status: 200
+    timeout: 2000

@@ -1,0 +1,38 @@
+port:
+  tcp:22:
+    listening: true
+    ip:
+      - 0.0.0.0
+
+service:
+  sshd:
+    enabled: true
+    running: true
+  chrony:
+    enabled: true
+    running: true
+  auditd:
+    enabled: true
+    running: true
+  nftables:
+    enabled: true
+    running: true
+
+file:
+  /etc/ssh/sshd_config:
+    exists: true
+    mode: "0600"
+    owner: root
+    group: root
+    contains:
+      - "PermitRootLogin no"
+      - "PasswordAuthentication no"
+      - "KbdInteractiveAuthentication no"
+  /etc/sysctl.d/99-security.conf:
+    exists: true
+    mode: "0644"
+    owner: root
+    group: root
+    contains:
+      - "net.ipv4.ip_forward = 0"
+      - "net.ipv4.conf.all.rp_filter = 1"

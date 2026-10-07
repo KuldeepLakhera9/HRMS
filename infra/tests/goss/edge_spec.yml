@@ -1,0 +1,20 @@
+port:
+  tcp:80:
+    listening: true
+  tcp:443:
+    listening: true
+
+service:
+  nginx:
+    enabled: true
+    running: true
+  keepalived:
+    enabled: true
+    running: true
+
+http:
+  http://127.0.0.1:80:
+    status: 301
+  https://127.0.0.1:443:
+    status: 200
+    allow-insecure: true
