@@ -1,0 +1,36 @@
+[global]
+process-max=4
+log-level-console=info
+log-level-file=detail
+start-fast=y
+compress-type=lz4
+compress-level=3
+
+# Repo 1 - Local Fast NVMe Repository
+repo1-path={{ repo1_path }}
+repo1-retention-full={{ repo1_retention_full }}
+repo1-retention-diff={{ repo1_retention_diff }}
+repo1-cipher-type=aes-256-cbc
+repo1-cipher-pass={{ repo1_cipher_pass }}
+
+{% if repo2_enabled %}
+# Repo 2 - Offsite Zero-Knowledge S3 Repository (Per ADR 0021)
+repo2-type=s3
+repo2-s3-endpoint={{ repo2_s3_endpoint }}
+repo2-s3-bucket={{ repo2_s3_bucket }}
+repo2-s3-region={{ repo2_s3_region }}
+repo2-s3-key={{ repo2_s3_key }}
+repo2-s3-key-secret={{ repo2_s3_key_secret }}
+repo2-s3-verify-tls=n
+repo2-retention-full={{ repo2_retention_full }}
+repo2-cipher-type=aes-256-cbc
+repo2-cipher-pass={{ repo2_cipher_pass }}
+{% endif %}
+
+[{{ stanza_name }}]
+pg1-path={{ pg_data_path }}
+pg1-user=postgres
+{% if inventory_hostname != 'db-node-01' %}
+pg1-host={{ db_primary_ip }}
+pg1-host-user=postgres
+{% endif %}

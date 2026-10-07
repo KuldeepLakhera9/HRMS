@@ -1,0 +1,64 @@
+---
+- name: Install pgbackrest
+  ansible.builtin.package:
+    name: pgbackrest
+    state: present
+
+- name: Create pgbackrest repository directory
+  ansible.builtin.file:
+    path: "{{ repo1_path }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0750"
+
+- name: Deploy pgbackrest.conf
+  ansible.builtin.template:
+    src: pgbackrest.conf.j2
+    dest: /etc/pgbackrest.conf
+    owner: postgres
+    group: postgres
+    mode: "0640"
+
+- name: Deploy test restore drill script
+  ansible.builtin.template:
+    src: test_restore.sh.j2
+    dest: /usr/local/bin/test_pg_restore.sh
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy object backup script
+  ansible.builtin.template:
+    src: backup_objects.sh.j2
+    dest: /usr/local/bin/backup_objects.sh
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Schedule weekly full backup (Sunday 02:00 UTC)
+  ansible.builtin.cron:
+    name: "HRMS Weekly Full pgBackRest"
+    user: postgres
+    weekday: "0"
+    hour: "2"
+    minute: "0"
+    job: "/usr/bin/pgbackrest --stanza={{ stanza_name }} --type=full backup >> /var/log/pgbackrest_cron.log 2>&1"
+
+- name: Schedule daily differential backup (Mon-Sat 02:00 UTC)
+  ansible.builtin.cron:
+    name: "HRMS Daily Diff pgBackRest"
+    user: postgres
+    weekday: "1-6"
+    hour: "2"
+    minute: "0"
+    job: "/usr/bin/pgbackrest --stanza={{ stanza_name }} --type=diff backup >> /var/log/pgbackrest_cron.log 2>&1"
+
+- name: Schedule monthly restore test drill (1st of month 04:00 UTC)
+  ansible.builtin.cron:
+    name: "HRMS Monthly Automated Restore Drill"
+    user: root
+    day: "1"
+    hour: "4"
+    minute: "0"
+    job: "/usr/local/bin/test_pg_restore.sh >> /var/log/pg_restore_test.log 2>&1"

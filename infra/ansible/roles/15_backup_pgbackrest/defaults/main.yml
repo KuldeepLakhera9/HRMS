@@ -1,0 +1,24 @@
+---
+# Defaults for 15_backup_pgbackrest
+stanza_name: "hrms"
+pg_data_path: "/var/lib/postgresql/16/main"
+
+# Repo 1 - Local Fast Recovery Storage
+repo1_path: "/var/lib/pgbackrest"
+repo1_retention_full: 2
+repo1_retention_diff: 7
+repo1_cipher_pass: "{{ vault_backup_cipher_pass | default('HrmsUltraSecureClientSideCipherPass99!') }}"
+
+# Repo 2 - Offsite S3 Zero-Knowledge Encrypted
+repo2_enabled: true
+repo2_type: "s3"
+repo2_s3_endpoint: "http://10.10.40.41:9000"
+repo2_s3_bucket: "hrms-backups"
+repo2_s3_region: "ap-south-1"
+repo2_s3_key: "hrms_s3_admin"
+repo2_s3_key_secret: "{{ vault_minio_root_password | default('ChangeMeMinioRootSecret99!') }}"
+repo2_retention_full: 4
+repo2_cipher_pass: "{{ vault_backup_cipher_pass | default('HrmsUltraSecureClientSideCipherPass99!') }}"
+
+# Primary DB node IP
+db_primary_ip: "10.10.30.31"

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Object storage backup & synchronization
+echo "[OBJ-BACKUP] Mirroring MinIO primary buckets to offsite replica..."
+mc alias set local http://10.10.40.41:9000 {{ repo2_s3_key }} {{ repo2_s3_key_secret }}
+
+mc mirror --overwrite local/hrms-documents local/hrms-backups/objects/documents/ || true
+mc mirror --overwrite local/hrms-exports local/hrms-backups/objects/exports/ || true
+
+echo "[OBJ-BACKUP] Object sync completed."

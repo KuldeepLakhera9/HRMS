@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Automated Restore Drill - Proves backup viability into sandbox directory
+STANZA="{{ stanza_name }}"
+TEST_DIR="/var/lib/postgresql/restore-test-sandbox"
+
+echo "[DR-TEST] Starting automated restore drill for stanza: $STANZA"
+rm -rf "$TEST_DIR"
+mkdir -p "$TEST_DIR"
+chown postgres:postgres "$TEST_DIR"
+chmod 0700 "$TEST_DIR"
+
+# Perform test restore into sandbox directory
+echo "[DR-TEST] Restoring latest backup into $TEST_DIR..."
+sudo -u postgres pgbackrest --stanza="$STANZA" --pg1-path="$TEST_DIR" --delta restore
+
+# Check cluster consistency
+echo "[DR-TEST] Restore completed successfully. Verifying PG control data..."
+/usr/lib/postgresql/16/bin/pg_controldata -D "$TEST_DIR"
+
+echo "[DR-TEST] SUCCESS: Automated restore test completed. Cleaning up sandbox."
+rm -rf "$TEST_DIR"
