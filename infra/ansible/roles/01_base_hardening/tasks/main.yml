@@ -1,0 +1,67 @@
+---
+# Tasks for 01_base_hardening (CIS Benchmark Baseline)
+
+- name: Ensure minimal security and operational tools are present
+  ansible.builtin.apt:
+    name:
+      - chrony
+      - auditd
+      - audispd-plugins
+      - fail2ban
+      - sudo
+      - curl
+      - jq
+      - ca-certificates
+      - cryptsetup
+      - clevis
+      - clevis-luks
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Configure hardened SSH daemon
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+    validate: "/usr/sbin/sshd -t -f %s"
+  notify: Restart sshd
+
+- name: Configure Chrony time synchronization with drift tracking
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart chrony
+
+- name: Configure Linux kernel sysctl security parameters
+  ansible.builtin.template:
+    src: sysctl-security.conf.j2
+    dest: /etc/sysctl.d/99-security-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply sysctl
+
+- name: Configure auditd privileged command and access rules
+  ansible.builtin.template:
+    src: auditd.rules.j2
+    dest: /etc/audit/rules.d/audit.rules
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart auditd
+
+- name: Ensure automated security services are enabled and active
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop:
+    - chrony
+    - auditd
+    - fail2ban

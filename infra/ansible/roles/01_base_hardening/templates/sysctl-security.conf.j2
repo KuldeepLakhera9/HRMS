@@ -1,0 +1,4 @@
+# Managed by Ansible - Kernel Security Parameters (CIS Baseline)
+{% for setting in sysctl_settings %}
+{{ setting.name }} = {{ setting.value }}
+{% endfor %}

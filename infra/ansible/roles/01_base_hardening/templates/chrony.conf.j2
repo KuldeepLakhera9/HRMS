@@ -1,0 +1,18 @@
+# Managed by Ansible - Chrony NTP Configuration
+{% for server in chrony_servers %}
+server {{ server }} iburst
+{% endfor %}
+
+driftfile /var/lib/chrony/chrony.drift
+keyfile /etc/chrony/chrony.keys
+
+# Log time drift & offset alerts
+logdir /var/log/chrony
+log measurements statistics tracking
+
+# Maximum allowed slewing rate (fail safe if skew exceeds 10s)
+maxupdateskew 100.0
+makestep 1.0 3
+
+# Security: do not serve time to external clients unless designated internal NTP
+rtcsync

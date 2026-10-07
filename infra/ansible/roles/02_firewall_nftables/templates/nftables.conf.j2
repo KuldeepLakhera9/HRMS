@@ -1,0 +1,135 @@
+#!/usr/sbin/nft -f
+# Managed by Ansible - Strict Default-Deny nftables Configuration
+
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        # 1. Allow established and related connections
+        ct state established,related accept
+
+        # 2. Drop invalid packets
+        ct state invalid drop
+
+        # 3. Allow loopback traffic
+        iif "lo" accept
+
+        # 4. ICMP ping rate limited
+        ip protocol icmp icmp type echo-request limit rate 5/second accept
+        ip6 nexthdr icmpv6 icmpv6 type echo-request limit rate 5/second accept
+
+        # 5. SSH strictly from Bastion host or internal MGMT network
+        ip saddr {{ bastion_ip | default('10.10.50.81') }} tcp dport 22 ct state new accept
+        ip saddr {{ mgmt_subnet | default('10.10.50.0/24') }} tcp dport 22 ct state new accept
+
+        # 6. Role-specific ingress rules
+{% if 'edge' in group_names %}
+        # Edge nodes receive HTTPS/HTTP from any
+        tcp dport { 80, 443 } ct state new accept
+        # Keepalived VRRP protocol (IP proto 112)
+        ip protocol vrrp accept
+{% endif %}
+
+{% if 'app' in group_names %}
+        # App nodes receive HTTP from Edge DMZ subnet only
+        ip saddr {{ dmz_subnet | default('10.10.10.0/24') }} tcp dport 3000 ct state new accept
+        # PgBouncer local loopback only
+        iif "lo" tcp dport 6432 accept
+{% endif %}
+
+{% if 'database' in group_names %}
+        # HAProxy routing to Patroni primary / replicas
+        ip saddr {{ app_subnet | default('10.10.20.0/24') }} tcp dport { 5000, 5001 } ct state new accept
+        # Patroni REST API health checks from HAProxy / local nodes
+        ip saddr {{ data_subnet | default('10.10.30.0/24') }} tcp dport { 5432, 8008 } ct state new accept
+        # Backup server continuous WAL stream
+        ip saddr {{ backup_subnet | default('10.10.40.0/24') }} tcp dport 5432 ct state new accept
+{% endif %}
+
+{% if 'etcd' in group_names %}
+        # etcd peer and client mTLS from data subnet only
+        ip saddr {{ data_subnet | default('10.10.30.0/24') }} tcp dport { 2379, 2380 } ct state new accept
+{% endif %}
+
+{% if 'valkey' in group_names %}
+        # Valkey & Sentinel access from App and Worker subnets only
+        ip saddr { {{ app_subnet | default('10.10.20.0/24') }}, {{ data_subnet | default('10.10.30.0/24') }} } tcp dport { 6379, 26379 } ct state new accept
+{% endif %}
+
+{% if 'storage' in group_names %}
+        # S3 object storage from App, Worker, and Backup subnets
+        ip saddr { {{ app_subnet | default('10.10.20.0/24') }}, {{ backup_subnet | default('10.10.40.0/24') }} } tcp dport { 9000, 9001 } ct state new accept
+{% endif %}
+
+{% if 'vault' in group_names %}
+        # OpenBao access from App, Worker, and local cluster
+        ip saddr { {{ app_subnet | default('10.10.20.0/24') }}, {{ data_subnet | default('10.10.30.0/24') }} } tcp dport { 8200, 8201 } ct state new accept
+{% endif %}
+
+        # Prometheus metrics scraping from MGMT subnet
+        ip saddr {{ mgmt_subnet | default('10.10.50.0/24') }} tcp dport { 9100, 9113, 9121, 9127, 9187 } ct state new accept
+
+        # Reject all other inbound with TCP reset or ICMP unreachable
+        reject
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+    }
+
+    chain output {
+        type filter hook output priority 0; policy drop;
+
+        # Allow established and related connections
+        ct state established,related accept
+
+        # Allow local loopback traffic
+        oif "lo" accept
+
+        # Allow NTP time synchronization to internal / designated NTP
+        udp dport 123 accept
+
+        # Allow internal DNS queries
+        udp dport 53 accept
+        tcp dport 53 accept
+
+        # Allow Prometheus / Promtail log forwarding to Loki
+        ip daddr {{ mgmt_subnet | default('10.10.50.0/24') }} tcp dport 3100 accept
+
+        # Allow connections to whitelisted Egress Proxy (Squid) on MGMT VLAN
+        ip daddr {{ egress_proxy_ip | default('10.10.50.83') }} tcp dport {{ egress_proxy_port | default(3128) }} accept
+
+{% if 'edge' in group_names %}
+        # Edge proxies outbound to App nodes
+        ip daddr {{ app_subnet | default('10.10.20.0/24') }} tcp dport 3000 accept
+        # Keepalived VRRP multicast
+        ip protocol vrrp accept
+{% endif %}
+
+{% if 'app' in group_names %}
+        # App talks to database HAProxy VIP, Valkey, MinIO, Vault
+        ip daddr {{ data_subnet | default('10.10.30.0/24') }} tcp dport { 5000, 5001, 6379, 26379, 9000, 8200 } accept
+{% endif %}
+
+{% if 'database' in group_names %}
+        # Database replication and etcd DCS
+        ip daddr {{ data_subnet | default('10.10.30.0/24') }} tcp dport { 5432, 8008, 2379, 2380 } accept
+        ip daddr {{ backup_subnet | default('10.10.40.0/24') }} tcp dport { 9000, 8432 } accept
+{% endif %}
+
+{% if 'backup' in group_names %}
+        # Backup server mirrors to offsite target (HTTPS / SSH)
+        tcp dport { 443, 22 } accept
+{% endif %}
+
+{% if 'management' in group_names %}
+        # Egress proxy and Bastion outbound connections
+        tcp dport { 80, 443, 587 } accept
+{% endif %}
+
+        # Drop everything else outbound
+        reject
+    }
+}

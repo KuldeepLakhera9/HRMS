@@ -1,0 +1,59 @@
+---
+- name: Ensure OpenSSL and CA utilities are installed
+  ansible.builtin.package:
+    name:
+      - openssl
+      - ca-certificates
+    state: present
+
+- name: Create internal PKI directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ pki_dir }}"
+    - "{{ pki_dir }}/certs"
+
+- name: Create private key directory with strict 0700 permissions
+  ansible.builtin.file:
+    path: "{{ pki_dir }}/private"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Generate internal root CA private key (if not present)
+  ansible.builtin.command: >
+    openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096
+    -out {{ pki_ca_key_path }}
+  args:
+    creates: "{{ pki_ca_key_path }}"
+
+- name: Secure internal root CA key mode
+  ansible.builtin.file:
+    path: "{{ pki_ca_key_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Generate self-signed root CA certificate (if not present)
+  ansible.builtin.command: >
+    openssl req -x509 -new -nodes -key {{ pki_ca_key_path }}
+    -sha256 -days {{ pki_ca_days }}
+    -out {{ pki_ca_cert_path }}
+    -subj "/C={{ pki_country }}/ST={{ pki_state }}/L={{ pki_locality }}/O={{ pki_org }}/CN=HRMS-Internal-Root-CA"
+  args:
+    creates: "{{ pki_ca_cert_path }}"
+
+- name: Install root CA into system trusted store
+  ansible.builtin.copy:
+    src: "{{ pki_ca_cert_path }}"
+    dest: /usr/local/share/ca-certificates/hrms-internal-ca.crt
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Update ca certificates

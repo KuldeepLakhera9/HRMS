@@ -1,0 +1,29 @@
+---
+# Defaults for 03_docker_engine
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+docker_users:
+  - hrms
+
+docker_daemon_config:
+  log-driver: "json-file"
+  log-opts:
+    max-size: "50m"
+    max-file: "5"
+  live-restore: true
+  userland-proxy: false
+  no-new-privileges: true
+  default-ulimits:
+    nofile:
+      name: "nofile"
+      hard: 65535
+      soft: 65535
+    nproc:
+      name: "nproc"
+      hard: 4096
+      soft: 4096

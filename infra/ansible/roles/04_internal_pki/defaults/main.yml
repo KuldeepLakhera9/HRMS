@@ -1,0 +1,12 @@
+---
+# Defaults for 04_internal_pki
+pki_dir: "/etc/ssl/hrms"
+pki_ca_cert_path: "/etc/ssl/hrms/hrms-internal-ca.crt"
+pki_ca_key_path: "/etc/ssl/hrms/private/hrms-internal-ca.key"
+
+pki_cert_days: 365
+pki_ca_days: 3650
+pki_org: "HRMS Internal PKI"
+pki_country: "IN"
+pki_state: "DL"
+pki_locality: "New Delhi"

@@ -1,0 +1,21 @@
+---
+# Defaults for 02_firewall_nftables
+node_role: "{{ patroni_role | default('generic') }}"
+
+# Management bastion IP authorized for SSH
+bastion_ip: "10.10.50.81"
+
+# Allowed incoming ports depending on role
+firewall_allowed_tcp_ports:
+  - 22 # SSH from bastion only
+
+# Egress proxy IP
+egress_proxy_ip: "10.10.50.83"
+egress_proxy_port: 3128
+
+# Subnets
+dmz_subnet: "10.10.10.0/24"
+app_subnet: "10.10.20.0/24"
+data_subnet: "10.10.30.0/24"
+backup_subnet: "10.10.40.0/24"
+mgmt_subnet: "10.10.50.0/24"

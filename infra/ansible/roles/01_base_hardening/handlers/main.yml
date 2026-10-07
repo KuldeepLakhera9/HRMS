@@ -1,0 +1,21 @@
+---
+# Handlers for 01_base_hardening
+
+- name: Restart sshd
+  ansible.builtin.service:
+    name: ssh
+    state: restarted
+
+- name: Restart chrony
+  ansible.builtin.service:
+    name: chrony
+    state: restarted
+
+- name: Apply sysctl
+  ansible.builtin.command:
+    cmd: /sbin/sysctl -p /etc/sysctl.d/99-security-hardening.conf
+
+- name: Restart auditd
+  ansible.builtin.service:
+    name: auditd
+    state: restarted
