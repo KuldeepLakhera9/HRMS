@@ -14,11 +14,7 @@ export const GET = createNextRoute({
   schema: listExceptionsSchema,
   handler: async (input, ctx) => {
     const isRegularizedVal =
-      input.isRegularized === true || input.isRegularized === 'true'
-        ? true
-        : input.isRegularized === false || input.isRegularized === 'false'
-          ? false
-          : undefined;
+      typeof input.isRegularized === 'boolean' ? input.isRegularized : undefined;
 
     const [exceptionsResult, summaryResult] = await Promise.all([
       exceptionsService.listExceptions(ctx, {

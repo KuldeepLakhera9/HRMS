@@ -1,4 +1,4 @@
-import { z, type ZodType } from 'zod';
+import { z, type ZodType, type ZodTypeDef } from 'zod';
 import { withTenant, type DrizzleTransaction, generateUuidV7 } from '@hrms/db';
 import {
   ValidationError,
@@ -23,7 +23,7 @@ export interface RouteDefinition<TInput, TOutput> {
     windowSeconds: number;
     keyGenerator?: ((ctx: RequestContext) => string) | undefined;
   } | undefined;
-  schema?: ZodType<TInput> | undefined;
+  schema?: ZodType<TInput, ZodTypeDef, unknown> | undefined;
   handler: (
     input: TInput,
     ctx: RequestContext,

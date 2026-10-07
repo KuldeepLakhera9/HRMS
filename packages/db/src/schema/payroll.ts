@@ -436,6 +436,106 @@ export const loanInstallments = pgTable(
   ],
 );
 
+export const payslips = pgTable(
+  'payslips',
+  {
+    ...baseTenantColumns,
+    runId: uuid('run_id').notNull(),
+    employeeId: uuid('employee_id').notNull(),
+    period: text('period').notNull(),
+    gross: numeric('gross', { precision: 14, scale: 2 }).notNull(),
+    deductions: numeric('deductions', { precision: 14, scale: 2 }).notNull(),
+    employerCost: numeric('employer_cost', { precision: 14, scale: 2 }).notNull(),
+    net: numeric('net', { precision: 14, scale: 2 }).notNull(),
+    integrityHash: text('integrity_hash').notNull(),
+    snapshot: jsonb('snapshot').$type<Record<string, unknown>>().notNull(),
+    pdfFileId: uuid('pdf_file_id'),
+    publishedAt: timestamp('published_at', { withTimezone: true, mode: 'date' }),
+    paymentStatus: text('payment_status')
+      .$type<'pending' | 'paid' | 'failed' | 'returned'>()
+      .default('pending')
+      .notNull(),
+    paymentRef: text('payment_ref'),
+  },
+  table => [
+    uniqueIndex('idx_payslips_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_payslips_run_emp').on(table.companyId, table.runId, table.employeeId),
+    index('idx_payslips_emp_period').on(table.companyId, table.employeeId, table.period),
+    index('idx_payslips_run').on(table.companyId, table.runId),
+  ],
+);
+
+export const payslipLines = pgTable(
+  'payslip_lines',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    companyId: uuid('company_id').notNull(),
+    payslipId: uuid('payslip_id').notNull(),
+    runId: uuid('run_id').notNull(),
+    employeeId: uuid('employee_id').notNull(),
+    componentCode: text('component_code').notNull(),
+    kind: text('kind')
+      .$type<'earning' | 'deduction' | 'employer_contribution' | 'reimbursement'>()
+      .notNull(),
+    amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+    taxableAmount: numeric('taxable_amount', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    sortOrder: integer('sort_order').default(0).notNull(),
+    ruleRef: text('rule_ref'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    createdBy: uuid('created_by'),
+  },
+  table => [
+    uniqueIndex('idx_payslip_lines_company_id').on(table.companyId, table.id),
+    index('idx_payslip_lines_run_comp').on(table.companyId, table.runId, table.componentCode),
+    index('idx_payslip_lines_emp_run').on(table.companyId, table.employeeId, table.runId),
+    index('idx_payslip_lines_payslip').on(table.companyId, table.payslipId),
+  ],
+);
+
+export const payrollYtd = pgTable(
+  'payroll_ytd',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    companyId: uuid('company_id').notNull(),
+    employeeId: uuid('employee_id').notNull(),
+    fy: text('fy').notNull(),
+    componentCode: text('component_code').notNull(),
+    amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+    lastRunId: uuid('last_run_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex('idx_payroll_ytd_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_payroll_ytd_emp_fy_comp').on(
+      table.companyId,
+      table.employeeId,
+      table.fy,
+      table.componentCode,
+    ),
+  ],
+);
+
+export const tdsComputations = pgTable(
+  'tds_computations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    companyId: uuid('company_id').notNull(),
+    runId: uuid('run_id').notNull(),
+    employeeId: uuid('employee_id').notNull(),
+    regime: text('regime').$type<'new' | 'old'>().notNull(),
+    annualProjection: jsonb('annual_projection').$type<Record<string, unknown>>().notNull(),
+    tdsThisMonth: numeric('tds_this_month', { precision: 14, scale: 2 }).notNull(),
+    tdsYtd: numeric('tds_ytd', { precision: 14, scale: 2 }).notNull(),
+    remainingMonths: integer('remaining_months').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex('idx_tds_computations_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_tds_computations_run_emp').on(table.companyId, table.runId, table.employeeId),
+  ],
+);
+
 export type PayrollPeriod = typeof payrollPeriods.$inferSelect;
 export type NewPayrollPeriod = typeof payrollPeriods.$inferInsert;
 export type PayrollRun = typeof payrollRuns.$inferSelect;
@@ -450,4 +550,12 @@ export type EmployeeLoan = typeof employeeLoans.$inferSelect;
 export type NewEmployeeLoan = typeof employeeLoans.$inferInsert;
 export type LoanInstallment = typeof loanInstallments.$inferSelect;
 export type NewLoanInstallment = typeof loanInstallments.$inferInsert;
+export type Payslip = typeof payslips.$inferSelect;
+export type NewPayslip = typeof payslips.$inferInsert;
+export type PayslipLine = typeof payslipLines.$inferSelect;
+export type NewPayslipLine = typeof payslipLines.$inferInsert;
+export type PayrollYtd = typeof payrollYtd.$inferSelect;
+export type NewPayrollYtd = typeof payrollYtd.$inferInsert;
+export type TdsComputation = typeof tdsComputations.$inferSelect;
+export type NewTdsComputation = typeof tdsComputations.$inferInsert;
 

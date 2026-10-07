@@ -122,4 +122,27 @@ export class StatutoryRulesRepository {
       )
       .orderBy(statutoryRuleSets.key, desc(statutoryRuleSets.version));
   }
+
+  async getActiveRuleSetsForPeriod(
+    db: Database,
+    companyId: string,
+    asOfDate: string,
+  ): Promise<StatutoryRuleSet[]> {
+    return db
+      .select()
+      .from(statutoryRuleSets)
+      .where(
+        and(
+          eq(statutoryRuleSets.companyId, companyId),
+          eq(statutoryRuleSets.status, 'active'),
+          isNull(statutoryRuleSets.deletedAt),
+          lte(statutoryRuleSets.effectiveFrom, asOfDate),
+          or(
+            isNull(statutoryRuleSets.effectiveTo),
+            gte(statutoryRuleSets.effectiveTo, asOfDate),
+          ),
+        ),
+      )
+      .orderBy(statutoryRuleSets.key, desc(statutoryRuleSets.version));
+  }
 }
