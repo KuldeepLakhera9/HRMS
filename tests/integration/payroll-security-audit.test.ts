@@ -176,6 +176,8 @@ describe('Payroll Sprint 4.6 P4-QA-02: Security Review & Log Sanitization Audit'
         'accountNumber',
         'bankAccountNumber',
         'bank_account_number',
+        'uan',
+        'uan_enc',
         'salary',
         'netPay',
         'grossPay',
