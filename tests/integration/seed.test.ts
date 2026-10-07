@@ -79,10 +79,10 @@ describe('Sprint 1.1 Seeding Engine Integration Tests', () => {
     }
   });
 
-  it('allows the seeded super admin to authenticate with Admin@12345678 and receive super_admin role', async () => {
+  it('allows the seeded super admin to authenticate with AdminPass123! and receive super_admin role', async () => {
     const loginResult = await authService.login({
       email: 'admin@orghub.internal',
-      password: 'Admin@12345678',
+      password: 'AdminPass123!',
       ip: '127.0.0.1',
       userAgent: 'Seed-Test-Agent',
       poolOverride: getAppPool(),
@@ -93,6 +93,28 @@ describe('Sprint 1.1 Seeding Engine Integration Tests', () => {
     expect(loginResult.user?.email).toBe('admin@orghub.internal');
     expect(loginResult.user?.roles).toContain('super_admin');
     expect(loginResult.user?.permissions.length).toBe(ALL_PERMISSIONS.length);
+  });
+
+  it('allows seeded role users (HR, Payroll, Employee, Auditor) to authenticate with their assigned passwords', async () => {
+    const roleUsers = [
+      { email: 'hr@orghub.internal', password: 'HrPass123!', expectedRole: 'hr_manager' },
+      { email: 'payroll@orghub.internal', password: 'PayrollPass123!', expectedRole: 'payroll_manager' },
+      { email: 'accountant@orghub.internal', password: 'AccountantPass123!', expectedRole: 'payroll_manager' },
+      { email: 'employee@orghub.internal', password: 'EmpPass123!', expectedRole: 'employee' },
+      { email: 'auditor@orghub.internal', password: 'AuditorPass123!', expectedRole: 'auditor' },
+    ];
+
+    for (const u of roleUsers) {
+      const res = await authService.login({
+        email: u.email,
+        password: u.password,
+        ip: '127.0.0.1',
+        userAgent: 'Seed-Test-Agent',
+        poolOverride: getAppPool(),
+      });
+      expect(res.user?.email).toBe(u.email);
+      expect(res.user?.roles).toContain(u.expectedRole);
+    }
   });
 
   it('provisions starter department hierarchy, designations, grades, and cost centers', async () => {

@@ -18,7 +18,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState('admin@orghub.internal');
-  const [password, setPassword] = useState('Admin@12345678');
+  const [password, setPassword] = useState('AdminPass123!');
   const [showPassword, setShowPassword] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
   const [mfaRequired, setMfaRequired] = useState(false);

@@ -302,34 +302,96 @@ export async function seedDatabase(poolOverride?: pg.Pool): Promise<SeedResult> 
     }
     console.info(`[Seeding Engine] Seeded ${SYSTEM_ROLES.length} system roles and permissions.`);
 
-    // 4. Seed First Super Admin User
+    // 4. Seed Standard Role Users
+    const SEED_USERS = [
+      {
+        email: 'admin@orghub.internal',
+        password: 'AdminPass123!',
+        roleName: 'super_admin',
+        description: 'Super Administrator',
+      },
+      {
+        email: 'orgadmin@orghub.internal',
+        password: 'AdminPass123!',
+        roleName: 'admin',
+        description: 'Organization Administrator',
+      },
+      {
+        email: 'hr@orghub.internal',
+        password: 'HrPass123!',
+        roleName: 'hr_manager',
+        description: 'HR Manager',
+      },
+      {
+        email: 'payroll@orghub.internal',
+        password: 'PayrollPass123!',
+        roleName: 'payroll_manager',
+        description: 'Payroll Manager',
+      },
+      {
+        email: 'accountant@orghub.internal',
+        password: 'AccountantPass123!',
+        roleName: 'payroll_manager',
+        description: 'Accountant / Finance',
+      },
+      {
+        email: 'manager@orghub.internal',
+        password: 'ManagerPass123!',
+        roleName: 'admin',
+        description: 'Reporting Manager',
+      },
+      {
+        email: 'employee@orghub.internal',
+        password: 'EmpPass123!',
+        roleName: 'employee',
+        description: 'Standard Employee Self-Service',
+      },
+      {
+        email: 'contractor@orghub.internal',
+        password: 'ContractorPass123!',
+        roleName: 'contractor',
+        description: 'External Contractor',
+      },
+      {
+        email: 'auditor@orghub.internal',
+        password: 'AuditorPass123!',
+        roleName: 'auditor',
+        description: 'Compliance Auditor',
+      },
+    ];
+
     const adminEmail = 'admin@orghub.internal';
-    const rawAdminPass = 'Admin@12345678';
-    const passwordHash = await hash(rawAdminPass, ARGON2_OPTIONS);
+    let adminUserId = '';
 
-    const userRes = await client.query<{ id: string }>(
-      `INSERT INTO users (id, company_id, email, password_hash, status, mfa_enabled, perm_version, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, 'active', false, 1, now(), now())
-       ON CONFLICT (company_id, email) WHERE deleted_at IS NULL
-       DO UPDATE SET
-         password_hash = EXCLUDED.password_hash,
-         status = 'active',
-         updated_at = now()
-       RETURNING id`,
-      [generateUuidV7(), companyId, adminEmail, passwordHash],
-    );
+    for (const u of SEED_USERS) {
+      const passwordHash = await hash(u.password, ARGON2_OPTIONS);
+      const userRes = await client.query<{ id: string }>(
+        `INSERT INTO users (id, company_id, email, password_hash, status, mfa_enabled, perm_version, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, 'active', false, 1, now(), now())
+         ON CONFLICT (company_id, email) WHERE deleted_at IS NULL
+         DO UPDATE SET
+           password_hash = EXCLUDED.password_hash,
+           status = 'active',
+           updated_at = now()
+         RETURNING id`,
+        [generateUuidV7(), companyId, u.email, passwordHash],
+      );
 
-    const adminUserId = userRes.rows[0]!.id;
-
-    // Assign super_admin role
-    const superAdminRoleId = roleMap.get('super_admin')!;
-    await client.query(
-      `INSERT INTO user_roles (id, company_id, user_id, role_id, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, now(), now())
-       ON CONFLICT (company_id, user_id, role_id) DO NOTHING`,
-      [generateUuidV7(), companyId, adminUserId, superAdminRoleId],
-    );
-    console.info(`[Seeding Engine] Seeded super admin: ${adminEmail} (password: ${rawAdminPass})`);
+      const userId = userRes.rows[0]!.id;
+      if (u.email === adminEmail) {
+        adminUserId = userId;
+      }
+      const targetRoleId = roleMap.get(u.roleName);
+      if (targetRoleId) {
+        await client.query(
+          `INSERT INTO user_roles (id, company_id, user_id, role_id, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, now(), now())
+           ON CONFLICT (company_id, user_id, role_id) DO NOTHING`,
+          [generateUuidV7(), companyId, userId, targetRoleId],
+        );
+      }
+      console.info(`[Seeding Engine] Seeded user: ${u.email} (${u.roleName}) (password: ${u.password})`);
+    }
 
     // 5. Seed Core Organization Hierarchy & Reference Entities
     const departmentDefinitions = [

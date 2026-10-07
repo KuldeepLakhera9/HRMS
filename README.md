@@ -46,14 +46,22 @@ Visit the dashboard at `http://localhost:3000`.
 
 ## 2. Seed Credentials & Role Matrix
 
-| Email | Password | Role | MFA Enforced | Access Level |
-|---|---|---|---|---|
-| `admin@orghub.internal` | `AdminPass123!` | `super_admin` | Yes | Unrestricted platform access |
-| `hr@orghub.internal` | `HrPass123!` | `hr_manager` | Yes | Employee master, bulk import, org hierarchy |
-| `accountant@orghub.internal` | `AccountantPass123!` | `accountant` | Yes | Financial records, salary structures, payouts |
-| `manager@orghub.internal` | `ManagerPass123!` | `manager` | No | Team approvals, change requests, direct reports |
-| `employee@orghub.internal` | `EmpPass123!` | `employee` | No | Employee self-service, profile, documents |
-| `auditor@orghub.internal` | `AuditorPass123!` | `auditor` | No | Read-only compliance audit trail inspection |
+The local database seed (`pnpm db:seed`) provisions the organization structure along with pre-configured accounts for all key system roles.
+
+| Role Name | Email Address | Password | MFA in Prod | Development / Seed Access Level |
+|---|---|---|:---:|---|
+| **Super Admin** | `admin@orghub.internal` | `AdminPass123!` | Yes | Unrestricted platform access across all modules & settings |
+| **Org Admin** | `orgadmin@orghub.internal` | `AdminPass123!` | Yes | Organization setup, user administration, RBAC, audit trails |
+| **HR Manager** | `hr@orghub.internal` | `HrPass123!` | Yes | Employee master, document vault, onboarding, leave & shifts |
+| **Payroll Manager** | `payroll@orghub.internal` | `PayrollPass123!` | Yes | Salary structures, monthly payroll runs, Form 24Q, bank payouts |
+| **Accountant / Finance** | `accountant@orghub.internal` | `AccountantPass123!` | Yes | Financial ledgers, disbursements, statutory registers |
+| **Reporting Manager** | `manager@orghub.internal` | `ManagerPass123!` | No | Team approvals, leave approval, attendance regularizations |
+| **Employee (ESS)** | `employee@orghub.internal` | `EmpPass123!` | No | Employee self-service, profile, attendance punch, payslips |
+| **Contractor** | `contractor@orghub.internal` | `ContractorPass123!` | No | Contractor self-service, company calendar, personal profile |
+| **Auditor** | `auditor@orghub.internal` | `AuditorPass123!` | Yes | Read-only compliance audit trail inspection, immutable registers |
+
+> **Note on MFA in Local Development:**
+> Multi-Factor Authentication (MFA/TOTP) is enforced in production for all privileged roles (`super_admin`, `admin`, `hr_manager`, `payroll_manager`, `auditor`). In local development and automated testing environments, seeded accounts start with `mfa_enabled = false` to enable instant one-click login. TOTP setup can be activated at any time from user security settings.
 
 ---
 
