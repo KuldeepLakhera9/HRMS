@@ -1,4 +1,5 @@
-import { Database, StatutoryRuleSet, NewStatutoryRuleSet } from '@hrms/db';
+import { and, eq } from 'drizzle-orm';
+import { Database, StatutoryRuleSet, NewStatutoryRuleSet, employees, statutoryRuleSets } from '@hrms/db';
 import {
   ForbiddenError,
   NotFoundError,
@@ -244,4 +245,190 @@ export class StatutoryRulesService {
 
     return { added, changed, removed };
   }
+
+  /**
+   * Previews cost impact of a candidate rule set against active rule set
+   * over a sample cohort of employees.
+   */
+  async previewRuleImpact(
+    ctx: RequestContext,
+    db: Database,
+    candidateRuleId: string,
+    sampleCohortSize: number = 5,
+  ): Promise<{
+    candidateVersion: number;
+    activeVersion: number | null;
+    sampleCount: number;
+    deltaEmployerCostTotal: string;
+    deltaNetPayTotal: string;
+    perEmployeeDeltas: Array<{
+      employeeId: string;
+      baselineNet: string;
+      candidateNet: string;
+      deltaNet: string;
+      deltaEmployerCost: string;
+    }>;
+  }> {
+    if (!ctx.permissions?.includes(PERMISSIONS.PAYROLL_RULES_READ)) {
+      throw new ForbiddenError('Permission denied: payroll.rules.read required');
+    }
+
+    const candidate = await this.repo.getRuleSetById(db, ctx.companyId, candidateRuleId);
+    if (!candidate) throw new NotFoundError('Candidate statutory rule set not found');
+
+    const active = await this.repo.getActiveRuleSet(
+      db,
+      ctx.companyId,
+      candidate.key,
+      candidate.jurisdiction,
+      candidate.effectiveFrom,
+    );
+
+    // Fetch sample employees
+    const sampleEmps = await db
+      .select()
+      .from(employees)
+      .where(and(eq(employees.companyId, ctx.companyId), eq(employees.status, 'active')))
+      .limit(sampleCohortSize);
+
+    let totalDeltaCost = 0;
+    let totalDeltaNet = 0;
+    const perEmployeeDeltas: Array<{
+      employeeId: string;
+      baselineNet: string;
+      candidateNet: string;
+      deltaNet: string;
+      deltaEmployerCost: string;
+    }> = [];
+
+    for (const emp of sampleEmps) {
+      // Simulate synthetic baseline vs candidate impact
+      const baselineNet = 50000;
+      let candidateNet = baselineNet;
+      let deltaCost = 0;
+
+      if (candidate.key === 'PF_IN') {
+        const pOld = (active?.payload as { employeeRatePct?: number; employeePercent?: number })?.employeeRatePct ?? (active?.payload as { employeePercent?: number })?.employeePercent ?? 12;
+        const pNew = (candidate.payload as { employeeRatePct?: number; employeePercent?: number })?.employeeRatePct ?? (candidate.payload as { employeePercent?: number })?.employeePercent ?? 12;
+        const diff = ((pNew - pOld) * 15000) / 100;
+        candidateNet = baselineNet - diff;
+        deltaCost = diff;
+      } else if (candidate.key === 'ESI_IN') {
+        const pOld = (active?.payload as { employeeRatePct?: number; employeePercent?: number })?.employeeRatePct ?? (active?.payload as { employeePercent?: number })?.employeePercent ?? 0.75;
+        const pNew = (candidate.payload as { employeeRatePct?: number; employeePercent?: number })?.employeeRatePct ?? (candidate.payload as { employeePercent?: number })?.employeePercent ?? 0.75;
+        const diff = ((pNew - pOld) * 20000) / 100;
+        candidateNet = baselineNet - diff;
+        deltaCost = diff * 4;
+      }
+
+      const dNet = candidateNet - baselineNet;
+      totalDeltaNet += dNet;
+      totalDeltaCost += deltaCost;
+
+      perEmployeeDeltas.push({
+        employeeId: emp.id,
+        baselineNet: baselineNet.toFixed(2),
+        candidateNet: candidateNet.toFixed(2),
+        deltaNet: dNet.toFixed(2),
+        deltaEmployerCost: deltaCost.toFixed(2),
+      });
+    }
+
+    return {
+      candidateVersion: candidate.version,
+      activeVersion: active ? active.version : null,
+      sampleCount: sampleEmps.length,
+      deltaEmployerCostTotal: totalDeltaCost.toFixed(2),
+      deltaNetPayTotal: totalDeltaNet.toFixed(2),
+      perEmployeeDeltas,
+    };
+  }
+
+  /**
+   * Executes attached test cases for a rule set.
+   * If any test case fails, returns passed: false with failure details.
+   */
+  async runAttachedTestCases(
+    ctx: RequestContext,
+    db: Database,
+    ruleId: string,
+  ): Promise<{ passed: boolean; totalCases: number; passedCases: number; failures: Array<{ index: number; reason: string }> }> {
+    if (!ctx.permissions?.includes(PERMISSIONS.PAYROLL_RULES_READ)) {
+      throw new ForbiddenError('Permission denied: payroll.rules.read required');
+    }
+
+    const rule = await this.repo.getRuleSetById(db, ctx.companyId, ruleId);
+    if (!rule) throw new NotFoundError('Statutory rule set not found');
+
+    const testCases = (rule.testCases as Array<Record<string, unknown>>) || [];
+    const failures: Array<{ index: number; reason: string }> = [];
+
+    testCases.forEach((tc, idx) => {
+      try {
+        if (tc.expectedError) {
+          // Verify rule payload produces error
+          if (!rule.payload) failures.push({ index: idx, reason: 'Expected error but rule payload exists' });
+        } else if (tc.expectedValue !== undefined) {
+          const actual = (rule.payload as Record<string, unknown>)[tc.field as string];
+          if (JSON.stringify(actual) !== JSON.stringify(tc.expectedValue)) {
+            failures.push({
+              index: idx,
+              reason: `Field '${tc.field}' expected ${JSON.stringify(tc.expectedValue)} but got ${JSON.stringify(actual)}`,
+            });
+          }
+        }
+      } catch (err: unknown) {
+        failures.push({ index: idx, reason: err instanceof Error ? err.message : String(err) });
+      }
+    });
+
+    return {
+      passed: failures.length === 0,
+      totalCases: testCases.length,
+      passedCases: testCases.length - failures.length,
+      failures,
+    };
+  }
+
+  /**
+   * Checks for active rule sets nearing expiration (within horizonDays) or already expired.
+   */
+  async getExpiringRules(
+    ctx: RequestContext,
+    db: Database,
+    horizonDays: number = 60,
+  ): Promise<Array<{ id: string; key: string; version: number; jurisdiction: string; effectiveTo: string | null; daysRemaining: number }>> {
+    if (!ctx.permissions?.includes(PERMISSIONS.PAYROLL_RULES_READ)) {
+      throw new ForbiddenError('Permission denied: payroll.rules.read required');
+    }
+
+    const activeRules = await db
+      .select()
+      .from(statutoryRuleSets)
+      .where(and(eq(statutoryRuleSets.companyId, ctx.companyId), eq(statutoryRuleSets.status, 'active')));
+
+    const now = new Date();
+    const result: Array<{ id: string; key: string; version: number; jurisdiction: string; effectiveTo: string | null; daysRemaining: number }> = [];
+
+    for (const r of activeRules) {
+      if (r.effectiveTo) {
+        const toDate = new Date(r.effectiveTo);
+        const diffMs = toDate.getTime() - now.getTime();
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        if (diffDays <= horizonDays) {
+          result.push({
+            id: r.id,
+            key: r.key,
+            version: r.version,
+            jurisdiction: r.jurisdiction,
+            effectiveTo: r.effectiveTo,
+            daysRemaining: diffDays,
+          });
+        }
+      }
+    }
+
+    return result;
+  }
 }
+

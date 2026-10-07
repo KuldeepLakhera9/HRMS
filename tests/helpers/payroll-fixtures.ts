@@ -119,11 +119,12 @@ export function ctxFor(
   companyId: string,
   userId: string,
   permissions: string[],
-  opts: { stepUp?: boolean } = {},
+  opts: { stepUp?: boolean; employeeId?: string } = {},
 ): RequestContext {
   return {
     companyId,
     userId,
+    employeeId: opts.employeeId,
     roles: ['test'],
     permissions,
     requestId: `it-${runTag()}`,

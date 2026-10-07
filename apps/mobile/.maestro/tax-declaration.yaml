@@ -1,0 +1,20 @@
+appId: com.hrms.mobile
+---
+# Maestro Flow: Employee Tax Declaration & Regime Comparison
+- launchApp
+- assertVisible: "Tax & Declarations"
+- tapOn: "Tax & Declarations"
+
+# Verify Regime Comparison
+- assertVisible: "Form 122 - Regime Choice"
+- tapOn: "Compare Regimes"
+- assertVisible: "New Tax Regime (Default)"
+- assertVisible: "Old Tax Regime"
+- assertVisible: "Recommendation"
+
+# Declare Section 80C Investment
+- tapOn: "Section 80C"
+- inputText: "150000"
+- tapOn: "Upload Document"
+- tapOn: "Save Declaration"
+- assertVisible: "Declaration Saved Successfully"

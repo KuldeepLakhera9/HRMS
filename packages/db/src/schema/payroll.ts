@@ -733,3 +733,228 @@ export type NewExpenseClaim = typeof expenseClaims.$inferInsert;
 export type ExpenseItem = typeof expenseItems.$inferSelect;
 export type NewExpenseItem = typeof expenseItems.$inferInsert;
 
+export const deductionCatalog = pgTable(
+  'deduction_catalog',
+  {
+    ...baseTenantColumns,
+    code: text('code').notNull(),
+    label: text('label').notNull(),
+    sectionRef: text('section_ref').notNull(),
+    maxLimit: numeric('max_limit', { precision: 14, scale: 2 }),
+    regimes: jsonb('regimes').$type<string[]>().default(['old']).notNull(),
+    requiresProof: boolean('requires_proof').default(true).notNull(),
+    declarationWindowStart: date('declaration_window_start'),
+    declarationWindowEnd: date('declaration_window_end'),
+    proofWindowStart: date('proof_window_start'),
+    proofWindowEnd: date('proof_window_end'),
+    isActive: boolean('is_active').default(true).notNull(),
+  },
+  table => [
+    uniqueIndex('idx_deduction_catalog_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_deduction_catalog_code').on(table.companyId, table.code),
+    index('idx_deduction_catalog_company').on(table.companyId),
+  ],
+);
+
+export const taxDeclarations = pgTable(
+  'tax_declarations',
+  {
+    ...baseTenantColumns,
+    employeeId: uuid('employee_id').notNull(),
+    fy: text('fy').notNull(),
+    regime: text('regime').$type<'new' | 'old'>().default('new').notNull(),
+    regimeFormRef: text('regime_form_ref').default('Form 122'),
+    status: text('status')
+      .$type<'draft' | 'submitted' | 'verified' | 'locked'>()
+      .default('draft')
+      .notNull(),
+    submittedAt: timestamp('submitted_at', { withTimezone: true, mode: 'date' }),
+    previousEmployer: jsonb('previous_employer').$type<Record<string, unknown>>().default({}).notNull(),
+    hraDetails: jsonb('hra_details').$type<Record<string, unknown>>().default({}).notNull(),
+    notes: text('notes'),
+  },
+  table => [
+    uniqueIndex('idx_tax_declarations_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_tax_declarations_emp_fy').on(table.companyId, table.employeeId, table.fy),
+    index('idx_tax_declarations_status').on(table.companyId, table.status),
+  ],
+);
+
+export const taxDeclarationItems = pgTable(
+  'tax_declaration_items',
+  {
+    ...baseTenantColumns,
+    declarationId: uuid('declaration_id').notNull(),
+    deductionCode: text('deduction_code').notNull(),
+    amountDeclared: numeric('amount_declared', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    amountVerified: numeric('amount_verified', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    proofStatus: text('proof_status')
+      .$type<'none' | 'uploaded' | 'verified' | 'rejected'>()
+      .default('none')
+      .notNull(),
+    proofFileId: uuid('proof_file_id'),
+    notes: text('notes'),
+    rejectionReason: text('rejection_reason'),
+    verifiedBy: uuid('verified_by'),
+    verifiedAt: timestamp('verified_at', { withTimezone: true, mode: 'date' }),
+  },
+  table => [
+    uniqueIndex('idx_tax_declaration_items_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_tax_declaration_items_code').on(table.companyId, table.declarationId, table.deductionCode),
+    index('idx_tax_declaration_items_decl').on(table.companyId, table.declarationId),
+  ],
+);
+
+export const statutoryFilings = pgTable(
+  'statutory_filings',
+  {
+    ...baseTenantColumns,
+    type: text('type')
+      .$type<'PF_ECR' | 'ESI_CONTRIBUTION' | 'PT_SUMMARY' | 'LWF_SUMMARY' | 'TDS_RETURN_DATA' | 'TDS_CERTIFICATE_DATA'>()
+      .notNull(),
+    period: text('period').notNull(),
+    fy: text('fy').notNull(),
+    runIds: jsonb('run_ids').$type<string[]>().default([]).notNull(),
+    fileId: uuid('file_id'),
+    totals: jsonb('totals').$type<Record<string, unknown>>().default({}).notNull(),
+    reconciledWithRun: boolean('reconciled_with_run').default(true).notNull(),
+    mismatchDetails: jsonb('mismatch_details').$type<Array<Record<string, unknown>>>().default([]).notNull(),
+    status: text('status')
+      .$type<'generated' | 'reconciled' | 'filed_by_ca' | 'cancelled'>()
+      .default('generated')
+      .notNull(),
+    challanReference: text('challan_reference'),
+    challanDate: date('challan_date'),
+    challanAmount: numeric('challan_amount', { precision: 14, scale: 2 }),
+    notes: text('notes'),
+    generatedBy: uuid('generated_by').notNull(),
+  },
+  table => [
+    uniqueIndex('idx_statutory_filings_company_id').on(table.companyId, table.id),
+    index('idx_statutory_filings_period_type').on(table.companyId, table.type, table.period),
+  ],
+);
+
+export const payrollOpeningBalances = pgTable(
+  'payroll_opening_balances',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    companyId: uuid('company_id').notNull(),
+    employeeId: uuid('employee_id').notNull(),
+    fy: text('fy').notNull(),
+    asOfPeriod: text('as_of_period').notNull(),
+    componentCode: text('component_code').notNull(),
+    amount: numeric('amount', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    tdsDeducted: numeric('tds_deducted', { precision: 14, scale: 2 }).default('0.00').notNull(),
+    pfYtd: numeric('pf_ytd', { precision: 14, scale: 2 }).default('0.00'),
+    esiYtd: numeric('esi_ytd', { precision: 14, scale: 2 }).default('0.00'),
+    ptYtd: numeric('pt_ytd', { precision: 14, scale: 2 }).default('0.00'),
+    source: text('source').default('import').notNull(),
+    importJobId: uuid('import_job_id').notNull(),
+    status: text('status').$type<'active' | 'reverted'>().default('active').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    createdBy: uuid('created_by'),
+    updatedBy: uuid('updated_by'),
+  },
+  table => [
+    uniqueIndex('idx_payroll_opening_balances_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_payroll_opening_balances_unique').on(
+      table.companyId,
+      table.employeeId,
+      table.fy,
+      table.componentCode,
+      table.importJobId,
+    ),
+    index('idx_payroll_opening_balances_emp_fy').on(table.companyId, table.employeeId, table.fy),
+    index('idx_payroll_opening_balances_job').on(table.companyId, table.importJobId),
+  ],
+);
+
+export const reconCycles = pgTable(
+  'recon_cycles',
+  {
+    ...baseTenantColumns,
+    period: text('period').notNull(),
+    runId: uuid('run_id').notNull(),
+    status: text('status').$type<'open' | 'in_review' | 'signed' | 'rejected'>().default('open').notNull(),
+    tolerance: numeric('tolerance', { precision: 14, scale: 2 }).default('1.00').notNull(),
+    signedByCa: uuid('signed_by_ca'),
+    signedByCaAt: timestamp('signed_by_ca_at', { withTimezone: true, mode: 'date' }),
+    signedByFinance: uuid('signed_by_finance'),
+    signedByFinanceAt: timestamp('signed_by_finance_at', { withTimezone: true, mode: 'date' }),
+    summary: jsonb('summary').$type<Record<string, unknown>>().default({}).notNull(),
+  },
+  table => [
+    uniqueIndex('idx_recon_cycles_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_recon_cycles_period_run').on(table.companyId, table.period, table.runId),
+    index('idx_recon_cycles_period').on(table.companyId, table.period),
+  ],
+);
+
+export const reconImports = pgTable(
+  'recon_imports',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    companyId: uuid('company_id').notNull(),
+    cycleId: uuid('cycle_id').notNull(),
+    filename: text('filename').notNull(),
+    columnMapping: jsonb('column_mapping').$type<Record<string, string>>().default({}).notNull(),
+    rowCount: integer('row_count').default(0).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    createdBy: uuid('created_by'),
+  },
+  table => [
+    uniqueIndex('idx_recon_imports_company_id').on(table.companyId, table.id),
+    index('idx_recon_imports_cycle').on(table.companyId, table.cycleId),
+  ],
+);
+
+export const reconDiffs = pgTable(
+  'recon_diffs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    companyId: uuid('company_id').notNull(),
+    cycleId: uuid('cycle_id').notNull(),
+    employeeId: uuid('employee_id').notNull(),
+    componentCode: text('component_code').notNull(),
+    oursAmount: numeric('ours_amount', { precision: 14, scale: 2 }).notNull(),
+    theirsAmount: numeric('theirs_amount', { precision: 14, scale: 2 }).notNull(),
+    diff: numeric('diff', { precision: 14, scale: 2 }).notNull(),
+    category: text('category')
+      .$type<'rounding' | 'rule_difference' | 'input_difference' | 'engine_bug' | 'source_error' | 'timing'>()
+      .default('rounding')
+      .notNull(),
+    status: text('status').$type<'open' | 'explained' | 'accepted' | 'fixed'>().default('open').notNull(),
+    explanation: text('explanation'),
+    explainedBy: uuid('explained_by'),
+    explainedAt: timestamp('explained_at', { withTimezone: true, mode: 'date' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex('idx_recon_diffs_company_id').on(table.companyId, table.id),
+    uniqueIndex('idx_recon_diffs_unique').on(table.companyId, table.cycleId, table.employeeId, table.componentCode),
+    index('idx_recon_diffs_cycle_status').on(table.companyId, table.cycleId, table.status),
+    index('idx_recon_diffs_emp').on(table.companyId, table.employeeId),
+  ],
+);
+
+export type DeductionCatalog = typeof deductionCatalog.$inferSelect;
+export type NewDeductionCatalog = typeof deductionCatalog.$inferInsert;
+export type TaxDeclaration = typeof taxDeclarations.$inferSelect;
+export type NewTaxDeclaration = typeof taxDeclarations.$inferInsert;
+export type TaxDeclarationItem = typeof taxDeclarationItems.$inferSelect;
+export type NewTaxDeclarationItem = typeof taxDeclarationItems.$inferInsert;
+export type StatutoryFiling = typeof statutoryFilings.$inferSelect;
+export type NewStatutoryFiling = typeof statutoryFilings.$inferInsert;
+export type PayrollOpeningBalance = typeof payrollOpeningBalances.$inferSelect;
+export type NewPayrollOpeningBalance = typeof payrollOpeningBalances.$inferInsert;
+export type ReconCycle = typeof reconCycles.$inferSelect;
+export type NewReconCycle = typeof reconCycles.$inferInsert;
+export type ReconImport = typeof reconImports.$inferSelect;
+export type NewReconImport = typeof reconImports.$inferInsert;
+export type ReconDiff = typeof reconDiffs.$inferSelect;
+export type NewReconDiff = typeof reconDiffs.$inferInsert;
+
+

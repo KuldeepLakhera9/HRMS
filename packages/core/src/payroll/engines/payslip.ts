@@ -107,6 +107,8 @@ export interface PayslipCalculationInput {
   ytd?: {
     gross?: string | number | undefined;
     tdsDeducted?: string | number | undefined;
+    openingBalanceEarnings?: string | number | undefined;
+    openingBalanceTds?: string | number | undefined;
   } | undefined;
   taxDeclaration?: {
     regime: 'new' | 'old';
@@ -444,6 +446,8 @@ export function computePayslip(input: PayslipCalculationInput): PayslipCalculati
       remainingMonths: input.taxDeclaration.remainingMonths,
       ytdEarnings: input.ytd?.gross || '0.00',
       ytdTdsDeducted: input.ytd?.tdsDeducted || '0.00',
+      openingBalanceEarnings: input.ytd?.openingBalanceEarnings || '0.00',
+      openingBalanceTds: input.ytd?.openingBalanceTds || '0.00',
       verifiedDeductions: input.taxDeclaration.verifiedDeductions,
       previousEmployerEarnings: input.taxDeclaration.previousEmployerEarnings,
       previousEmployerTds: input.taxDeclaration.previousEmployerTds,
